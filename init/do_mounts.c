@@ -477,6 +477,8 @@ identify_ramdisk_image(int fd, int start_block)
 	lseek(fd, start_block * BLOCK_SIZE, 0);
 	read(fd, buf, size);
 
+	printk("identify_ramdisk_image\n"); /* !!!raf */
+
 	/*
 	 * If it matches the gzip magic numbers, return -1
 	 */
@@ -551,16 +553,23 @@ static int __init rd_load_image(char *from)
 	if (out_fd < 0)
 		goto out;
 
+        printk("rd_load_image: from=%s\n",from); /* !!!raf */
 	in_fd = open(from, O_RDONLY, 0);
+        printk("rd_load_image: in_fd=%x\n",in_fd); /* !!!raf */
 	if (in_fd < 0)
 		goto noclose_input;
+        printk("rd_load_image: goon\n"); /* !!!raf */
 
 	nblocks = identify_ramdisk_image(in_fd, rd_image_start);
 	if (nblocks < 0)
 		goto done;
 
+        printk("rd_load_image: nblocks=%x\n",nblocks); /* !!!raf */
+
 	if (nblocks == 0) {
 #ifdef BUILD_CRAMDISK
+        printk("rd_load_image: build_cramdisk\n"); /* !!!raf */
+
 		if (crd_load(in_fd, out_fd) == 0)
 			goto successful_load;
 #else
@@ -866,6 +875,7 @@ void prepare_namespace(void)
 	do_devfs = 1;
 #endif
 
+	printk("prepare_namespace\n"); /* !!!raf */
 	create_dev("/dev/root", ROOT_DEV, NULL);
 	if (mount_initrd) {
 		if (initrd_load() && ROOT_DEV != MKDEV(RAMDISK_MAJOR, 0)) {

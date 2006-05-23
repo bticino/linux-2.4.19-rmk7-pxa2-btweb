@@ -294,10 +294,13 @@ obj-$(CONFIG_SA1100_WATCHDOG) += sa1100_wdt.o
 obj-$(CONFIG_PXA_WATCHDOG) += sa1100_wdt.o
 obj-$(CONFIG_OMAHA_WATCHDOG) += omaha_wdt.o
 obj-$(CONFIG_SOFT_WATCHDOG) += softdog.o
+obj-$(CONFIG_BIGBUF) += bigbuf.o
+obj-$(CONFIG_BIGBUF1) += bigbuf1.o
 
 # I2C char devices
 obj-$(CONFIG_I2C_DS1307) += ds1307.o
 obj-$(CONFIG_I2C_PCF8563) += pcf8563.o
+obj-$(CONFIG_I2C_TDA9885_MC44BS) += tda9885_mc44bs.o
 obj-$(CONFIG_I2C_24256) += 24256.o
 obj-$(CONFIG_I2C_TC74) += tc74.o
 

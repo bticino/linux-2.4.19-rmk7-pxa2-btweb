@@ -12,6 +12,9 @@
                        this selection only affects Overlay playback on TV set,
                        it doesn't matter if you are using monitor only*/
 
+#undef RGBDAC_DISABLE
+#undef RGB_FROM_CVBS_PATH
+
 /* External variables for window adjustment when Direct Video is on */
 extern u16 g_wDvAdjOvlY[2][4];
 extern int g_iGenDvOn;
@@ -224,7 +227,6 @@ void Tvia_InitOverlay(void)
     /* Restore banking */
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
-
 }
 
 /****************************************************************************
@@ -235,6 +237,9 @@ void Tvia_InitOverlay(void)
 void Tvia_OverlayOn(void)
 {
     u8 b3CE_F7, b3CE_FA;
+    u8 iTmp;
+    u8 iTmpFA,val;
+
 
     /* Save banking */
     b3CE_F7 = In_Video_Reg(0xF7);
@@ -247,6 +252,124 @@ void Tvia_OverlayOn(void)
     /* Restore banking */
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
+
+#ifdef RGBDAC_DISABLE
+   printk("Tvia_OverlayOn RGBDAC disabling");
+//  printk("3cf/bf02.3cf/b1\n");
+   
+//   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+//   iTmpFA = tvia_inb(0x3cf);
+   iTmpFA = In_Video_Reg(0xBF);
+	 
+//   tvia_outb(0x02, 0x3cf);
+   Out_Video_Reg(0xBF,0x02);
+   
+//   tvia_outb(0xB1, 0x3ce);
+//   iTmp = tvia_inb(0x3cf);
+   iTmp = In_Video_Reg(0xB1);
+
+//   printk("3cf/bf02.3cf/b1=%x\n",iTmp);
+   iTmp = (iTmp|0x0f);
+	 
+//   printk("3cf/fa05.3cf/b1=%x\n",iTmp);
+//   tvia_outb(iTmp, 0x3cf);
+   Out_Video_Reg(0xB1,iTmp);
+
+
+//   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+//   tvia_outb(iTmpFA, 0x3cf);
+   Out_Video_Reg(0xBF,iTmpFA);
+
+#endif
+
+#if RGB_FROM_CVBS_PATH
+// Queste istruzioni abilitano SCART on connector
+// che significa che gli RGBDAC usano
+// il segnale che arriva dalla parte CVBS
+// ciò fa sì che non ci siano le interference
+// pur rimanendo accesi gli RGB analog outputs
+// !!!raf
+    /* Save banking */
+    b3CE_F7 = In_Video_Reg(0xF7);
+    b3CE_FA = In_Video_Reg(0xFA);
+    Out_Video_Reg(0xFA, 0x05);
+    iTmp = In_Video_Reg(0x4e);
+	printk("Tvia_OverlayOn: ..3cf/4e=%x\n",iTmp);
+//	iTmp=(iTmp&0x2f)|0x15;
+	iTmp=iTmp|0x10;
+	printk("Tvia_OverlayOn: mofified 3cf/4e =%x\n",iTmp);
+    Out_Video_Reg(0x4e, iTmp);
+    /* Restore banking */
+    Out_Video_Reg(0xF7, b3CE_F7);
+    Out_Video_Reg(0xFA, b3CE_FA);
+//!!!raf
+#endif
+
+#if 0  
+// !!!raf
+    Out_CRT_Reg(0x1f, 0x13); /* to unlock CRT protection */	
+	printk("\nTvia_OverlayOn: CRT protection unlocked\n");
+
+    /* Save banking */
+    b3CE_F7 = In_Video_Reg(0xbf);
+    Out_Video_Reg(0xbf, 0x03);
+
+	iTmp = In_Video_Reg(0xbc);
+	printk("Tvia_OverlayOn: ..3cf/bc=%x\n",iTmp);
+	iTmp=iTmp&0x0e;
+	printk("Tvia_OverlayOn: mofified 3cf/bc =%x\n",iTmp);
+    Out_Video_Reg(0xbc, iTmp);
+	
+    /* Restore banking */
+    Out_Video_Reg(0xbf, b3CE_F7);
+	
+    Out_CRT_Reg(0x1f, 0x00); /* to unlock CRT protection */	
+	
+//!!!raf
+#endif
+
+#if 0 
+// !!!raf
+    Out_CRT_Reg(0x1f, 0x13); /* to unlock CRT protection */	
+	printk("\nTvia_OverlayOn: CRT protection unlocked\n");
+    /* Save banking */
+    b3CE_F7 = In_Video_Reg(0xF7);
+    b3CE_FA = In_Video_Reg(0xFA);
+    Out_Video_Reg(0xF7, 0x00);
+    Out_Video_Reg(0xFA, 0x00);
+
+    iTmp = In_SEQ_Reg(0xdc);
+	printk("Tvia_OverlayOn: ..3c5/dc=%x\n",iTmp);
+	iTmp=(iTmp&0x7f);
+	printk("Tvia_OverlayOn: mofified 3c5/dc =%x\n",iTmp);
+    Out_SEQ_Reg(0xdc, iTmp);
+    /* Restore banking */
+    Out_Video_Reg(0xF7, b3CE_F7);
+    Out_Video_Reg(0xFA, b3CE_FA);
+
+    Out_CRT_Reg(0x1f, 0x00); /* to unlock CRT protection */	
+#endif	
+//!!!raf
+
+
+   // !!!raf
+	 //Bank is 0 
+	 //
+	 
+	 // 3cf/db[4:3] = 01 :  scale up , Duplicate previouse pixel  
+   /* Save banking */
+   b3CE_F7 = In_Video_Reg(0xF7);
+   b3CE_FA = In_Video_Reg(0xFA);
+   Out_Video_Reg(0xF7, 0x00);
+   Out_Video_Reg(0xFA, 0x00);
+
+   Out_Video_Reg_M(0xDB,0x00,~0x18); // 3cf/db[4:3] = 00 :  scale up , 0.5 Linearity approach  
+	 
+   /* Restore banking */
+   Out_Video_Reg(0xF7, b3CE_F7);
+   Out_Video_Reg(0xFA, b3CE_FA);
+
+
 }
 
 /****************************************************************************
@@ -481,8 +604,14 @@ void Tvia_SetOverlayWindow(u16 wLeft, u16 wTop, u16 wRight, u16 wBottom)
  Note: Source here refers to frame buffer, Destination refers to screen.
        Coordation unit is pixel.
  ****************************************************************************/
+typedef u32 DWORD_;
+typedef u16 WORD_;
+typedef u8 BYTE_;
+
 void Tvia_SetOverlayScale(u8 bEnableBob, u16 wSrcXExt, u16 wDstXExt, u16 wSrcYExt, u16 wDstYExt)
 {
+#if 0 
+	  // ADVANTECH - diverso da SDK3
     u32 dwScale;
     u8 b3CE_F7, b3CE_FA;
 
@@ -596,7 +725,170 @@ void Tvia_SetOverlayScale(u8 bEnableBob, u16 wSrcXExt, u16 wDstXExt, u16 wSrcYEx
     /* Restore banking */
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
+
+#else
+
+    // From SDK3
+    DWORD_      dwIncX, dwIniX, dwIncY, dwIniY;
+    BYTE_       b3CE_F7, b3CE_FA;
+    
+    
+    /* Save banking */
+    b3CE_F7 = In_Video_Reg( 0xF7 );
+    b3CE_FA = In_Video_Reg( 0xFA );
+    Out_Video_Reg( 0xF7, 0x00 );
+    Out_Video_Reg( 0xFA, 0x00 );
+    
+    /* X */
+    if ( wSrcXExt == wDstXExt )
+    {
+        dwIncX = 0x1000;
+    }
+    else
+    {
+        dwIncX = ( ( DWORD_ )( wSrcXExt - 1 ) * 0x1000 ) / ( wDstXExt - 1 );
+    }
+    Out_Overlay_Reg( DDA_X_INC_L, ( BYTE_ )dwIncX );
+    Out_Overlay_Reg( DDA_X_INC_H, ( BYTE_ )( dwIncX >> 8 ) );
+    
+    dwIniX = dwIncX << 1;
+    if ( dwIniX >= 0x1000 )
+    {
+        dwIniX = 0;
+    }
+    else
+    {
+        dwIniX = 0x1000 - dwIniX;
+    } 
+    Out_Overlay_Reg( DDA_X_INIT_L, ( BYTE_ )dwIniX );
+    Out_Overlay_Reg( DDA_X_INIT_H, ( BYTE_ )( dwIniX >> 8 ) );
+    
+    
+    /* Y */
+    if ( wSrcYExt == wDstYExt )
+    {
+        dwIncY = 0x1000;
+    }
+    else
+    {
+        dwIncY = ( ( DWORD_ )( wSrcYExt ) * 0x1000 ) / ( wDstYExt + 1 );
+    }
+    
+    if ( !bEnableBob )
+    {
+        /*Disable Bob mode*/
+        if      ( OVERLAY1 == g_wSelOvlEngIndex )
+        {
+            Out_CRT_Reg_M( 0xf3, 0x00, ~0x02 );
+            Out_SEQ_Reg_M( BOB_WEAVE_CTL, 0x0, ~0x5 ); /*Bob/Weave disable*/
+        }
+        else if ( OVERLAY2 == g_wSelOvlEngIndex )
+        {
+            Out_CRT_Reg_M( 0xf3, 0x00, ~0x04 );
+            Out_SEQ_Reg_M( BOB_WEAVE_CTL, 0x0, ~0xA ); /*Bob/Weave disable*/
+        }
+    }
+    else
+    {
+        /*Enable Bob mode*/
+        wSrcYExt = wSrcYExt / 2;
+        
+        if ( wSrcYExt == wDstYExt )
+        {
+            dwIncY = 0x1000;
+        }
+        else
+        {
+            dwIncY = ( ( DWORD_ )( wSrcYExt ) * 0x1000 ) / ( wDstYExt + 1 );
+        }
+        
+        if ( dwIncY <= 0x815 && dwIncY >= 0x7eB )
+        {
+            /* Bob/Weave enable, vertial DDA half density enable */
+            if      ( OVERLAY1 == g_wSelOvlEngIndex )
+            {
+                Out_SEQ_Reg_M( BOB_WEAVE_CTL, 0x5, ~0x5 );
+            }
+            else if ( OVERLAY2 == g_wSelOvlEngIndex )
+            {
+                Out_SEQ_Reg_M( BOB_WEAVE_CTL, 0xA, ~0xA );
+            }
+        }
+        else
+        {
+            /* Bob/Weave enable, vertial DDA half density disable */
+            if      ( OVERLAY1 == g_wSelOvlEngIndex )
+            {
+                Out_SEQ_Reg_M( BOB_WEAVE_CTL, 0x4, ~0x5 );
+            }
+            else if ( OVERLAY2 == g_wSelOvlEngIndex )
+            {
+                Out_SEQ_Reg_M( BOB_WEAVE_CTL, 0x8, ~0xA );
+            }
+        }
+        
+        Out_CRT_Reg_M( 0xE0, 0x08, ~0x08 );
+        if      ( OVERLAY1 == g_wSelOvlEngIndex  )
+        {
+            Out_CRT_Reg_M( 0xF3, 0x02, ~0x02 );
+        }
+        else if ( OVERLAY2 == g_wSelOvlEngIndex  )
+        {
+            Out_CRT_Reg_M( 0xF3, 0x04, ~0x04 );
+        }
+    }
+    
+    /* When DDA is on and data is YUV format and DirectVideo is not on, we should
+     * turn on Y only. */
+    if ( dwIncY < 0x1000                           && 
+        !( In_Overlay_Reg( VIDEO_FORMAT ) & 0x07 ) && 
+        !g_iDvOn[g_wSelOvlEngIndex]                   )
+    {
+        if      ( OVERLAY1 == g_wSelOvlEngIndex )
+        {
+            Out_SEQ_Reg_M( 0xA6, 0x40, ~0x40 );
+        }
+        else if ( OVERLAY2 == g_wSelOvlEngIndex )
+        {
+            Out_SEQ_Reg_M( 0xA6, 0x80, ~0x80 );
+        }
+    }
+    else
+    {
+        if      ( OVERLAY1 == g_wSelOvlEngIndex )
+        {
+            Out_SEQ_Reg_M( 0xA6, 0x00, ~0x40 );
+        }
+        else if ( OVERLAY2 == g_wSelOvlEngIndex )
+        {
+            Out_SEQ_Reg_M( 0xA6, 0x00, ~0x80 );
+        }
+    }
+    
+    Out_Overlay_Reg( DDA_Y_INC_L, ( BYTE_ )( ( WORD_ )dwIncY ) );
+    Out_Overlay_Reg( DDA_Y_INC_H, ( BYTE_ )( ( WORD_ )dwIncY >> 8 ) );
+    
+    dwIniY = dwIncY << 1;
+    if ( dwIniY >= 0x1000 )
+    {
+        dwIniY = 0;
+    }
+    else
+    {
+        dwIniY = 0x1000 - dwIniY;
+    } 
+    Out_Overlay_Reg( DDA_Y_INIT_L, ( BYTE_ )dwIniY );
+    Out_Overlay_Reg( DDA_Y_INIT_H, ( BYTE_ )( dwIniY >> 8 ) );
+    
+    /* Always turn on Y interpolation */
+    Out_Overlay_Reg_M( DISP_CTL_I, 0x00, ~0x20 );
+    
+    /* Restore banking */
+    Out_Video_Reg( 0xF7, b3CE_F7 );
+    Out_Video_Reg( 0xFA, b3CE_FA );
+#endif
 }
+
 
 /****************************************************************************
  Tvia_SetOverlaySrcAddr() specifies Overlay source(frame buffer) coordination.
@@ -798,7 +1090,7 @@ void Tvia_OverlayCleanUp(void)
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
 }
-#if 0
+//#if 0
 /****************************************************************************
  Tvia_Tvia_EnableOverlayDoubleBuffer() enables/disables Tvia 
  CyberPro53xx/52xx Overlay double-buffer feature.
@@ -1028,7 +1320,7 @@ void Tvia_SetOverlayBackBufferAddr(u16 wWhichOverlay, u32 dwOffAddr, u16 wX, u16
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
 }
-#endif
+//#endif
 /****************************************************************************
  Tvia_EnableChromaKey() enables/disables video chroma key.
  in:   bOnOff - 1: enable
@@ -1118,4 +1410,3 @@ void Tvia_SetChromaKey(u32 creflow, u32 crefhigh)
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
 }
-

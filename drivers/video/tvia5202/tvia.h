@@ -11,7 +11,7 @@
 typedef unsigned char u8;
 typedef unsigned short u16;
 */
-#define TOTAL_MODES_5202 2
+#define TOTAL_MODES_5202 3
 
 /* this part are the same in 5202*/
 #define   SEQCOUNT  0x05
@@ -42,7 +42,11 @@ typedef struct _ModeInit {
   All color depth (8/16/24 bpp) with same resolution use same TV Registers.
 */
 
-#define REG_TV_SIZE_5202	(133*2)
+#define REG_TV_SIZE_5202      141*2   // Counted on TV720x576x50
+															// for 640x480 (144*2) 
+															// orig !!!raf	(133*2)
+
+
 
 typedef struct _TVRegisters {
     u16 TVRegs[REG_TV_SIZE_5202];

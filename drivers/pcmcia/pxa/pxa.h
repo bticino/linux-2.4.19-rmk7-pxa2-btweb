@@ -182,8 +182,12 @@ static inline u_int pxa_pcmcia_cmd_time(u_int mem_clk_10khz,
 
 /* Default PC Card Common Memory timings*/
                                          
-#define PXA_PCMCIA_5V_MEM_ACCESS  (250)
+//#define PXA_PCMCIA_5V_MEM_ACCESS  (250)
+#define PXA_PCMCIA_5V_MEM_ACCESS  (600) 
+									// !!!parm allungato il timing
 #define PXA_PCMCIA_3V_MEM_ACCESS  (250)
+
+
 
 /* Atrribute Memory timing - must be constant via PC Card standart*/
  

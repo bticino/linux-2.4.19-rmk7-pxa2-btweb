@@ -12,4 +12,5 @@
 
 extern int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI);
 extern int ReleaseDecoder7114(int nWhichDecoder);
+extern u8 DecoderTest(u8 type, u8 index, u8 val);
 #endif

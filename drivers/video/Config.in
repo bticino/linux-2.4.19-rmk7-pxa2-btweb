@@ -60,6 +60,9 @@ if [ "$CONFIG_FB" = "y" ]; then
      fi
    fi
    dep_tristate '  CyberPro 2000/2010/5000 support' CONFIG_FB_CYBER2000 $CONFIG_PCI
+
+   tristate '  TVIA CyberPro 5202 frame buffer and grabbing (decoder SAA7114: I port) support' CONFIG_FB_CP5202_BT  $CONFIG_ARCH_PXA
+
    if [ "$CONFIG_APOLLO" = "y" ]; then
       define_bool CONFIG_FB_APOLLO y
    fi

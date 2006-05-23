@@ -51,6 +51,13 @@
 #include <video/fbcon-cfb16.h>
 #include <video/fbcon-cfb24.h>
 
+//CARLOS DMA
+#include <asm/dma.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <asm/siginfo.h>
+//CARLOS DMA END
+
 /* Define some data structure and the mode table*/
 #include "tviafb.h"
 #include "tvia5202-ioctl.h"
@@ -60,7 +67,11 @@
 #endif
 
 #define VMEM_BASEADDR	0x14000000
-#define VMEM_SIZE		0x800000
+#define VMEM_SIZE		0x800000 /* 0x400000 */
+#define VMEM_HIGH_MEMORY_63MB 	0xA3F00000 /* 63-simo MB */
+#define MEM_FOR_MOTION_JPEG 320*240*2
+//#define MEM_FOR_MOTION_JPEG 320
+
 
 #ifdef CONFIG_PM
 static struct pm_dev *fb_pm_dev=NULL;
@@ -90,14 +101,18 @@ static void debug_printf(char *fmt, ...)
 /*-------------------------------------------------------
  *    Defaults  mode
  *-------------------------------------------------------*/
-#define DEFAULT_XRES	640	//800
-#define DEFAULT_YRES	480	//600
+//#define DEFAULT_XRES	640	//800
+//#define DEFAULT_YRES	480	//600
+#define DEFAULT_XRES	720	//800
+#define DEFAULT_YRES	576     //600
+
 #define DEFAULT_BPP	16
 
 /*------------------------------------------------------
 *	Global variable
 *------------------------------------------------------*/
 volatile unsigned char *CyberRegs;       /* mapped I/O base */
+volatile unsigned char *Buffer_Motion_Jpeg;    /* mapped I/O base */
 unsigned long fb_mem_addr;
 unsigned short x_res;
 static struct display global_disp;      /*default display */
@@ -106,10 +121,30 @@ static struct tviafb_par current_par;   /*record current configuration */
 static struct display_switch *dispsw;
 static struct fb_var_screeninfo init_var;      /*initilization data */
 static struct fb_ops tviafb_ops;
+	
+//CARLOS DMA
+static int w_dma_ch, r_dma_ch;
+static int w_dma_ch_flag = 0;
+static int r_dma_ch_flag = 0;
+static TVIA5202_DMACONF WConf;
+static TVIA5202_DMACONF RConf;
+static DECLARE_WAIT_QUEUE_HEAD(r_queue);
+static DECLARE_WAIT_QUEUE_HEAD(w_queue);
+/* DEBUG */
+//static int org[(320*240*2)+7];
+extern unsigned char btweb_bigbuf[];
+extern unsigned char btweb_bigbuf1[];
+//static int dst[(320*240*2)+7];
+static int orga, dsta;
+//END CARLOS DMA
 
 /*-------------------------------------------------------
 *	Prototypes
 *--------------------------------------------------------*/
+static int Tvia_DMAReadFrame(void);
+static int Tvia_DMAWriteFrame(void);
+
+
 /*Hardware cursor founctions*/
 static void tvia_init_hwcursor(void);
 static int tviafb_get_fix_cursorinfo(struct fb_fix_cursorinfo *fix,
@@ -325,6 +360,149 @@ static void EnableChip(void)
     SetDACPower(OFF);
 }
 
+static int TestChip(void)
+{
+    int idx;
+    u8 bTmp;
+  	u8 tmp;
+
+
+  	/* Wake up the chip */
+    printk("TestChip: 46e8=0x18\n");
+    tvia_outb(0x18, 0x46e8); // orig 0x18 //!!!rob 0x10
+    udelay(1000);
+    printk("TestChip: 102=0x01\n");
+    tvia_outb(0x01, 0x102);
+    udelay(1000);
+ 
+    printk("TestChip: 102 read not VLIO mode because NO_BE_MODE not already configured !!\n");
+	for(idx=0;idx<20;idx++){
+      bTmp = tvia_inb_novlio(0x102);
+      if (bTmp&0x01)
+		break;
+      printk("Retry N.%i\n",idx);
+      udelay(1000);
+    }
+    if (idx==20){
+	  printk("TestChip: 102 read NOT read\n");
+	  return 1;
+	}
+
+	printk("TestChip: END SETUP 46e8=0x08\n");
+    tvia_outb(0x08, 0x46e8);//!!!rob 0x10
+    udelay(1000);     
+
+	/* Enable linear address */
+	printk("Enable linear address!\n");
+	tvia_outb(0x33, 0x3ce);
+	tvia_outb(0x01, 0x3cf);
+    debug_printf("tviafb: enable linear address\n");
+
+	
+    /* Set NO_BE_MODE */	
+//	printk("BANKING\n");
+//	tvia_outb(0x33, 0x3ce);
+//	tvia_outb(0x40, 0x3cf); /* set the banking */
+	
+//	printk("NO_BE_MODE setting\n");
+//	tvia_outb(0x3c, 0x3ce);
+//	tvia_outb(0x40, 0x3cf); /* set NO_BE_MODE */
+	
+//	printk("NO_BE_MODE - verify\n");
+//	if(tvia_inb(0x3cf) != 0x40)
+//	{
+	    //tvia_outb(0x33, 0x3ce);
+        //tvia_outb(0x00, 0x3cf);
+	    //return 1;
+	//}
+	
+	//printk("CLEAR BANKING\n");
+	//tvia_outb(0x33, 0x3ce);
+	//tvia_outb(0x00, 0x3cf);  /* clear the banking */
+
+
+	
+/*
+	printk("BYTE enable mode ?\n");
+	tvia_outb(0x33, 0x3ce);
+	printk("1BYTE enable mode ?\n");
+	tvia_outb(0x45, 0x3cf);
+	printk("BYTE enable mode - selection bank\n");
+	tvia_outb(0x3c, 0x3ce);
+	tmp=tvia_inb(0x3cf);
+	tmp|=0x40;
+	tvia_outb(tmp, 0x3cf);
+ 	printk("BYTE enable mode - done\n");
+	tvia_outb(0x33, 0x3ce);
+	tvia_outb(0x05, 0x3cf);
+	printk("BYTE enable mode - selection bank back\n");
+*/	
+	
+    printk("TestChip: 3ce=0x95\n");
+    tvia_outb(0x95, 0x3ce);
+    udelay(1000);
+
+    printk("TestChip: 3ce read\n");
+    for(idx=0;idx<20;idx++){
+      bTmp = tvia_inb(0x3ce);
+      if (bTmp==0x95)
+	break;
+      udelay(1000);
+    }
+    if (idx==20)
+      return 2;
+
+    printk("TestChip: 3cf=0x95\n");
+    tvia_outb(0x5a, 0x3cf);
+    udelay(1000);
+
+    printk("TestChip: 3cf read\n");
+    for(idx=0;idx<20;idx++){
+      bTmp = tvia_inb(0x3cf);
+      if (bTmp==0x5a)
+	break;
+      udelay(1000);
+    }
+    if (idx==20)
+      return 3;
+
+	
+    printk("TestChip: Lettura identificativo\n");
+    tvia_outw(0x0033,0x3ce);
+    printk("TestChip: Lettura identificativo1\n");
+    tvia_outb(0x91, 0x3ce);
+    printk("TestChip: Lettura identificativo2\n");
+    bTmp = tvia_inb(0x3cf);
+    printk("TestChip: Lettura identificativo FIRST BYTE=%x\n",bTmp);
+
+    if (bTmp!=0xa3){
+      printk("TestChip: Lettura identificativo FIRST BYTE ERRATO\n");
+      return 4;
+    }
+
+    tvia_outb(0x92, 0x3ce);
+    printk("TestChip: Lettura identificativo3\n");
+    bTmp = tvia_inb(0x3cf);
+    printk("TestChip: Lettura identificativo SECOND BYTE=%x\n",bTmp);
+
+    if (bTmp!=0x0e){
+      printk("TestChip: Lettura identificativo SECOND BYTE ERRATO\n");
+      return 4;
+    }
+
+    tvia_outb(0x93, 0x3ce);
+    printk("TestChip: Lettura identificativo4\n");
+    bTmp = tvia_inb(0x3cf);
+    printk("TestChip: Lettura identificativo THIRD BYTE=%x\n",bTmp);
+
+    if (bTmp!=0x02){
+      printk("TestChip: Lettura identificativo THIRD BYTE ERRATO\n");
+      return 4;
+    }
+	
+    return 0;
+}
+
 static void CleanUpReg(void)
 {
     /*Unlock CRT
@@ -367,6 +545,7 @@ static void InitChip(void)
 
     bpTVIAModeReg = TVIAModeReg_5202[INIT_MODE];
 
+    printk("InitChip\n");
     /*CYBER5000SG */
     tvia_outb(0x70, 0x3ce);
     tvia_outb(0xCB, 0x3cf);     /*reset sequencer */
@@ -383,10 +562,12 @@ static void InitChip(void)
 
     for (i = 0; i < 10; i++) {
 #ifdef __arm__
+
 		do {
 			timedelay(1000);
 			tmp = tvia_inb(0x3da);
 		} while((tmp & 0x08) != 0);
+
 		
 		do {
 			timedelay(1000);
@@ -398,7 +579,7 @@ static void InitChip(void)
 #endif
     }
 
-
+    printk("SetExtSGReg()\n");
     SetExtSGReg(ExtSGRegData_5202, sizeof(ExtSGRegData_5202) / 2);
 
     tvia_outb(0x70, 0x3ce);
@@ -407,6 +588,7 @@ static void InitChip(void)
     tvia_outb(0x36, 0x3c4);
     tvia_outb(0x3D, 0x3c5);     /*activate SG/SDRAM initial cycle */
 
+    printk("SGRAM init\n");
     /* wait for SGRAM initializaion stable */
     for (i = 0; i < 10; i++) {  /* wait for 15 CRT vertical sync */
 #ifdef __arm__
@@ -427,6 +609,16 @@ static void InitChip(void)
 
     tvia_outb(0x70, 0x3ce);
     tvia_outb(0x0B, 0x3cf);     /*set sequencer */
+
+    { 
+      /* !!!raf */
+      u8 bTmp;
+
+      tvia_outb(0x70, 0x3ce);     
+      bTmp = tvia_inb(0x3cf);
+      printk("Tvia-5202: 3cf/70=%x\n",bTmp);
+    }
+
 
     /*choose voltage reference */
     tvia_outb(0x56, 0x3ce);
@@ -451,13 +643,16 @@ static void PostRoutine(void)
 
     /*clean up some reigsters in case warm boot */
     CleanUpReg();
-
+//!!!rob
+printk("CleanUpReg() pass");
     InitChip();                 /* initialize to 800x600x16 @60Hz mode */
 }
 
 static void tvia_init_hw(void)
 {
     EnableChip();
+//!!!rob 
+printk("EnableChip() pass\n");
     PostRoutine();
 }
 
@@ -864,7 +1059,44 @@ static void EnableTV(u16 iOnOff)
         if (ReadTVReg(0xE438) & 0x1000) /*1: NTSC; 0: PAL */
             tvia_outb(iTmp | 0x04, 0x3cf);
         else
-            tvia_outb(iTmp | 0x05, 0x3cf);
+		{
+//		  printk("EnableTV PAL but Disable RGB DAC and SCART\n");
+//          tvia_outb((iTmp|0x25)&0x2f, 0x3cf);   // Disable RGB DAC and SCART
+//		  printk("EnableTV PAL\n");
+//          tvia_outb(iTmp | 0x05, 0x3cf); 
+//		  printk("EnableTV PAL but all the other q\n");
+//          tvia_outb(0x4E, 0x3ce);
+//          tvia_outb(0xeb, 0x3cf);
+ 		  printk("EnableTV PAL ??? iTmp=%x\n",iTmp);
+		  iTmp=(iTmp&0x2f)|0x15;
+//		  iTmp=iTmp|0xff;
+ 		  printk("iTmp=%x\n",iTmp);
+          tvia_outb(iTmp | 0x25, 0x3cf); 
+
+/*
+ 		  printk("Test RGB\n");
+  		  tvia_outb(0xF7, 0x3ce);     // Banking I/O control 
+		  tvia_outb(0x00, 0x3cf);
+  		  tvia_outb(0xFA, 0x3ce);     // Banking I/O control 
+		  tvia_outb(0x01, 0x3cf);
+
+  		  tvia_outb(0x4d, 0x3ce);     // test rgb 
+		  tvia_outb(0x20, 0x3cf);
+
+  		  tvia_outb(0xF7, 0x3ce);     // Banking I/O control 
+		  tvia_outb(0x00, 0x3cf);
+  		  tvia_outb(0xFA, 0x3ce);     // Banking I/O control 
+		  tvia_outb(0x00, 0x3cf);
+
+		  tvia_outb(0xd0, 0x3ce);     // test rgb Blu val 
+		  tvia_outb(0x70, 0x3cf);
+		  tvia_outb(0xcf, 0x3ce);     // test rgb Green val 
+		  tvia_outb(0x70, 0x3cf);
+		  tvia_outb(0xce, 0x3ce);     // test rgb Red val 
+		  tvia_outb(0x70, 0x3cf);
+*/		  
+		  
+		  }
     } else {
         tvia_outb(0x4E, 0x3ce);
         tvia_outb(tvia_inb(0x3cf) & ~0x04, 0x3cf);
@@ -875,10 +1107,19 @@ static void EnableTV(u16 iOnOff)
 static void TVOn(u16 iOnOff)
 {
     if (iOnOff == ON) {
-        tvia_outb(0x5C, 0x3ce);
-        tvia_outb(tvia_inb(0x3cf) | 0x20, 0x3cf);
 
+     	printk("TVOn\n");
+	  
+        tvia_outb(0x5C, 0x3ce);
+        tvia_outb(tvia_inb(0x3cf) | 0x20, 0x3cf);    //ORIG 
+
+//	        tvia_outb(tvia_inb(0x3cf) & ~0x20, 0x3cf); //!!!raf
+	  
+	  
         if (current_par.device_id == 0x5000) {
+
+            printk("TVOn: id 5000\n");
+		  
             tvia_outb(0xFA, 0x3ce);
             tvia_outb(0x05, 0x3cf);
             tvia_outb(0x4e, 0x3ce);
@@ -1021,7 +1262,10 @@ static void SetScartTV(u16 iOnOff)
         tvia_outb(0xFA, 0x3ce);
         tvia_outb(0x05, 0x3cf); /*banking register */
         tvia_outb(0x4E, 0x3ce);
-        tvia_outb(tvia_inb(0x3cf) | 0x90, 0x3cf);       /*bits 7 and 4 */
+
+	  tvia_outb(tvia_inb(0x3cf) | 0x90, 0x3cf);       /*bits 7 and 4 */
+// !!!raf  printk("SetScartTV: Disable DAC RGB out\n");
+// !!!raf  tvia_outb(tvia_inb(0x3cf) | 0xB0, 0x3cf);       /*bits 7, 5 and  4 */
         //tvia_outb(0x16, 0x3ce);
         //tvia_outb(0x0E, 0x3cf);
 
@@ -1053,9 +1297,12 @@ static void ProgramTV(void)
   /*-------------------------------------
   |*  TV Out Programming  
   -------------------------------------*/
-    if (init_var.xres==640 && init_var.yres==480) {
-        bpTVReg = TVModeReg_5202_SDRAM[INIT_MODE];
-        reg_tv_size = REG_TV_SIZE_5202;
+    //if (init_var.xres==640 && init_var.yres==480) { // !!!raf
+    if (init_var.xres==720 && init_var.yres==576) {
+    bpTVReg = TVModeReg_5202_SDRAM[INIT_MODE];
+//        reg_tv_size = REG_TV_SIZE_5202; //Wei  sizeof(bpTVReg->TVRegs);
+//        reg_tv_size = sizeof(TVModeReg_5202_SDRAM[INIT_MODE].TVRegs);
+        reg_tv_size = REG_TV_SIZE_5202; //Wei  sizeof(bpTVReg->TVRegs);
 
         if(bpTVReg==NULL) {
             EnableTV(OFF);
@@ -1200,9 +1447,9 @@ static void EnableDigitalRGB(u16 iOnOff)
     else
     {
         tvia_outb(0x1e, 0x3ce);
-        tvia_outb(0x00, 0x3cf);
+        tvia_outb(0x00, 0x3cf); 
         tvia_outb(0x1f, 0x3ce);
-        tvia_outb(0x00, 0x3cf);
+        tvia_outb(0x00, 0x3cf); // RGB digital port disabling
         tvia_outb(0xfa, 0x3ce);
         tvia_outb(0x10, 0x3cf);
         tvia_outb(0x4f, 0x3c4);
@@ -1598,6 +1845,403 @@ static int tviafb_pan_display(struct fb_var_screeninfo *var, int con,
     return 0;
 }
 
+void Tvia_TestVideo(u8 type){
+
+   printk("TestVideo: 3cf/58=0x0f and after 0xff\n");
+   tvia_outb(0x58,0x3ce);
+   udelay(1000);
+   tvia_outb(0x0f,0x3cf);
+   udelay(1000);
+   tvia_outb(0xff,0x3cf);
+   udelay(1000);
+
+}
+
+void DumpTotalTest(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
+   int idx;
+   u8 tmp;
+   u8 iTmpFA,iTmpF7,iTmp; 
+   u16 val16;
+
+  if (type==1) 
+  {
+   printk("Starting DumpTotalTest\n\n");
+   printk("Dumping Tvia Cyberpro 5202\n");
+	
+   tmp=In_Video_Reg(0x33);
+   tmp|=0x40;
+   Out_Video_Reg(0x33,tmp);
+   printk("BYTE enable mode: 3cf/33[6].3cf/3c = %x\n",In_Video_Reg(0x3c));
+   tmp=In_Video_Reg(0x33);
+   tmp &= ~0x40;
+   Out_Video_Reg(0x33,tmp);
+	
+	
+   printk("3cc=%x\n",InByte(0x3CC));
+   printk("3c2=%x\n",InByte(0x3C2));
+
+
+  //   printk("3ba=%x\n",InByte(0x3ba));
+   //   printk("3da=%x\n",InByte(0x3da));
+   //   printk("3c3=%x\n",InByte(0x3ce));
+   //   printk("46e8=%x\n",InByte(0x46e8));
+
+   printk("CRT Registers\n");
+   for(idx=0x10;idx<=0x1f;idx++)
+     printk("3cf/%x=%x\n",idx,In_Video_Reg(idx));
+
+   printk("BUS INTERFACE UNIT REGISTERS\n");
+   for(idx=0x30;idx<=0x3f;idx++)
+     printk("3cf/%x=%x\n",idx,In_Video_Reg(idx));
+
+   printk("ATTRIBUTE REGISTERS\n");
+   for(idx=0x50;idx<=0x5f;idx++)
+     printk("3cf/%x=%x\n",idx,In_Video_Reg(idx));
+
+   printk("SEQUENCER REGISTERS\n");
+   for(idx=0x70;idx<=0x7f;idx++)
+     printk("3cf/%x=%x\n",idx,In_Video_Reg(idx));
+
+   printk("GRAPHICS CONTROL REGISTERS\n");
+   for(idx=0x90;idx<=0x9E;idx++)
+     printk("3cf/%x=%x\n",idx,In_Video_Reg(idx));
+
+   printk("VIDEO AND MEMORY CLOCK REGISTERS\n");
+   for(idx=0xb0;idx<=0xbf;idx++)
+     printk("3cf/%x=%x\n",idx,In_Video_Reg(idx));
+   Out_Video_Reg(0xbf,0x01);
+   for(idx=0xb0;idx<=0xbe;idx++)
+     printk("3cf/bf01.3cf/%x=%x\n",idx,In_Video_Reg(idx));
+   Out_Video_Reg(0xbf,0x02);
+   for(idx=0xb0;idx<=0xba;idx++)
+     printk("3cf/bf02.3cf/%x=%x\n",idx,In_Video_Reg(idx));
+   Out_Video_Reg(0xbf,0x03);
+   for(idx=0xb0;idx<=0xbc;idx++)
+    printk("3cf/bf03.3cf/%x=%x\n",idx,In_Video_Reg(idx));
+ }
+ else if (type==2) // Video 3cf/
+ {
+   printk("Read 3cf/%x=%x\n",index,In_Video_Reg(index));
+ }
+ else if (type==3) // SEQ 3c5/ 
+ {	
+   printk("Read 3c5\n");
+   printk("Read 3c5/%x=%x\n",index,In_SEQ_Reg(index));
+ }
+ else if (type==4) // CRT
+ {
+   printk("Read 3d5\n");
+   *((volatile unsigned char *)(CyberRegs + 0x3d4)) = index;
+   printk("Read 3d5-1\n");
+   val=tvia_inb(0x3d5); 
+	 printk("Read 3d5/%x=%x\n",index,val); // 
+//   printk("Read 3d5/%x=%x\n",index,In_CRT_Reg(index));
+ }
+ else if (type==5) // WR Video 3cf/
+ {
+   Out_Video_Reg(index,val);
+   printk("Written 3cf/%x=%x\n",index,In_Video_Reg(index));
+ }
+ else if (type==6) // WR SEQ 3c5/ 
+ {	
+   Out_SEQ_Reg(index,val);
+   printk("Written 3c5/%x=%x\n",index,In_SEQ_Reg(index));
+ }
+ else if (type==7) // WR CRT
+ {
+   Out_CRT_Reg(index,val);
+   printk("Written 3d5/%x=%x\n",index,In_CRT_Reg(index));
+ }
+ else if (type==8) // Video banking registers 3cf/
+ {
+   printk("3cf/fa05.3cf/4e\n");
+   
+   tvia_outb(0xFA, 0x3ce);     /*Banking I/O control */
+   iTmpFA = tvia_inb(0x3cf);
+   tvia_outb(0x05, 0x3cf);
+   
+   tvia_outb(0x4E, 0x3ce);
+   iTmp = tvia_inb(0x3cf);
+   printk("3cf/fa05.3cf/4e=%x\n",iTmp);
+   iTmp = val;//(iTmp|0x25)&0x2f;
+   printk("3cf/fa05.3cf/4e=%x\n",iTmp);
+   tvia_outb(iTmp, 0x3cf);
+
+   tvia_outb(0xFA, 0x3ce);     /*Banking I/O control */
+   tvia_outb(iTmpFA, 0x3cf);
+   
+   printk("done\n");
+ }
+ else if (type==9) // Reading RGB DAC enabling bit
+ {
+   printk("3cf/bf02.3cf/b1\n");
+   
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   iTmpFA = tvia_inb(0x3cf);
+   tvia_outb(0x02, 0x3cf);
+   
+   tvia_outb(0xB1, 0x3ce);
+   iTmp = tvia_inb(0x3cf);
+   printk("3cf/bf02.3cf/b1=%x\n",iTmp);
+
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   tvia_outb(iTmpFA, 0x3cf);
+   
+   printk("done\n");
+ }
+ else if (type==10) // Changing RGB DAC enabling bit
+ {
+   printk("3cf/bf02.3cf/b1\n");
+   
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   iTmpFA = tvia_inb(0x3cf);
+   tvia_outb(0x02, 0x3cf);
+   
+   tvia_outb(0xB1, 0x3ce);
+   iTmp = tvia_inb(0x3cf);
+   printk("3cf/bf02.3cf/b1=%x\n",iTmp);
+   iTmp = (iTmp&0xc0)|(val&0x3f);
+   printk("3cf/fa05.3cf/b1=%x\n",iTmp);
+   tvia_outb(iTmp, 0x3cf);
+
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   tvia_outb(iTmpFA, 0x3cf);
+   
+   printk("done\n");
+ }
+ else if (type==11) // Dumping TVReg
+ {
+   printk("Dumping with ReadTVReg %x\n",indexword);
+   val16=ReadTVReg(indexword);
+   printk("ReadTVReg: reg[%x]=%x\n",indexword,val16);
+ }
+ else if (type==12) // Writing TVReg
+ {
+   printk("Writing WriteTVReg %x equal to %x\n",indexword,valword);
+   WriteTVReg(indexword,valword);
+   val16=ReadTVReg(indexword);
+   printk("ReadTVReg: reg[%x]=%x\n",indexword,val16);
+ }
+ else if (type==13) // Changing interpolation
+ {
+   //-Bank is 0 
+   //-3cf/db[4:3] = 00 :  scale up , 0.5 Linearity approach  
+   //-3cf/db[4:3] = 01 :  scale up , Duplicate previouse pixel  
+	 
+   iTmpF7 = In_Video_Reg(0xF7);
+   iTmpFA = In_Video_Reg(0xFA);
+   Out_Video_Reg(0xF7, 0x00);
+   Out_Video_Reg(0xFA, 0x00);
+
+	 if (val==0)
+     Out_Video_Reg_M(0xDB,0x00,~0x18); //3cf/db[4:3] = 00 :  scale up , 0.5 Linearity approach  
+	 else 
+     Out_Video_Reg_M(0xDB,0x08,~0x18); //3cf/db[4:3] = 01 :  scale up , Duplicate previouse pixel  
+	 
+   /* Restore banking */
+   Out_Video_Reg(0xF7, iTmpF7);
+   Out_Video_Reg(0xFA, iTmpFA);
+ }
+ else if (type==14) // double buffer
+ {
+	 Tvia_EnableDoubleBuffer(ON);
+ }
+
+/* else if (type==8) // read normal
+ {
+   Out_CRT_Reg(index,val));
+   printk("Written 3d5/%x=%x\n",index,In_CRT_Reg(index));
+ }
+ else if (type==7) // write normal
+ {
+   Out_CRT_Reg(index,val));
+   printk("Written 3d5/%x=%x\n",index,In_CRT_Reg(index));
+ }
+
+ else if (type==8) // read Tv reg 0xB0000
+ {
+//   u16 InTVReg(u32 dwReg)
+//{
+//	return *((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000));
+//}
+
+   printk("Read TV reg %x = %x\n",index,InTVReg(index)); 
+ }
+ else if (type==7) // write normal
+ {
+//   void OutTVReg(u32 dwReg, u16 wIndex){
+//     *((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000)) = wIndex;
+//   } 
+   OutTVReg(index,val);
+   printk("Written 3d5/%x\n",index,In_CRT_Reg(index));
+ }
+ */
+
+}
+
+
+/*-----------------------------------------------------------------------------
+  tvia_testvmem: To test 32 bytes video memory.
+  In:  iBankNum: 0 - 63  (one bank = 64 KB, maximum 64 banks = 4 MB)
+  Out: Return 0 if pass or non-zero if fail
+-----------------------------------------------------------------------------*/
+static unsigned short tvia_testvmem(unsigned short banknum)
+{
+    unsigned short i,flag;
+    unsigned char data0, data1;
+    unsigned char temp0, temp1;
+    unsigned char      *fptemp;
+
+    fptemp = (unsigned char *)current_par.screen_base;
+    fptemp += banknum*64*1024;
+
+    flag = 0;
+
+    data0 = 0x55;
+    data1 = 0xAA;
+    for (i=0; i<16; i++)
+    {
+     *fptemp++ = data0;
+     *fptemp++ = data1;
+    }
+
+
+    fptemp = (unsigned char *)current_par.screen_base;
+
+    fptemp += banknum*64*1024;
+
+    for (i=0; i<16; i++)
+    {
+      temp0 = *fptemp++;
+      temp1 = *fptemp++;
+      if ( (temp0 != data0) || (temp1 != data1) )
+	flag = 1;
+    }
+
+    return flag;
+}
+
+// CARLOS DMA
+/*
+ * Our DMA interrupt handlers
+ */
+static void video_rdma_irq(int ch, void *dev_id, struct pt_regs *regs)
+{
+	TVIA5202_DMACONF *pconf = &RConf;
+	
+	if (DCSR(r_dma_ch) & 0x00000004){
+		DCSR(r_dma_ch) |= 0x00000004; // Clear END Interrupt Bit
+		pconf->height--;
+		if (pconf->height > 0){	
+			DCMD(r_dma_ch) = 0xC0230000 | (pconf->width & 0x00001FFF);
+	
+			/* Lanza acceso DMA */
+			DCSR(r_dma_ch) |= DCSR_RUN;
+		} else{
+			wake_up_interruptible(&r_queue);
+		}
+	}
+	
+	if (DCSR(r_dma_ch) & 0x00000001){
+		printk(" VIDEO DMA READ ERROR INT \n");
+		printk("DTADR=%x DSADR=%x DCSR=%x DCMD=%x \n", DTADR(r_dma_ch), DSADR(r_dma_ch),DCSR(r_dma_ch), DCMD(r_dma_ch));
+		DCSR(r_dma_ch) |= 0x00000001; // Clear ERROR Interrupt Bit
+	}
+}
+
+static void video_wdma_irq(int ch, void *dev_id, struct pt_regs *regs)
+{
+	TVIA5202_DMACONF *pconf = &WConf;
+	
+	if (DCSR(w_dma_ch) & 0x00000004){
+		DCSR(w_dma_ch) |= 0x00000004; // Clear END Interrupt Bit
+		pconf->height--;
+		if (pconf->height > 0){	
+			pconf->dtadr += pconf->pitch;
+			DTADR(w_dma_ch) = pconf->dtadr; /* Alineada a 8 bytes (2:0 = 000)*/
+	
+			DCMD(w_dma_ch) = 0xC0230000 | (pconf->width & 0x00001FFF);	
+	
+			/* Lanza acceso DMA */
+			DCSR(w_dma_ch) |= DCSR_RUN;
+		} else{
+			wake_up_interruptible(&w_queue);
+		}		
+	}
+	else if (DCSR(w_dma_ch) & 0x00000001){		
+		printk(" VIDEO DMA WRITE ERROR INT. \n");
+		printk("DTADR=%x DSADR=%x DCSR=%x DCMD=%x \n", DTADR(w_dma_ch), DSADR(w_dma_ch),DCSR(w_dma_ch), DCMD(w_dma_ch));
+		DCSR(w_dma_ch) |= 0x00000001; // Clear ERROR Interrupt Bit
+	}
+}
+
+static int Tvia_DMAReadFrame()
+{	
+	TVIA5202_DMACONF *pconf = &RConf;
+	
+	//Controla que DMA channel esta parado
+	if ((DCSR(r_dma_ch) & DCSR_STOPSTATE) == 0){
+		printk("Running Previous Video Read DMA Access. DMA CHANNEL=%d\n", r_dma_ch);	 
+		return 1;
+	}
+		
+	/* Config sig. acceso DMA */
+	DCSR(r_dma_ch) = DCSR_NODESC;	/* Configure NO DESC MODE */
+	
+	DTADR(r_dma_ch) = virt_to_bus(orga);
+	//DTADR(r_dma_ch) = 0xa3f00000 + 1*320; // RAFFA PROC BUFFER MEM PXA (DMA)
+	 
+	DSADR(r_dma_ch) = pconf->dsadr; /* Alineada a 8 bytes (2:0 = 000)*/
+	//dsta = (int) ((int)&dst[7] & 0xFFFFFFF8);
+	//DSADR(r_dma_ch) = virt_to_bus(dsta);
+	
+	DCMD(r_dma_ch) = 0xC0230000 | (pconf->width & 0x00001FFF);
+	
+	/* Lanza acceso DMA */
+	DCSR(r_dma_ch) |= DCSR_RUN;
+	
+	wait_event_interruptible(r_queue, RConf.height==0);
+	if(signal_pending(current)){
+		return(-ERESTARTSYS);
+	}		
+	
+	return 0;
+}
+
+
+static int Tvia_DMAWriteFrame()
+{	
+	TVIA5202_DMACONF *pconf = &WConf;
+	
+	//Controla que DMA channel esta parado
+	if ((DCSR(w_dma_ch) & DCSR_STOPSTATE) == 0){
+		printk("Running Previous Video Write DMA Access. DMA CHANNEL=%d\n", w_dma_ch);	 
+		return 1;
+	}	
+	
+	/* Config sig. acceso DMA */
+	DCSR(w_dma_ch) = DCSR_NODESC;	/* Configure NO DESC MODE */
+	
+	DSADR(w_dma_ch) = virt_to_bus(orga);
+	//DSADR(w_dma_ch) = virt_to_bus(pconf->dsadr);
+	
+	DTADR(w_dma_ch) = pconf->dtadr; /* Alineada a 8 bytes (2:0 = 000)*/
+	
+	DCMD(w_dma_ch) = 0xC0230000 | (pconf->width & 0x00001FFF);
+	
+	/* Lanza acceso DMA */
+	DCSR(w_dma_ch) |= DCSR_RUN;
+	
+	wait_event_interruptible(w_queue, WConf.height==0);
+	if(signal_pending(current)){
+		return(-ERESTARTSYS);
+	}
+		
+	return 0;
+}
+// END CARLOS DMA
+
+
 static int tviafb_ioctl(struct inode *inode, struct file *file,
                         u_int cmd, u_long arg, int con,
                         struct fb_info *info)
@@ -1673,6 +2317,7 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 	case FBIO_TVIA5202_InitDecoder: {
 			TVIA5202_DECODER_INFO di;
 			copy_from_user(&di, (void *)arg, sizeof(TVIA5202_DECODER_INFO));
+			printk("Whichdecoder=%x\n",di.nWhichDecoder);
 			i = InitDecoder7114(di.nWhichDecoder, di.nVideoSys, di.nTuner, di.nVBI);
 			return i;
 		}
@@ -1685,6 +2330,7 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 	case FBIO_TVIA5202_SelectCaptureIndex: {
 			u16 wIndex;
 			copy_from_user(&wIndex, (void *)arg, sizeof(u16));
+			printk("FBIO_TVIA5202_SelectCaptureIndex: wIndex=%x\n",wIndex); /* !!!raf */
 			Tvia_SelectCaptureIndex(wIndex);
 			return 0;
 		}
@@ -1764,6 +2410,7 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 		}
 	case FBIO_TVIA5202_SetCapturePath: {
 			TVIA5202_CAPTUREPATH path;
+		  printk("FBIO_TVIA5202_SetCapturePath called\n");
 			copy_from_user(&path, (void *)arg, sizeof(TVIA5202_CAPTUREPATH));
 			Tvia_SetCapturePath(path.bWhichPort, path.bWhichCapEngine);
 			return 0;
@@ -2312,6 +2959,160 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 			copy_to_user((void *)arg, &vs, sizeof(TVIA5202_SYNCLOCKVIDEOSIGNAL));
 			return 0;
 		}
+
+	  // !!!raf ioctl di test
+	case FBIO_TVIA5202_TestVideoMemoryRed: {
+			u8 test_type;
+			copy_from_user(&test_type, (void *)arg, sizeof(u8));
+			Tvia_TestVideo(test_type);
+			return 0;
+		}
+
+	case FBIO_TVIA5202_TestByteDecoder: {
+	  		{
+  			  u8 test_byte;
+		  
+			  TESTDECODER tstdec;
+			  copy_from_user(&tstdec, (void *)arg, sizeof(TESTDECODER));
+
+			  test_byte=DecoderTest(tstdec.type,tstdec.index,tstdec.val);
+
+  			  copy_to_user((void *)arg, &test_byte, sizeof(u8));
+			  return 0;
+			}
+		}
+
+	case FBIO_TVIA5202_DumpTotalTest: {
+      TESTTVIA tsttvia;
+			copy_from_user(&tsttvia, (void *)arg, sizeof(TESTTVIA));
+			DumpTotalTest(tsttvia.type,tsttvia.index,tsttvia.val,tsttvia.indexword,tsttvia.valword);
+			return 0;
+		}
+
+	case FBIO_TVIA5202_3cf_ba_7_down: {
+			u8 tmp,tmpb;
+                        tvia_outb(0xBF, 0x3ce);
+			tmpb=tvia_inb(0x3cf);
+	                tvia_outb(0x00, 0x3cf);
+
+			tmp=In_Video_Reg(0xba);
+			printk("Read 3cf/ba=%x\n",tmp);
+			Out_Video_Reg(0xba,tmp & 0x7f);
+			tmp=In_Video_Reg(0xba);
+
+			tvia_outb(0xBF, 0x3ce);
+	                tvia_outb(tmpb, 0x3cf);
+
+			printk("Written/Read 3cf/ba=%x\n",tmp);
+			return 0;
+		}
+
+	case FBIO_TVIA5202_testvmem: {
+			u8 tmp;
+			int idx,Num_Blocks=64;
+
+			for(idx=0;idx<Num_Blocks;idx++) {
+			  tmp=tvia_testvmem(idx);
+			  printk("testvmem: bank[%x] %x\n",idx,tmp);
+  		        }
+			printk("Tested %i KB\n",Num_Blocks*64);
+			return 0;
+		}
+		
+	// CARLOS DMA
+	case FBIO_TVIA5202_DMAReadRequest: {
+			if (!r_dma_ch_flag){
+				r_dma_ch = pxa_request_dma("video1R", DMA_PRIO_HIGH, 
+						  video_rdma_irq, NULL);
+				if (r_dma_ch < 0){
+					printk("video1 Read DMA Channel not available \n");
+				}
+				//DEBUG
+				else{
+					r_dma_ch_flag = 1;
+					//orga = (int) ((int)&org[7] & 0xFFFFFFF8);
+					orga = (int)btweb_bigbuf; //First bigbuf
+				}
+			} else {
+				printk("WARNING: video1 READ DMA Channel Already in Use \n");
+			}
+			return r_dma_ch;			
+		}
+		
+	case FBIO_TVIA5202_DMAWriteRequest: {
+			if (!w_dma_ch_flag){
+				w_dma_ch = pxa_request_dma("video1W", DMA_PRIO_HIGH, 
+						  video_wdma_irq, NULL);
+				if (w_dma_ch < 0){
+					printk("video1 Write DMA Channel not available \n");
+				}
+				//DEBUG
+				else {
+					w_dma_ch_flag = 1;
+					//orga = (int) ((int)&org[7] & 0xFFFFFFF8); 		
+					orga = (int)btweb_bigbuf1; //Second bigbuf
+				}
+			} else {
+				printk("WARNING: video1 Write DMA Channel Already in Use \n");
+			}
+			return w_dma_ch;
+		}		
+		
+	case FBIO_TVIA5202_DMAReadFree: {
+			if (r_dma_ch_flag){
+				pxa_free_dma(r_dma_ch);
+				r_dma_ch_flag = 0;
+			}
+			return 0;
+		}	
+		
+	case FBIO_TVIA5202_DMAWriteFree: {
+			if (w_dma_ch_flag){
+				pxa_free_dma(w_dma_ch);
+				w_dma_ch_flag = 0;
+			}
+			return 0;
+		}			
+
+	case FBIO_TVIA5202_DMAReadFrame: {	
+			if (r_dma_ch_flag){		
+				copy_from_user(&RConf, (void *)arg, sizeof(TVIA5202_DMACONF));
+		
+				//DEBUG
+				//copy_to_user(RConf.dtadr, (void *)orga, RConf.width*RConf.height);
+		
+				return(Tvia_DMAReadFrame());		
+			} else {
+				printk("ERROR: video1 Read DMA Channel Has Not Been yet Requested \n");
+				return 1;				
+			}
+			
+		}			
+
+	case FBIO_TVIA5202_DMAWriteFrame: {
+			if (w_dma_ch_flag){
+				copy_from_user(&WConf, (void *)arg, sizeof(TVIA5202_DMACONF));
+		
+				//DEBUG
+				//copy_from_user((void *)orga, WConf.dsadr, WConf.width*WConf.height);
+		
+				return (Tvia_DMAWriteFrame());		
+			} else {
+				printk("ERROR: video1 Write DMA Channel Has Not Been yet Requested \n");
+				return 1;
+			}
+		}	
+
+	case FBIO_TVIA5202_DMAReadPolling: {
+			if (r_dma_ch_flag){
+				return(DCSR(r_dma_ch) & DCSR_STOPSTATE);
+			} else {
+				printk("ERROR: video1 Read DMA Channel Has Not Been yet Requested \n");
+				return 0;				
+			}
+		}				
+// END CARLOS DMA		
+
     }
     return -EINVAL;
 }
@@ -2365,6 +3166,88 @@ static int tviafb_mmap(struct fb_info *info, struct file *file,
 	return 0;
 }*/
 
+static int
+tviafb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+{
+	unsigned long start,off,len;
+  	unsigned char *mem;
+    void * phy_buff = VMEM_HIGH_MEMORY_63MB;
+//    static char Buffer_Motion_Jpeg[MEM_FOR_MOTION_JPEG];
+	printk("\ntviafb_mmap 1.1\n");
+    printk("phy_buff=%x\n",phy_buff);
+    Buffer_Motion_Jpeg = (volatile unsigned char *)ioremap(phy_buff, 0x100000);
+	printk("Buffer_Motion_Jpeg = %x\n",Buffer_Motion_Jpeg);
+
+    if(vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
+		return -EINVAL;
+	off = vma->vm_pgoff << PAGE_SHIFT;
+
+////	lock_kernel();	
+//	mem = kmalloc(MEM_FOR_MOTION_JPEG, GFP_KERNEL);
+//	mem = Buffer_Motion_Jpeg;
+//	printk("tviafb_mmap:virt=%x\n",mem);
+//	if (!mem)
+//		return -EINVAL;
+//	phy_buff=virt_to_bus((void*)mem);
+//	printk("tviafb_mmap:phy=%x\n",phy_buff);
+	
+	/* frame buffer memory */
+	start = phy_buff;
+	len   = PAGE_ALIGN((start & ~PAGE_MASK) + MEM_FOR_MOTION_JPEG);
+	printk("tviafb_mmap:4\n");
+	printk("tviafb_mmap:start=%x\n",start);
+	printk("tviafb_mmap:len=%x\n",len);
+
+#if 0
+	if(off >= len)
+	{
+		/* memory mapped io */
+		off -= len;
+		start = current_par.regs_base_p;
+		len   = PAGE_ALIGN((start & ~PAGE_MASK) + 0x000c0000);
+	}
+#endif
+
+//	unlock_kernel();
+
+	printk("tviafb_mmap:5\n");
+	start &= PAGE_MASK;
+	
+
+	if((vma->vm_end - vma->vm_start + off) > len)
+		return -EINVAL;
+
+	printk("tviafb_mmap:6\n");
+	off += start;
+	vma->vm_pgoff = off >> PAGE_SHIFT;
+	
+#if defined(__i386__) || defined(__x86_64__)
+	if(boot_cpu_data.x86 > 3)
+		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
+#elif defined(__arm__) || defined(__mips__)
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	/* This is an IO amp - tell maydump to skip this VMA */
+	vma->vm_flags |= VM_IO;
+#elif defined(__sh__)
+	pgprot_val(vma->vm_page_prot) &= ~_PAGE_CACHABLE;
+#else
+#warning tviafb_mmap: What do we have to do here?
+#endif
+
+	printk("tviafb_mmap:vm_start=%x\n",vma->vm_start);
+	printk("tviafb_mmap:vm_end=%x\n",vma->vm_end);
+	printk("tviafb_mmap:off=%x\n",off);
+	printk("tviafb_mmap:len=%x\n",len);
+
+	if(io_remap_page_range(vma->vm_start, off, 
+				vma->vm_end - vma->vm_start, vma->vm_page_prot))
+		return -EAGAIN;
+
+	printk("tviafb_mmap: OK\n");
+	
+	return 0;
+}
+
 static struct fb_ops tviafb_ops = {
     owner:THIS_MODULE,
     fb_open:tviafb_open,
@@ -2416,14 +3299,14 @@ static int tviafb_switch(int con, struct fb_info *info)
 
 static void tviafb_blank(int blank, struct fb_info *info)
 {
-	volatile unsigned int *ioaddr;
+  //	volatile unsigned int *ioaddr;
 
     if (blank) {
-		ioaddr = (volatile unsigned int *)CPLD_F0_P2V(0x0F000004);
-		*ioaddr = 0x00;
+      //	ioaddr = (volatile unsigned int *)CPLD_F0_P2V(0x0F000004);
+      //	*ioaddr = 0x00;
     } else {
-		ioaddr = (volatile unsigned int *)CPLD_F0_P2V(0x0F000004);
-		*ioaddr = 0x07;
+      //	ioaddr = (volatile unsigned int *)CPLD_F0_P2V(0x0F000004);
+      //	*ioaddr = 0x07;
     }
 
 }
@@ -2515,7 +3398,7 @@ static void __init tviafb_init_fbinfo(void)
 static int fb_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
 {
 	int w, b;
-	volatile unsigned char *ioaddr;
+	//	volatile unsigned char *ioaddr;
 
 	switch (rqst)
 	{
@@ -2529,13 +3412,13 @@ static int fb_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
 			memcpy(cursor_buf, (unsigned char *)current_par.screen_base + 
 				current_par.screen_size - 0x100, 0x100);
 		}
-		ioaddr = (volatile unsigned char *)CPLD_F0_P2V(0x0F000004);
-		*ioaddr = 0x00;
+		//		ioaddr = (volatile unsigned char *)CPLD_F0_P2V(0x0F000004);
+		//*ioaddr = 0x00;
 		break;
 
 	case PM_RESUME:
-		ioaddr = (volatile unsigned char *)CPLD_F0_P2V(0x0F000004);
-		*ioaddr = 0x07;
+	  //ioaddr = (volatile unsigned char *)CPLD_F0_P2V(0x0F000004);
+	  //	*ioaddr = 0x07;
 
     	tvia_outb(0x18, 0x46e8);
     	udelay(1000);
@@ -2598,40 +3481,93 @@ static int fb_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
 
 static int __init tvia5202fb_init(void)
 {
-	volatile unsigned char *ioaddr;
+   //volatile unsigned char *ioaddr;
 	int w, b;
-
-	ioaddr = (volatile unsigned char *)CPLD_F0_P2V(0x0F000004);
-	*ioaddr = 0x07;
+   u8 tmp,iTmpFA,iTmp;
 
 	current_par.device_id = 0x5202;
 	current_par.memtype = 1;
-
 	current_par.palette_size = 256;
+
+    printk("CyberPro5202 INIT 1.6.4\n");
+
+    /* Reset Tvia5202 - gpio45 output */
+    set_GPIO_mode(45 | GPIO_OUT);
+    GPCR(45) = GPIO_bit(45); /* tvia5202 HW reset */
+    printk("CyberPro5202 RESETTED .5 sec\n");
+    udelay(100000);            
+    udelay(100000);           /* 0.1 sec */ 
+    udelay(100000);           /* 0.1 sec */ 
+    udelay(100000);           /* 0.1 sec */ 
+    udelay(100000);           /* 0.1 sec */ 
+    GPSR(45) = GPIO_bit(45); /* tvia5202 HW reset end */
+    printk("CyberPro5202 GO!!!\n");
+
 
     CyberRegs = (volatile unsigned char *)ioremap(VMEM_BASEADDR + 0x00800000, 0x100000);
     current_par.currcon = -1;
     current_par.screen_base_p = (unsigned long)VMEM_BASEADDR;
     current_par.screen_base = (unsigned long)ioremap(VMEM_BASEADDR, VMEM_SIZE);
-	current_par.screen_size	= (unsigned long)VMEM_SIZE;
+    current_par.screen_size	= (unsigned long)VMEM_SIZE;
     current_par.regs_base_p = VMEM_BASEADDR + 0x00800000;
 
-	fb_mem_addr = current_par.screen_base;
-	x_res = DEFAULT_XRES;
+    fb_mem_addr = current_par.screen_base;
+    x_res = DEFAULT_XRES;
 
-    
-    tvia_outb(0x18, 0x46e8);
 
-    udelay(1000);
-    tvia_outb(0x01, 0x102);
+// ------------
 
-    udelay(1000);
-    tvia_outb(0x08, 0x46e8);
 
+	/* Wake up the chip */
+	tvia_outb(0x18, 0x46e8);
+	tvia_outb(0x01, 0x102);
+	tvia_outb(0x08, 0x46e8);  
+	printk("tviafb: wake up the chip\n");
+
+	/* Enable linear address */
+	//tvia_outb(0x33, 0x3ce);
+	//tvia_outb(0x01, 0x3cf);
+	printk("tviafb: enable linear address SHOULD ALREADY ENABLED\n");
+
+	printk("tviafb: Now enable NO_BE_MODE\n");
+
+	/* Set NO_BE_MODE */	
+	tvia_outb(0x33, 0x3ce);
+	tvia_outb(0x40, 0x3cf); /* set the banking */
+
+	//printk("tviafb: enable NO_BE_MODE 1\n");
+
+	tvia_outb(0x3c, 0x3ce);
+	tvia_outb(0x40, 0x3cf); /* set NO_BE_MODE */
+
+	//printk("tviafb: enable NO_BE_MODE 2\n");
+
+	if(tvia_inb(0x3cf) != 0x40)
+	{
+		printk("tviafb: error on enabling NO_BE_MODE\n");
+		tvia_outb(0x33, 0x3ce);
+		tvia_outb(0x00, 0x3cf);
+		if (CyberRegs != 0) {
+		iounmap((void *) CyberRegs);
+		CyberRegs = 0;
+		}
+		if (current_par.screen_base != 0) {
+			iounmap((void *) current_par.screen_base);
+			current_par.screen_base = 0;
+		}
+		printk("Exiting from tviafb module\n");
+		
+		return 1;
+	}
+	tvia_outb(0x33, 0x3ce);
+	tvia_outb(0x00, 0x3cf);  /* clear the banking */
+	printk("tviafb: OK NO_BE_MODE\n");
+
+    printk("tviafb_init_fbinfo\n");
     tviafb_init_fbinfo();
 
+    printk("tvia_init_hw\n");
     tvia_init_hw();
-
 
     /* Initialize cursor info */
     current_par.crsr.xoffset = 200;
@@ -2642,7 +3578,9 @@ static int __init tvia5202fb_init(void)
 
     tviafb_set_var(&init_var, -1, &fbinfo);
 
-	ProgramTV();
+    printk("Going to ProgramTV\n");
+    ProgramTV();
+    printk("ProgramTV done\n");
 
     if (init_var.bits_per_pixel >= 16)
         BypassMode(ON);         /*want bypass mode */
@@ -2650,12 +3588,40 @@ static int __init tvia5202fb_init(void)
         BypassMode(OFF);        /*want index mode */
         SetRamDac(RamDacData, sizeof(RamDacData) / 3);
     }
-    SetDACPower(ON);            /*power on DAC to trun on screen */
+   printk("SetDACPower\n");
+   SetDACPower(ON);            /*power on DAC to turn on screen */
 
-    EnableDigitalRGB(ON);
-    EnableDigitalCursor(ON);
+   printk("Disabling RGBDAC\n");
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   iTmpFA = tvia_inb(0x3cf);
+   tvia_outb(0x02, 0x3cf);
+   
+   tvia_outb(0xB1, 0x3ce);
+   iTmp = tvia_inb(0x3cf);
+   printk("read 3cf/bf02.3cf/b1=%x\n",iTmp);
+   iTmp = (iTmp|0x0f);
+   printk("writing 3cf/fa05.3cf/b1=%x\n",iTmp);
+   tvia_outb(iTmp, 0x3cf);
 
-    tvia_init_hwcursor();
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   tvia_outb(iTmpFA, 0x3cf);
+   printk("Disabling RGBDAC done\n");
+
+   printk("Disabling DigitalRGB\n");
+   EnableDigitalRGB(OFF);
+   printk("Disabling DigitalCursor\n");
+   EnableDigitalCursor(OFF);
+
+   printk("Disabling HSync,VSync\n");
+   //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
+   //00  ----- enable Hsync
+   //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
+   Out_Video_Reg_M(0x16,0x05,0xF0);
+
+   printk("Disable hardware cursor\n");
+   tvia_outb(0x56, 0x3ce);
+   tvia_outb(tvia_inb(0x3cf) & 0xfe, 0x3cf);
+   printk("Hardware cursor done\n");
 
     if (init_var.bits_per_pixel == 8) {
         b = 0;
@@ -2672,7 +3638,8 @@ static int __init tvia5202fb_init(void)
     tvia_outw(w - 1, 0xbf218);
     tvia_outb(b, 0xbf01c);
 
-	SetDACPower(ON);
+    printk("SetDACPower ON\n");
+    SetDACPower(ON);
 
     if (register_framebuffer(&fbinfo) < 0) {
         return -EINVAL;

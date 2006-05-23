@@ -39,7 +39,7 @@ static void ReadSDA(u16 *data)
     *data = (InByte(0x3cf) & I2C_SDA_RW) ? 1:0;
 }
 
-static void SetSDALine(void)
+static void 	SetSDALine(void)
 {
     OutByte(0x3ce, 0xb6);
     OutByte(0x3cf, (InByte(0x3cf) | I2C_SDA_DISABLE) & ~I2C_MASK);

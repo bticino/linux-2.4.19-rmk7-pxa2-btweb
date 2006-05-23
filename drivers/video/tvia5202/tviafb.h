@@ -15,11 +15,22 @@
 
 #define WriteTVReg(reg,dat)	tvia_outw(dat,reg+0x000B0000)
 
-#define tvia_inb(reg)	(*(unsigned char  *)(CyberRegs + (reg)))
-#define tvia_inw(reg)	(*(unsigned short *)(CyberRegs + (reg)))
-#define tvia_inl(reg)	(*(unsigned long  *)(CyberRegs + (reg)))
 
-#define ReadTVReg(reg)	tvia_inw(reg+0x000B0000)
+// ORIG#define tvia_inb(reg)	(*(unsigned char  *)(CyberRegs + (reg)))  /* ORIG */
+#define tvia_inb(reg) (*(volatile unsigned char  *)(CyberRegs + (reg | ( (reg & 0x03) << 12) )  ))   /* NO BYTE ENABLE MODE */
+
+
+//#define tvia_inb_nbem(reg) (*(unsigned char  *)(CyberRegs + (reg | ( (reg & 0x03) << 12) )  ))   /* VLIO */
+#define tvia_inb_novlio(reg)	(*(unsigned char  *)(CyberRegs + (reg)))  /* ORIG */
+/*#define tvia_inb(reg)	(*(unsigned char  *)(CyberRegs + (reg | ( (reg & 0x03) << 12) )  ))   VLIO */
+/* NEPPURE COSI' #define tvia_inb(reg)	(*(unsigned char  *)(CyberRegs + ( (reg | ((reg & 0x03) << 12)) & (~0x3) )))  VLIO */
+
+//#define tvia_inw(reg)	(*(unsigned short *)(CyberRegs + (reg))) // ORIG
+#define tvia_inw(reg)	(*(volatile unsigned short *)(CyberRegs + (reg | ( (reg & 0x03) << 12) ))) // ORIG
+//#define tvia_inl(reg)	(*(unsigned long  *)(CyberRegs + (reg))) // ORIG
+#define tvia_inl(reg)	(*(volatile unsigned long  *)(CyberRegs + (reg | ( (reg & 0x03) << 12) ))) // ORIG
+
+#define ReadTVReg(reg)	tvia_inw( (reg+0x000B0000) )
 
 #define ON 	    1
 #define OFF     0

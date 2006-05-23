@@ -321,7 +321,15 @@ static int __init check_initrd(struct meminfo *mi)
 		for (i = 0; i < mi->nr_banks; i++) {
 			unsigned long bank_end;
 
+			printk("check_initrd:  mi->bank[i].size=%x\n", mi->bank[i].size); /* !!!raf */
 			bank_end = mi->bank[i].start + mi->bank[i].size;
+
+			printk("check_initrd:  mi->bank[i].start=%x\n",mi->bank[i].start); /* !!!raf */
+			printk("check_initrd:  phys_initrd_start=%x\n", phys_initrd_start); /* !!!raf */
+			printk("check_initrd:  end=%x\n", end); /* !!!raf */
+			printk("check_initrd:  bank_end=%x\n", bank_end); /* !!!raf */
+
+
 
 			if (mi->bank[i].start <= phys_initrd_start &&
 			    end <= bank_end)
@@ -481,6 +489,7 @@ void __init bootmem_init(struct meminfo *mi)
 	if (phys_initrd_size && initrd_node >= 0) {
 		reserve_bootmem_node(NODE_DATA(initrd_node), phys_initrd_start,
 				     phys_initrd_size);
+		printk("bootmem_init: phys_initrd_start=%x,phys_initrd_size=%x\n",phys_initrd_start,phys_initrd_size); /* !!!raf */
 		initrd_start = __phys_to_virt(phys_initrd_start);
 		initrd_end = initrd_start + phys_initrd_size;
 	}

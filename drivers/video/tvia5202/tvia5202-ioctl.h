@@ -56,7 +56,7 @@ typedef struct _capturescale {
 	u16 wDstYExt;
 	u8 bInterlaced;
 } TVIA5202_CAPTURESCALE;
-#if 0
+#if 1
 typedef struct _backbufferaddr {
 	u32 dwOffAddr;
 	u16 wX;
@@ -68,7 +68,7 @@ typedef struct _capturepath {
 	u8 bWhichPort;
 	u8 bWhichCapEngine;
 } TVIA5202_CAPTUREPATH;
-#if 0
+#if 1
 typedef struct _doublebufferselect {
 	u16 wWhichCaptureEngine;
 	u16 wWhichOverlay;
@@ -103,7 +103,7 @@ typedef struct _capbackbufferaddr {
 #define FBIO_TVIA5202_CaptureOff			_IO('t', 0x0A)
 #define FBIO_TVIA5202_SetCapSafeGuardAddr	_IOR('t', 0x0B, unsigned long) //u32 dwOffAddr
 #define FBIO_TVIA5202_CaptureCleanUp		_IO('t', 0x0C)
-#if 0
+#if 1
 #define FBIO_TVIA5202_EnableDoubleBuffer	_IOR('t', 0x0D, unsigned long) //u8 bEnable
 #define FBIO_TVIA5202_SetBackBufferAddr		_IOR('t', 0x0E, TVIA5202_BACKBUFFERADDR)
 #endif
@@ -112,13 +112,36 @@ typedef struct _capbackbufferaddr {
 /*The following are new functions for Tvia CyberPro53xx/52xx*/
 #define FBIO_TVIA5202_SelectCaptureEngineIndex	_IOR('t', 0x10, unsigned long) //u16 wIndex
 #define FBIO_TVIA5202_SetCapturePath		_IOR('t', 0x11, TVIA5202_CAPTUREPATH)
-#if 0
+#if 1
 #define FBIO_TVIA5202_EnableGeneralDoubleBuffer	_IOR('t', 0x12, unsigned long) //u8 bEnable
 #define FBIO_TVIA5202_DoubleBufferSelectRivals	_IOR('t', 0x13, TVIA5202_DOUBLEBUFFERSELECT)
 #define FBIO_TVIA5202_EnableCapDoubleBuffer	_IOR('t', 0x14, TVIA5202_CAPDOUBLEBUFFER)
 #define FBIO_TVIA5202_SyncCapDoubleBuffer	_IOR('t', 0x15, TVIA5202_CAPDOUBLEBUFFER2)
 #define FBIO_TVIA5202_SetCapBackBufferAddr	_IOR('t', 0x16, TVIA5202_CAPBACKBUFFERADDR)
 #endif
+
+typedef struct structtestdecoder {
+  u8 type;
+  u8 index;
+  u8 val;
+} TESTDECODER;
+
+typedef struct structtesttvia {
+  u8 type;
+  u8 index;
+  u8 val;
+  u16 indexword;
+  u16 valword;
+} TESTTVIA;
+
+
+// !!!raf
+#define FBIO_TVIA5202_TestVideoMemoryRed	_IOR('t', 0xf7, unsigned long) 
+#define	FBIO_TVIA5202_TestByteDecoder           _IOR('t', 0xf8, TESTDECODER) 
+#define	FBIO_TVIA5202_DumpTotalTest             _IOR('t', 0xf9, unsigned long) 
+#define FBIO_TVIA5202_3cf_ba_7_down             _IOR('t', 0xfa, unsigned long) 
+#define FBIO_TVIA5202_testvmem                  _IOR('t', 0xfb, unsigned long)
+
 // tvia5202-alpha.c, tvia5202-alpha.h
 typedef struct _whichalphablend {
 	u8 OnOff;
@@ -392,7 +415,7 @@ typedef struct _chromakey {
 	u32 creflow;
 	u32 crefhigh;
 } TVIA5202_CHROMAKEY;
-#if 0
+#if 1
 typedef struct _overlaydoublebuffer {
 	u16 wWhichOverlay;
 	u8 bEnable;
@@ -428,7 +451,7 @@ typedef struct _overlaybackbufferaddr {
 #define FBIO_TVIA5202_OverlayCleanUp	_IO('t', 0x5F)
 #define FBIO_TVIA5202_EnableChromaKey	_IOR('t', 0x60, unsigned long) //u8 bOnOff
 #define FBIO_TVIA5202_SetChromaKey		_IOR('t', 0x61, TVIA5202_CHROMAKEY)
-#if 0
+#if 1
 #define FBIO_TVIA5202_EnableOverlayDoubleBuffer	_IOR('t', 0x62, TVIA5202_OVERLAYDOUBLEBUFFER)
 #define FBIO_TVIA5202_SyncOverlayDoubleBuffer	_IOR('t', 0x63, TVIA5202_OVERLAYDOUBLEBUFFER2)
 #define FBIO_TVIA5202_SetOverlayBackBufferAddr	_IOR('t', 0x64, TVIA5202_OVERLAYBACKBUFFERADDR)
@@ -479,5 +502,24 @@ typedef struct _synclockvideosignal {
 #define FBIO_TVIA5202_OutputSyncLockVideo	_IOR('t', 0x6D, TVIA5202_SYNCLOCKVIDEO)
 #define FBIO_TVIA5202_SetSynclockPath	_IOR('t', 0x6E, unsigned long) //u8 bWhichPort
 #define FBIO_TVIA5202_DetectSynclockVideoSignal	_IOW('t', 0x6F, TVIA5202_SYNCLOCKVIDEOSIGNAL)
+
+//CARLOS DMA
+typedef struct _dmareadconf {
+	u8 *dsadr;
+	u8 *dtadr;
+	u32 width;
+	u32 height;
+	u32 pitch;
+	int pid;
+} TVIA5202_DMACONF;
+
+#define FBIO_TVIA5202_DMAReadRequest _IO('t', 0x70)
+#define FBIO_TVIA5202_DMAWriteRequest _IO('t', 0x71)
+#define FBIO_TVIA5202_DMAReadFree _IO('t', 0x72)
+#define FBIO_TVIA5202_DMAWriteFree _IO('t', 0x73)
+#define FBIO_TVIA5202_DMAReadFrame _IOW('t', 0x74, TVIA5202_DMACONF)
+#define FBIO_TVIA5202_DMAWriteFrame _IOR('t', 0x75, TVIA5202_DMACONF)
+#define FBIO_TVIA5202_DMAReadPolling _IO('t', 0x76)
+//END CARLOS DMA
 
 #endif

@@ -9,7 +9,7 @@
 
 #define DEBUG0		printk
 
-#define P7114_Count     168
+#define P7114_Count     169
 
 static u8 I2CPort[4] = {0x48, 0x42, 0x4A, 0x40};
 
@@ -370,33 +370,36 @@ static u8 Phil7114_NTSC[2][P7114_Count*2] =
         0xff, 0xff
     }
 };
-     
-static u8 Phil7114_PAL[P7114_Count*2] =
+
+
+static u8 Phil7114_PAL[P7114_Count*2] = 
 {
-    0x88, 0xd0,
-    0x01, 0x00,
-    0x02, 0xc2,
-    0x03, 0x10,
+    0x88, 0x58, /* analog chn 2 disabled, audio disabled */
+
+    /* Video Decoder */
+    0x01, 0x08, /* Recommemded position */
+    0x02, 0xc0, /* Set to AI11 input for F453AV */
+    0x03, 0x20, /* 15/11/2005 Cislaghi */
     0x04, 0x90,
     0x05, 0x90,
     0x06, 0xeb,
     0x07, 0xe0,
-    0x08, 0xA0, /*0xB8 2003/03/26 0x68*/
+    0x08, 0x80,  /* 15/11/2005 - poor quality 0xa0 - per misura LLC 0x84*/
     0x09, 0x40,
-    0x0a, 0x7b,
-    0x0b, 0x40,
+    0x0a, 0x80, /* ITU level 15/11/2005 Cislaghi */
+    0x0b, 0x44, /* ITU level 15/11/2005 Cislaghi */
     0x0c, 0x40,
     0x0d, 0x00,
     0x0e, 0x81,
-    0x0f, 0x2a,
-    0x10, 0x06,
-    0x11, 0x00,
-    0x12, 0x00,
-    0x13, 0x00,
-    0x14, 0x00,
+    0x0f, 0x0b, /* 15/11/2005 Cislaghi */
+    0x10, 0x08, /* smallest crominance bandwidth 15/11/2005 Cislaghi */
+    0x11, 0x48, /* 15/11/2005 Cislaghi */
+    0x12, 0x22, /* RTS0,RTS1: real-time status sync information 15/11/2005 Cislaghi */
+    0x13, 0x90, /* 15/11/2005 Cislaghi */
+    0x14, 0x00, /* To have AOUT  connected to AD1 for DEBUG: 0x10*/
     0x15, 0x11,
     0x16, 0xfe,
-    0x17, 0x40,
+    0x17, 0xc0, /* 15/11/2005 Cislaghi */
     0x18, 0x40,
     0x19, 0x80,
     0x1a, 0x00,
@@ -404,19 +407,27 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0x1c, 0x00,
     0x1d, 0x00,
     0x1e, 0x00,
+ /*   0x1f, 0xb1, ? è read-only 15/11/2005 Cislaghi */
     0x30, 0xbc,
     0x31, 0xdf,
     0x32, 0x02,
+    0x33, 0x00, /* Add as amadahmad@gmail.com says */
     0x34, 0xcd,
     0x35, 0xcc,
     0x36, 0x3a,
+    0x37, 0x00, /* Add as amadahmad@gmail.com says */ 
     0x38, 0x03,
     0x39, 0x20,
     0x3a, 0x00,
+    0x3b, 0x00, /* Add as amadahmad@gmail.com says */ 
+    0x3c, 0x00, /* Add as amadahmad@gmail.com says */ 
+    0x3d, 0x00, /* Add as amadahmad@gmail.com says */ 
+    0x3e, 0x00, /* Add as amadahmad@gmail.com says */ 
+    0x3f, 0x00, /* Add as amadahmad@gmail.com says */ 
     0x40, 0x00,
     0x41, 0xff,
     0x42, 0xff,
-    0x43, 0xff,
+ /*   0x43, 0xff,
     0x44, 0xff,
     0x45, 0xff,
     0x46, 0xff,
@@ -435,41 +446,74 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0x53, 0x77,
     0x54, 0x77,
     0x55, 0xff,
+	*/
+    0x43, 0x00, /* 15/11/2005 Cislaghi inizio */
+    0x44, 0x00,
+    0x45, 0x00,
+    0x46, 0x00,
+    0x47, 0x00,
+    0x48, 0x00,
+    0x49, 0x00,
+    0x4a, 0x00,
+    0x4b, 0x00,
+    0x4c, 0x00,
+    0x4d, 0x00,
+    0x4e, 0x00,
+    0x4f, 0x00,
+    0x50, 0x00,
+    0x51, 0x00,
+    0x52, 0x00,
+    0x53, 0x00,
+    0x54, 0x00,
+    0x55, 0x00, /* 15/11/2005 Cislaghi fine */
     0x56, 0xff,
     0x57, 0xff,
     0x58, 0x00,
     0x59, 0x47,
-    0x5a, 0x06,
+    0x5a, 0x07, /* sembrerebbe 0x03: 15/11/2005 Cislaghi */
     0x5b, 0x03,
     0x5c, 0x00,
     0x5d, 0x00,
     0x5e, 0x00,
     0x5f, 0x00,
-    0x63, 0x00,
+/*    0x60, 0x00, ma sono read-only ?? 15/11/2005 Cislaghi 
+    0x61, 0x06,
+    0x62, 0x5f,
+*/	
+/*  0x63, 0x00, Read-only
     0x64, 0x00,
     0x65, 0x00,
     0x66, 0x00,
     0x67, 0x00,
     0x68, 0x00,
-    0x80, 0x30,
-    0x83, 0x01,
-    0x84, 0xa0,
-    0x85, 0x10,
-    0x86, 0xc5,
-    0x87, 0x00, /*For BOARD5300*/
-    0x8f, 0x0b,
-    0x90, 0x01, /*No noticeable difference between 0 and 1.  Made it 0 to
-                match address c0  -- csp*/
-    0x91, 0x48,
-    0x92, 0x40,
-    0x93, 0x84,
-    0x94, 0x01,
+*/
+
+    /* Global Settings */
+    /* 0x80, 0x30, PCM7230 */ 
+    /* 0x80, 0x34,  For F453AV */
+    /* 0x80, 0x34,  TEA/TEB  enable - F453AV */
+    0x80, 0x54, /* VBI e TEA  enable - 15/11/2005 Cislaghi*/
+    0x83, 0x00,	 /* !!!Raf da verificare X port disable */
+    /* 0x83, 0x11, ? 15/11/2005 Cislaghi X port abilitato */
+    0x84, 0xa0, /* ? 15/11/2005 Cislaghi 0x40 */
+    0x85, 0x10, /* ? 15/11/2005 Cislaghi 0x00 */
+    0x86, 0x40, /* only video on I port :15/11/2005 Cislaghi FIFO level low */
+    0x87, 0x41, /*For F453AV I port activation - IDQ inverted */
+    /*    0x8f, 0x0b, ? Read-only */
+
+    /* Task A settings -- NOT USED */
+    0x90, 0x00, /* 15/11/2005 trigger forever */
+    0x91, 0x08,
+    0x92, 0x10, 
+    0x93, 0x80, /* I port 8 bit */
+    0x94, 0x0a, /* 15/11/2005 Cislaghi */
     0x95, 0x00,
-    0x96, 0x00,
-    0x97, 0x03,
-    0x98, 0x01,
+    0x96, 0xd0, /* 15/11/2005 Cislaghi */
+    0x97, 0x02,  /* 15/11/2005 Cislaghi */
+/*    0x98, 0x11,  Skip 17 lines */
+    0x98, 0x00, /* 15/11/2005 Cislaghi */
     0x99, 0x00,
-#if 1 /*NTSC*/
+#if 0 /*NTSC*/
     0x9a, 0x0e,
     0x9b, 0x00,
     0x9c, 0x00,
@@ -477,11 +521,13 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0x9e, 0x0c,
     0x9f, 0x00,
 #else /*PAL*/
-    0x9a, 0x38,
+/*    0x9a, 0x38, */
+    0x9a, 0x37, /* 15/11/2005 Cislaghi */
     0x9b, 0x01,
     0x9c, 0xd0,
     0x9d, 0x02,
-    0x9e, 0x36,
+/*    0x9e, 0x35,  orig 0x36 */
+    0x9e, 0x38, /* 15/11/2005 Cislaghi */
     0x9f, 0x01,
 #endif
     0xa0, 0x01,
@@ -490,11 +536,11 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0xa4, 0x80,
     0xa5, 0x40,
     0xa6, 0x40,
-    0xa8, 0xe2,
-    0xa9, 0x01,
+    0xa8, 0x00, /* 15/11/2005 Cislaghi */
+    0xa9, 0x04, /* 15/11/2005 Cislaghi */
     0xaa, 0x00,
-    0xac, 0xf1,
-    0xad, 0x00,
+    0xac, 0x00, /* 15/11/2005 Cislaghi */
+    0xad, 0x02, /* 15/11/2005 Cislaghi */
     0xae, 0x00,
     0xb0, 0x00,
     0xb1, 0x04,
@@ -509,17 +555,19 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0xbd, 0x00,
     0xbe, 0x00,
     0xbf, 0x00,
-    0xc0, 0x00,
+
+    /* Task B registers */
+    0xc0, 0x00, /* !!!raf 15/11/2005 non verificata perchè spenta */
     0xc1, 0x08,
-    0xc2, 0x40,
-    0xc3, 0x80,
+    0xc2, 0x10,
+    0xc3, 0x80, /* I port 8 bit */
     0xc4, 0x00,
     0xc5, 0x00,
     0xc6, 0x00,
     0xc7, 0x03,
-    0xc8, 0x11,
+    0xc8, 0x11, /* Skip 17 lines */
     0xc9, 0x00,
-#if 1 /*NTSC*/
+#if 0 /*NTSC*/
     0xca, 0x22,
     0xcb, 0x01,
     0xcc, 0x00,
@@ -559,15 +607,20 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0xed, 0x00,
     0xee, 0x00,
     0xef, 0x00,
-    0x88, 0xf0
+
+    /* Reset Sequence */
+    0x88, 0x58, /* reset analog chn 2 disabled, audio disabled */
+    0x88, 0x78  /* not reset  analog chn 2 disabled, audio disabled */
+
 };
 
 int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
 {
     u8 bSubAddr = 0x02;
-    u8 bData;
+    //    u8 bData;
     int nCounter;
 
+    printk("InitDecoder7114\n");
     InitI2C();
 
     if(DetectI2C(I2CPort[nWhichDecoder])==0) {
@@ -624,13 +677,35 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
     }
     else {
         if(nWhichDecoder==Philips7114) {
-            for(nCounter=0; nCounter<P7114_Count; nCounter++) {
+
+          DEBUG0("Initializing Philips 7114(1) to PAL mode ...\n");
+
+		  		for(nCounter=0; nCounter<P7114_Count; nCounter++) {
                 if(SendOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], 
                     Phil7114_PAL[nCounter * 2+1])==0) {
                     DEBUG0("Failed to initialize Philips 7114(1) decoder!\n");
                     return -1;
                 }
+					//
+					// Read back registers to verify (R.Recalcati)
+					//
+					{ u8 tmp;
+			  	  if (ReadOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], &tmp)){
+							if (tmp!=Phil7114_PAL[nCounter * 2+1]){
+			          DEBUG0("Problem configuring Philips 7114(1) at byte %x : read %x, correct %x\n",Phil7114_PAL[nCounter * 2], tmp, Phil7114_PAL[nCounter * 2+1]);
+				  		//return -1;
+						}
+//					else
+//					  DEBUG0("\t\t(%x) = %x\t\tOK\n",Phil7114_PAL[nCounter * 2],tmp);
+				  }
+				  else{
+						DEBUG0("Problem configuring Philips 7114(1) at byte %x : not read\n",Phil7114_PAL[nCounter * 2]);
+				  	return -1;
+				  }
+					}
             }
+            DEBUG0("\n");
+			
             if(nVBI==1) SendOneByte(I2CPort[nWhichDecoder], 0x87, 0x01);
             if(nTuner==1) SendOneByte(I2CPort[nWhichDecoder], bSubAddr, 0xC0);
             DEBUG0("Initialized Philips 7114(1) to PAL mode successfully!\n");
@@ -643,11 +718,110 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
                     return -1;
                 }
             }
-            WriteReg(0x3d4, 0xe1, ReadReg(0x3d4, 0xe1) | 0x0c);
+	    WriteReg(0x3d4, 0xe1, ReadReg(0x3d4, 0xe1) | 0x0c); 
             DEBUG0("Initialized Philips 7114(2) to PAL mode successfully!\n");
         }
     }
+
+	//
+	// Alcuni test 
+	//
+  { u8 tmp;
+      if (ReadOneByte(0x42, 0x88, &tmp))
+			printk("SAA7114: Power Save Control (0x88) = %x\n",tmp);
+      else
+			printk("SAA7114: Power Save Control not read\n");
+      tmp |= 0x01;
+      SendOneByte(0x42,0x88,tmp);
+      if (ReadOneByte(0x42, 0x88, &tmp))
+			printk("SAA7114: Power Save Control (0x88) = %x\n",tmp);
+      else
+			printk("SAA7114: Power Save Control not read\n");
+ 
+      if (ReadOneByte(0x42, 0x8f, &tmp))
+			printk("SAA7114: Decoder byte test (0x8f) = %x\n",tmp);
+      else
+      {
+			printk("SAA7114: Decoder byte test not read\n");
+			printk("SAA7114: Startup may be failed\n");
+      }
+
+      if (ReadOneByte(0x42, 0x00, &tmp))
+			printk("SAA7114: Chip Version (0x00) = %x\n",tmp);
+      else
+			printk("SAA7114: Chip Version not read\n");
+
+      if (ReadOneByte(0x42, 0x1f, &tmp))
+			printk("SAA7114: Status Byte (0x1f) = %x\n",tmp);
+      else
+			printk("SAA7114: Decoder Status Byte not read\n");
+    }
+
+  //
+  // Necessario per avviare le task del SAA7114
+  //
+  printk("SAA7114 Reset\n");
+  SendOneByte(0x42,0x88,0x58);
+  udelay(100000);           // 0.1 sec 
+  udelay(100000);           // 0.1 sec 
+  udelay(100000);           // 0.1 sec  
+  udelay(100000);           // 0.1 sec  
+  udelay(100000);           // 0.1 sec  
+  SendOneByte(0x42,0x88,0x78);
+  printk("SAA7114 GOOO!!!\n");
+
     return 0;
+}
+
+
+u8 DecoderTest(u8 type, u8 index, u8 val)
+{
+  u8 tmp;
+  int nCounter;
+  int nWhichDecoder=1;
+  
+  if (type==1) {
+	if (ReadOneByte(0x42, 0x1f, &tmp))
+	  printk("Decoder Status Byte (0x1f) = %x\n",tmp);
+	else
+	  printk("Decoder Status Byte not read\n");
+  }
+  else if (type==2) {
+	printk("PAL decoder Dump:\n");
+	
+	for(nCounter=0; nCounter<P7114_Count; nCounter++) {
+	  if (ReadOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], &tmp)){
+		printk("\t\t(%x) = %2x\n",Phil7114_PAL[nCounter * 2],tmp);
+	  } else {
+		printk("\t\t(%x) = NOT READ FROM I2C\n",Phil7114_PAL[nCounter * 2]);
+      }
+	}
+	printk("Go to the pub!\n");
+  }
+  else if (type==3) {
+	
+	if (ReadOneByte(0x42, index, &tmp))
+	  printk("Read from Decoder (%x) = %x\n",index,tmp);
+	else
+	  printk("Decoder Register %x not read\n",index);
+  }
+  else if (type==4) {
+    printk("Writing to Decoder (%x) = %x\n",index,val);
+	
+	if (SendOneByte(0x42, index, val)) {
+	  if (ReadOneByte(0x42, index, &tmp))
+		if (tmp==val)
+		  printk("Write to Decoder (%x) = %x (re-read)\n",tmp,val);
+		else
+		  printk("Write to Decoder Register %x ko: correct=%x,read=%x\n",val,tmp);
+	}
+	else
+	  printk("Decoder Register %x not read\n",index);
+
+  }
+
+
+  return tmp;
 }
 
 int ReleaseDecoder7114(int nWhichDecoder)

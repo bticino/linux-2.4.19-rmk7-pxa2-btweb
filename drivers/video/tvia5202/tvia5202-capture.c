@@ -18,6 +18,9 @@ static u16 wCaptureEngineIndex = 0; /* Internal variable to track which video
                                        1: Capture 2.*/
 static u32 dwCapDstAddr; /*for compatible with SDK50xx*/
 
+extern volatile unsigned char *CyberRegs;
+
+
 static u16 wCapturePortIndex[MAX_CAP_ENG_NUM] = 
 {
     0, 0
@@ -73,6 +76,7 @@ static void WaitVSync(void)
     Out_Video_Reg(0xF7, 0x00);
 
     if(wCaptureEngineIndex == CAPENGINE1) {/*if it is Capture Engine 1*/
+
         while((In_Video_Reg(CAPTURE_TEST_CTL) & 0x80) == 0x00) {
             udelay(1000);
             wCounter++;
@@ -86,7 +90,8 @@ static void WaitVSync(void)
         }
     }
     else if(wCaptureEngineIndex == CAPENGINE2) {/*if it is Capture Engine 2*/
-        wCounter = 0;
+
+       wCounter = 0;
         while((In_Video_Reg(CAPTURE_TEST_CTL) & 0x20) == 0x00) {
             udelay(1000);
             wCounter++;
@@ -254,12 +259,15 @@ void Tvia_InitCapture(u16 wCCIR656)
     Out_Capture_Reg(VFAC_CTL_MODE_II, 0x10);
 
     if(wCCIR656 == CCIR601) {
+        printk("InitCapture: CCIR601\n");
         Out_Capture_Reg(CAPTURE_MODE_I, 0x10);
         Out_Capture_Reg(CAPTURE_MODE_II, 0x10);
         /*Turn on odd/even signal self-generator*/
         Out_SEQ_Reg_M(0xA4, 0x11, 0xEE);
     }
     else {
+        printk("InitCapture: CCIR565\n");
+
         Out_Capture_Reg(CAPTURE_MODE_I, 0x13);
         Out_Capture_Reg(CAPTURE_MODE_II, 0x12);
         /*Turn off odd/even signal self-generator*/
@@ -270,12 +278,18 @@ void Tvia_InitCapture(u16 wCCIR656)
 
     /* Init one of the two video ports.*/
     if(wCapturePortIndex[wCaptureEngineIndex] == PORTA) {
+      
+        printk("InitCapture: PORTA\n");
+
         /*Out_SEQ_Reg_M(0xEF, 0x00, ~0x02);*/
         Out_SEQ_Reg_M(0xA0, 0x00, 0x7F);
         Out_SEQ_Reg_M(0xED, 0x00, 0xEF);
     }
     else if(wCapturePortIndex[wCaptureEngineIndex] == PORTB) {                   
         /*Out_SEQ_Reg_M(0xEF, 0x02, ~0x02);*/
+
+        printk("InitCapture: PORTB\n");
+ 
         Out_SEQ_Reg_M(0xA0, 0x80, 0x7F);
         Out_SEQ_Reg_M(0xED, 0x10, 0xEF);
         Out_Video_Reg_M(VFAC_CTL_MODE_III, 0x00, 0x22);
@@ -470,6 +484,7 @@ void Tvia_CaptureOn(void)
 {
 	u8 b3CE_F7, b3CE_FA;
 
+	  printk("Tvia_CaptureOn\n");
     /* Save banking */
     b3CE_F7 = In_Video_Reg(0xF7);
     b3CE_FA = In_Video_Reg(0xFA);
@@ -485,7 +500,8 @@ void Tvia_CaptureOn(void)
     /* Restore banking */
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
-}
+
+	}
 
 /****************************************************************************
  Tvia_SetCapSafeGuardAddr() is to set capture ending address in case some 
@@ -605,7 +621,7 @@ void Tvia_CaptureOff(void)
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
 }
-#if 0
+//#if 0
 /****************************************************************************
  Tvia_EnableDoubleBuffer() enables/disables Tvia CyberPro53xx/52xx 
  double-buffer feature.
@@ -653,7 +669,7 @@ void Tvia_SetBackBufferAddr(u32 dwOffAddr, u16 wX, u16 wY, u16 wPitchWidth)
     Tvia_SetOverlayBackBufferAddr(OVERLAY1, dwOffAddr, wX, wY, wPitchWidth);
     Tvia_SyncOverlayDoubleBuffer(OVERLAY1,ON);
 }
-#endif
+//#endif
 /****************************************************************************
  Tvia_SelectCaptureEngineIndex() specifies which Capture engine will be used.
  In  : wIndex = 0, Capture engine 1
@@ -696,28 +712,105 @@ void Tvia_SetCapturePath(u8 bWhichPort, u8 bWhichCapEngine)
     
     Out_Video_Reg(0xF7, 0x00);
     Out_Video_Reg(0xFA, 0x00);
-
+    
+    /*
+    {
+      u32 tmp;
+      for(tmp=0;tmp<100;tmp++);
+    }
+    */
+    
     switch (bWhichPort) {
         case PORTA:
+	    printk("Tvia_SetCapturePath:PORTA\n");
             if(bWhichCapEngine == CAPENGINE1) {
-                Out_CRT_Reg_M(0xF6, 0x00/*0x01*/, 0xAA);
-                Out_CRT_Reg_M(0xE1, 0x00, 0xFC); /*Port A uses Pin 43*/
-                Out_SEQ_Reg_M(0xEF, 0x00, 0xFD);
+	      printk("Tvia_SetCapturePath:CAPENGINE1 in\n");
+	      /*
+	      {
+		u8 tmp;
+		u32 tmp1;
+		tmp=In_Video_Reg(0xF6);
+		printk("Tvia_SetCapturePath:3cf/f6=%x\n",tmp); // !!!raf  debug
+
+	tmp=In_CRT_Reg(0xF6) ;
+		printk("Tvia_SetCapturePath:3d5/f6=%x\n",tmp); // !!!raf 
+		for(tmp1=0;tmp1<100;tmp1++);
+	      }
+	      */
+
+	      /*	      Out_CRT_Reg_M(0xF6, */ /* 0x00 !!!raf */  /*0x01, 0xAA); */ /* Says to use following register to select */
+
+	      {
+		u8 tmp;
+		/* tmp = ReadReg(0x3d4, 0xF6); */
+		printk("Tvia_SetCapturePath_read:3d4=0xf6\n");
+		*((volatile unsigned char *)(CyberRegs + 0x3d4)) = 0xF6;
+		printk("Tvia_SetCapturePath_read:3d4=0xf6\n");
+		tmp=*((volatile unsigned char *)(CyberRegs + 0x3d4 + 1));
+		printk("Tvia_SetCapturePath_read:3d5/f6=%x\n",tmp);
+		tmp |= (0x01 & ~0xAA);
+		printk("Tvia_SetCapturePath:3d5/f6 new val=%x\n",tmp);
+		WriteReg(0x3d4,0xF6,tmp);
+		printk("Tvia_SetCapturePath:3d5/f6 new val=%x written\n",tmp);
+	      }
+
+	      /*
+    printk("Out_CRT_Reg_M 0\n");
+    *((volatile unsigned char *)(CyberRegs + 0x3d4)) = bIndex;
+    printk("Out_CRT_Reg_M 1\n");
+    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3d5))) & bMask;
+     printk("Out_CRT_Reg_M 4\n");
+   bTemp |= (bValue & ~bMask);
+    printk("Out_CRT_Reg_M 4\n");
+    *((volatile unsigned char *)(CyberRegs + 0x3d5)) = bTemp;
+    printk("Out_CRT_Reg_M 4\n");
+
+}
+void WriteReg(u16 wReg, u8 bIndex, u8 bData)
+{
+    *((volatile unsigned char *)(CyberRegs + wReg)) = bIndex;
+    *((volatile unsigned char *)(CyberRegs + wReg + 1)) = bData;
+}
+
+u8 ReadReg(u16 wReg, u8 bIndex)
+{
+    *((volatile unsigned char *)(CyberRegs + wReg)) = bIndex;
+    return *((volatile unsigned char *)(CyberRegs + wReg + 1));
+}
+
+              */
+
+ 	      printk("Tvia_SetCapturePath:CAPENGINE1 1\n");
+
+//	      Out_CRT_Reg_M(0xE1, 0x01, 0xFC); /* orig 0x00 */ /*Port A uses Pin 43*/
+	      Out_CRT_Reg_M(0xE1, 0x01, 0x7C); /* orig 0x00 */ /*Port A uses Pin 43 and capture port A */
+
+
+
+ 	      printk("Tvia_SetCapturePath:CAPENGINE1 2\n");
+
+               Out_SEQ_Reg_M(0xEF, 0x00, 0xFD);
+
+	      printk("Tvia_SetCapturePath:CAPENGINE1 3\n");
             }
             else { /*Capture engine 2*/
-                Out_CRT_Reg_M(0xF6, 0x00/*0x02*/, 0x55);
+ 	      printk("Tvia_SetCapturePath:CAPENGINE2\n");
+               Out_CRT_Reg_M(0xF6, 0x00/*0x02*/, 0x55);
                 Out_CRT_Reg_M(0xE1, 0x00, 0xFC); /*Port A uses Pin 43*/
                 Out_CRT_Reg(0x7A, ReadReg(CRTINDEX, 0x7A) & 0xDF);
             }
             break;
         case PORTB:
-            if(bWhichCapEngine == CAPENGINE1) {
-                Out_CRT_Reg_M(0xF6, 0x04/*0x05*/, 0xAA);
+  	  printk("Tvia_SetCapturePath:PORTB\n");
+          if(bWhichCapEngine == CAPENGINE1) {
+   	      printk("Tvia_SetCapturePath:CAPENGINE1\n");
+             Out_CRT_Reg_M(0xF6, 0x04/*0x05*/, 0xAA);
                 Out_CRT_Reg_M(0xE1, 0x00, 0xF3); /*Port B uses Pin 44*/
                 Out_SEQ_Reg_M(0xEF, 0x02, 0xFD);
             }
             else { /*Capture engine 2*/
-                Out_CRT_Reg_M(0xF6, 0x08/*0x0A*/, 0x55);
+    	      printk("Tvia_SetCapturePath:CAPENGINE2\n");
+               Out_CRT_Reg_M(0xF6, 0x08/*0x0A*/, 0x55);
                 Out_CRT_Reg_M(0xE1, 0x00, 0xF3); /*Port B uses Pin 44*/
                 Out_CRT_Reg(0x7A, (ReadReg(CRTINDEX, 0x7A) & 0xDF) | 0x20);
             }
@@ -745,13 +838,17 @@ void Tvia_SetCapturePath(u8 bWhichPort, u8 bWhichCapEngine)
 	wCapturePortIndex[bWhichCapEngine] = bWhichPort;
 
     /* Restore banking */
+    printk("Tvia_SetCapturePath:CAPENGINE out\n");
     Out_Video_Reg(0xF7, b3CE_F7);
+    printk("Tvia_SetCapturePath:CAPENGINE out1\n");
     Out_Video_Reg(0xFA, b3CE_FA);
+    printk("Tvia_SetCapturePath:CAPENGINE out2\n");
+
 #else
 	wCapturePortIndex[bWhichCapEngine] = bWhichPort;
 #endif
 }
-#if 0
+//#if 0
 /****************************************************************************
  Tvia_EnableGeneralDoubleBuffer() enables/disables Tvia CyberPro53xx/52xx 
  double-buffer feature.
@@ -1045,7 +1142,7 @@ void Tvia_SetCapBackBufferAddr(u16 wWhichCaptureEngine, u32 dwOffAddr, u16 wX,
     Out_Video_Reg(0xF7, b3CE_F7);
     Out_Video_Reg(0xFA, b3CE_FA);
 }
-#endif
+//#endif
 /****************************************************************************
  Tvia_InvertFieldPolarity() inverts incoming video odd/even field polarity.
  In  : bInvert - 1: Invert field polarity, 0: Do not invert polarity

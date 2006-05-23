@@ -74,9 +74,29 @@
 
 #include "pxa.h"
 
+#define PCMCIA_DEBUG 1
+
 #ifdef PCMCIA_DEBUG
 static int pc_debug;
 #endif
+
+/*						-- cosi'definito in include/asm/mach-type.h
+#ifdef CONFIfG_ARCH_PXA_CERF
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type     __machine_arch_type
+# else
+#  define machine_arch_type     MACH_TYPE_PXA_CERF
+# endif
+# define machine_i_PCMCIAAttrs_pxa_cerf()  (machine_arch_type == MACH_TYPE_PXA_CERF)
+#else
+# define machine_is_pxa_cerf()  (0)
+#endif
+*/
+
+//#define CONFIG_MACH_BTWEB
+			// andrebbe messo  xla verità nel Makefile di questo e livelli superiori
+
 
 MODULE_AUTHOR("George Davis <davis_g@mvista.com>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services: PXA250/210 Socket Controller");
@@ -226,12 +246,12 @@ static int __init pxa_pcmcia_driver_init(void){
   set_GPIO_mode(GPIO51_nPIOW_MD);
   set_GPIO_mode(GPIO52_nPCE_1_MD);
   set_GPIO_mode(GPIO53_nPCE_2_MD);
-  set_GPIO_mode(GPIO54_pSKTSEL_MD); /* REVISIT: s/b dependent on num sockets */
+//  set_GPIO_mode(GPIO54_pSKTSEL_MD); /* REVISIT: s/b dependent on num sockets */
   set_GPIO_mode(GPIO55_nPREG_MD);
   set_GPIO_mode(GPIO56_nPWAIT_MD);
   set_GPIO_mode(GPIO57_nIOIS16_MD);
 
-
+/*
   if(machine_is_lubbock()){
 #if defined(CONFIG_ARCH_LUBBOCK) || defined(CONFIG_ARCH_CSB226)
     pcmcia_low_level=&lubbock_pcmcia_ops;
@@ -245,6 +265,11 @@ static int __init pxa_pcmcia_driver_init(void){
     pcmcia_low_level=&trizeps2_pcmcia_ops;
 #endif
   }
+*/
+				// messo come pxa_cerf, col quale è somigliante !!!parm..
+#ifdef CONFIG_MACH_BTWEB	
+    pcmcia_low_level=&cerf_pcmcia_ops;
+#endif
 
   if (!pcmcia_low_level) {
     printk(KERN_ERR "This hardware is not supported by the PXA250/210 Card Service driver\n");
@@ -261,6 +286,7 @@ static int __init pxa_pcmcia_driver_init(void){
   state_array.size=pxa_pcmcia_socket_count;
   state_array.state=state;
 
+  printk(KERN_ERR " pcmcia socket count %d \n", pxa_pcmcia_socket_count);
   /* Configure MECR based on the number of sockets present. */
   if (pxa_pcmcia_socket_count == 2) {
     MECR |= GPIO_bit(0);
@@ -585,6 +611,9 @@ static int pxa_pcmcia_register_callback(unsigned int sock,
 					   void (*handler)(void *,
 							   unsigned int),
 					   void *info){
+
+	printk (" pxa pcmcia register callback \n");
+
   if(handler==NULL){
     pxa_pcmcia_socket[sock].handler=NULL;
     MOD_DEC_USE_COUNT;
@@ -622,6 +651,7 @@ static int pxa_pcmcia_inquire_socket(unsigned int sock,
   struct pcmcia_irq_info irq_info;
 
   DEBUG(3, "%s() for sock %u\n", __FUNCTION__, sock);
+	printk ("pxa pcmcia inquire socket \n");
 
   if(sock>=pxa_pcmcia_socket_count){
     printk(KERN_ERR "pxa_cs: socket %u not configured\n", sock);
@@ -683,6 +713,7 @@ static int pxa_pcmcia_get_status(unsigned int sock,
   struct pcmcia_state state[PXA_PCMCIA_MAX_SOCK];
   struct pcmcia_state_array state_array;
 
+  printk (" pxa pcmcia get status \n");
   DEBUG(3, "%s() for sock %u\n", __FUNCTION__, sock);
 
   state_array.size=pxa_pcmcia_socket_count;
@@ -744,6 +775,7 @@ static int pxa_pcmcia_get_status(unsigned int sock,
 static int pxa_pcmcia_get_socket(unsigned int sock,
 				    socket_state_t *state){
 
+  printk (" pxa pcmcia get socket \n");
   DEBUG(3, "%s() for sock %u\n", __FUNCTION__, sock);
 
   /* This information was given to us in an earlier call to set_socket(),
@@ -767,6 +799,8 @@ static int pxa_pcmcia_get_socket(unsigned int sock,
  */
 static int pxa_pcmcia_set_socket(unsigned int sock,
 				    socket_state_t *state){
+
+	printk(" pxa pcmcia set socket \n");
 
   DEBUG(3, "%s() for sock %u\n", __FUNCTION__, sock);
 
@@ -942,6 +976,8 @@ static int pxa_pcmcia_set_mem_map(unsigned int sock,
 				     struct pccard_mem_map *map){
   unsigned int clock, speed;
   unsigned long mecr, start;
+
+	printk ("pxa pcmcia set mem map \n");
 
   DEBUG(4, "%s() for sock %u\n", __FUNCTION__, sock);
 
@@ -1244,4 +1280,3 @@ static struct notifier_block pxa_pcmcia_notifier_block = {
 };
 
 #endif
-

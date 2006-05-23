@@ -181,6 +181,8 @@ fi
 dep_tristate 'PXA USB function support' CONFIG_PXA_USB $CONFIG_ARCH_PXA
 dep_tristate '  Support for PXA USB network link function' CONFIG_PXA_USB_NETLINK $CONFIG_PXA_USB
 dep_tristate '  Support for PXA USB character device emulation' CONFIG_PXA_USB_CHAR $CONFIG_PXA_USB
+dep_tristate 'PXA DSP function support' CONFIG_BTWEB_DSP $CONFIG_ARCH_PXA
+
 
 endmenu
 

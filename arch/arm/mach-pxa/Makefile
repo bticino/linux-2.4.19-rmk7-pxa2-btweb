@@ -47,6 +47,9 @@ obj-$(CONFIG_PXA_USB) += pxausb_core.o
 obj-$(CONFIG_PXA_USB_NETLINK) += usb-eth.o
 obj-$(CONFIG_PXA_USB_CHAR) += usb-char.o
 
+# DSP char devices (still images video acquisition board)
+obj-$(CONFIG_BTWEB_DSP) += btweb_dsp.o
+
 # Misc features
 obj-$(CONFIG_PM) += pm.o sleep.o
 obj-$(CONFIG_CPU_FREQ) += cpu-pxa.o

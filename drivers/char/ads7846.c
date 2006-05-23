@@ -1,3 +1,4 @@
+
 /*
  *  ADS7846 touchscreen driver
  */
@@ -34,7 +35,7 @@
 #define PEN_IGNORE		0
 #define PEN_DOWN		1
 #define PEN_UP			2
-#define MAX_ERROR		20
+#define MAX_ERROR		100 /* 20 original */
 
 #define INCBUF(x,mod) (((x)+1) & ((mod) - 1))
 

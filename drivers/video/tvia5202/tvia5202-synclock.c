@@ -229,6 +229,8 @@ void Tvia_DoSyncLock(u16 wCaptureIndex, u16 wTVStandard, u16 wResolution, u8 bVi
     /*Init one of the two video ports.*/
     if (wTVStandard == NTSC)
     {
+      printk("Tvia_DoSyncLock NTSC\n"); 
+
         /* NTSC */
         wSyncLock = 1;
         wVStandard = NTSC;
@@ -356,7 +358,8 @@ void Tvia_DoSyncLock(u16 wCaptureIndex, u16 wTVStandard, u16 wResolution, u8 bVi
     }
     else if (wTVStandard == PAL)
     {
-        /* PAL */
+      printk("Tvia_DoSyncLock PAL\n"); 
+      /* PAL */
         wSyncLock = 1;
         wVStandard = PAL;
         

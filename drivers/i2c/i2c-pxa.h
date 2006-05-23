@@ -38,10 +38,10 @@ struct i2c_algo_pxa_data
 #define I2C_TRANSMIT		1
 #define I2C_RECEIVE		0
 #define I2C_PXA_SLAVE_ADDR      0x1    /* slave pxa unit address */
-#define I2C_ICR_INIT            ((1<<15) | ICR_BEIE | ICR_IRFIE | ICR_ITEIE | ICR_GCD | ICR_SCLE) /* ICR initialization value */
+#define I2C_ICR_INIT            (ICR_BEIE | ICR_IRFIE | ICR_ITEIE | ICR_GCD | ICR_SCLE) /* ICR initialization value */
 /* ICR initialize bit values 
 *                       
-*  15. FM       1 (400 Khz operation)
+*  15. FM       0 (100 Khz operation)
 *  14. UR       0 (No unit reset)
 *  13. SADIE    0 (Disables the unit from interrupting on slave addresses 
 *                                       matching its slave address)

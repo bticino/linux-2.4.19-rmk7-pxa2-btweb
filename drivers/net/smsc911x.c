@@ -646,7 +646,7 @@ MODULE_PARM(mac_addr_lo32,"i");
 MODULE_PARM_DESC(mac_addr_lo32,"Specifies the low 32 bits of the mac address");
 
 #ifdef USE_DEBUG
-DWORD debug_mode=0x7UL;
+DWORD debug_mode=0x1UL; // originally 0x7
 #else
 DWORD debug_mode=0x0UL;
 #endif
@@ -838,6 +838,7 @@ static int __init Smsc911x_init_module(void)
 		tx_fif_sz&=HW_CFG_TX_FIF_SZ_;
 		SMSC_WARNING("  resetting tx_fif_sz to 0x%08lX",tx_fif_sz);
 	}
+
 	if(tx_fif_sz>0x000E0000UL) {
 		SMSC_WARNING("tx_fif_sz = 0x%08lX is too high",tx_fif_sz);
 		tx_fif_sz=0x000E0000UL;
@@ -1117,7 +1118,6 @@ static int Smsc911x_open(struct net_device *dev)
 		}
 	}
 	SMSC_TRACE("ISR passed test using IRQ %ld",Platform_CurrentIRQ(platformData));
-	
 
 	if(!Mac_Initialize(privateData)) {
 		SMSC_WARNING("Failed Mac_Initialize");
@@ -4629,6 +4629,7 @@ BOOLEAN Lan_Initialize(
 		SMSC_WARNING("Lan_Initialize: Timed out waiting for EEPROM busy bit to clear\n");
 	}
 
+	SMSC_TRACE("debug_mode = %x",debug_mode);
 	if(debug_mode&0x04UL) {
 		if(OLD_REGISTERS(privateData)) 
 		{
@@ -4640,7 +4641,7 @@ BOOLEAN Lan_Initialize(
 		g_GpioSetting = 0x70070000UL;
 	}
 	Lan_SetRegDW(GPIO_CFG,g_GpioSetting);
-	SMSC_TRACE("<--g_GpioSetting set");
+	SMSC_TRACE("<--g_GpioSetting set to %x",g_GpioSetting);
 
 	//initialize interrupts
 	Lan_SetRegDW(INT_EN,0);

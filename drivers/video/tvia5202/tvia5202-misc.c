@@ -8,6 +8,12 @@
 
 extern volatile unsigned char *CyberRegs;
 
+// !!!raf
+#define tvia_inb(reg) (*(volatile unsigned char  *)(CyberRegs + (reg | ( (reg & 0x03) << 12) )  ))   /* NO BYTE ENABLE MODE */
+#define tvia_inw(reg)	(*(volatile unsigned short *)(CyberRegs + (reg | ( (reg & 0x03) << 12) ))) // ORIG
+//#define tvia_inl(reg)	(*(volatile unsigned long  *)(CyberRegs + (reg | ( (reg & 0x03) << 12) ))) // ORIG
+
+
 void OutTVReg(u32 dwReg, u16 wIndex)
 {
 	*((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000)) = wIndex;
@@ -17,14 +23,17 @@ void OutTVRegM(u32 dwReg, u16 wIndex, u16 wMask)
 {
 	u16 wTmp;
 
-	wTmp = (*((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000))) & wMask;
-    wTmp |= (wIndex & ~wMask);
+//	wTmp = (*((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000))) & wMask; ORIG
+   wTmp = ((tvia_inw( (dwReg + 0x000B0000) )) & wMask); // !!!raf-12-1-2006
+
+   wTmp |= (wIndex & ~wMask);
 	*((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000)) = wTmp;
 }
 
 u16 InTVReg(u32 dwReg)
 {
-	return *((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000));
+//	return *((volatile unsigned short *)(CyberRegs + dwReg + 0x000B0000)); ORIG
+	return tvia_inw( (dwReg + 0x000B0000) );
 }
 
 void OutByte(u16 wReg, u8 bIndex)
@@ -32,10 +41,20 @@ void OutByte(u16 wReg, u8 bIndex)
 	*((volatile unsigned char *)(CyberRegs + wReg)) = bIndex;
 }
 
+/* ORIG
 u8 InByte(u16 wReg)
 {
-	return *((volatile unsigned char *)(CyberRegs + wReg));
+//	return *((volatile unsigned char *)(CyberRegs + wReg)); //ORIG
 }
+*/
+
+u8 InByte(u16 wReg)
+{
+	//return (*(volatile unsigned char  *)(CyberRegs + (wReg | ( (wReg & 0x03) << 12) )  ));
+	return tvia_inb(wReg);
+}
+
+
 
 void OutWord(u16 wReg, u16 wIndex)
 {
@@ -47,10 +66,20 @@ void WriteReg(u16 wReg, u8 bIndex, u8 bData)
     *((volatile unsigned char *)(CyberRegs + wReg + 1)) = bData;
 }
 
+/* ORIG 
+u8 ReadReg(u16 wReg, u8 bIndex)
+{
+    *((volatile unsigned char *)(CyberRegs + wReg)) = bIndex; 
+//    return *((volatile unsigned char *)(CyberRegs + wReg + 1)); ORIG
+}
+*/
+
 u8 ReadReg(u16 wReg, u8 bIndex)
 {
     *((volatile unsigned char *)(CyberRegs + wReg)) = bIndex;
-    return *((volatile unsigned char *)(CyberRegs + wReg + 1));
+//    return *((volatile unsigned char *)(CyberRegs + wReg + 1));
+  return tvia_inb( (wReg+1) );
+
 }
 
 /****************************************************************************
@@ -68,7 +97,10 @@ void WriteRegM(u16 wReg, u8 bIndex, u8 bData, u8 bMask)
     u8 bTemp;
 
     *((volatile unsigned char *)(CyberRegs + wReg)) = bIndex;
-    bTemp = (*((volatile unsigned char *)(CyberRegs + wReg + 1))) & bMask;
+
+//    bTemp = (*((volatile unsigned char *)(CyberRegs + wReg + 1))) & bMask; // ORIG
+    bTemp = tvia_inb( (wReg+1) ) & bMask; //!!!raf
+
     bTemp |= (bData & ~bMask);
     *((volatile unsigned char *)(CyberRegs + wReg + 1)) = bTemp;
 }
@@ -76,7 +108,8 @@ void WriteRegM(u16 wReg, u8 bIndex, u8 bData, u8 bMask)
 u8 In_Video_Reg(u8 bIndex)
 {
 	*((volatile unsigned char *)(CyberRegs + 0x3ce)) = bIndex;
-	return *((volatile unsigned char *)(CyberRegs + 0x3cf));
+// return *((volatile unsigned char *)(CyberRegs + 0x3cf)); //ORIG
+	return tvia_inb(0x3cf);
 }
 
 /****************************************************************************
@@ -107,7 +140,9 @@ void Out_Video_Reg_M(u8 bIndex, u8 bValue, u8 bMask)
     u8 bTemp;
 
     *((volatile unsigned char *)(CyberRegs + 0x3ce)) = bIndex;
-    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3cf))) & bMask;
+// ORIG    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3cf))) & bMask;
+    bTemp = tvia_inb(0x3cf) & bMask;
+
     bTemp |= (bValue & ~bMask);
     *((volatile unsigned char *)(CyberRegs + 0x3cf)) = bTemp;
 }
@@ -115,7 +150,8 @@ void Out_Video_Reg_M(u8 bIndex, u8 bValue, u8 bMask)
 u8 In_SEQ_Reg(u8 bIndex)
 {
 	*((volatile unsigned char *)(CyberRegs + 0x3c4)) = bIndex;
-	return *((volatile unsigned char *)(CyberRegs + 0x3c5));
+//	return *((volatile unsigned char *)(CyberRegs + 0x3c5)); ORIG
+	return tvia_inb(0x3c5);
 }
 
 /****************************************************************************
@@ -146,7 +182,9 @@ void Out_SEQ_Reg_M(u8 bIndex, u8 bValue, u8 bMask)
     u8 bTemp;
 
     *((volatile unsigned char *)(CyberRegs + 0x3c4)) = bIndex;
-    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3c5))) & bMask;
+//    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3c5))) & bMask; ORIG
+    bTemp = tvia_inb(0x3c5) & bMask;
+
     bTemp |= (bValue & ~bMask);
     *((volatile unsigned char *)(CyberRegs + 0x3c5)) = bTemp;
 }
@@ -154,7 +192,8 @@ void Out_SEQ_Reg_M(u8 bIndex, u8 bValue, u8 bMask)
 u8 In_CRT_Reg(u8 bIndex)
 {
 	*((volatile unsigned char *)(CyberRegs + 0x3d4)) = bIndex;
-	return *((volatile unsigned char *)(CyberRegs + 0x3d5));
+//	return *((volatile unsigned char *)(CyberRegs + 0x3d5)); ORIG
+	return tvia_inb(0x3d5);
 }
 
 /****************************************************************************
@@ -184,10 +223,18 @@ void Out_CRT_Reg_M(u8 bIndex, u8 bValue, u8 bMask)
 {            
     u8 bTemp;
 
+    printk("Out_CRT_Reg_M 0\n");
     *((volatile unsigned char *)(CyberRegs + 0x3d4)) = bIndex;
-    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3d5))) & bMask;
-    bTemp |= (bValue & ~bMask);
+    printk("Out_CRT_Reg_M 1\n");
+//    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3d5))) & bMask; ORIG
+    bTemp=tvia_inb(0x3d5) & bMask;
+
+     printk("Out_CRT_Reg_M 4\n");
+   bTemp |= (bValue & ~bMask);
+    printk("Out_CRT_Reg_M 4\n");
     *((volatile unsigned char *)(CyberRegs + 0x3d5)) = bTemp;
+    printk("Out_CRT_Reg_M 4\n");
+
 }
 
 /*----------------------------------------------------------------------

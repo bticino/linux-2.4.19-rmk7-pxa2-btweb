@@ -1110,6 +1110,7 @@ void hc_interrupt (int irq, void * __hci, struct pt_regs * r)
 {
 	hci_t * hci = __hci;
 	int i;
+	
 #ifdef USE_COMMAND_PORT_RESTORE
 	__u8 cp = hci->command_port;
 	if (cp != CP_INVALID) if (hci->hp.delay) hci->hp.delay(hci);	//I don't know if this is needed, but it may explain weird problems if so
@@ -1724,6 +1725,10 @@ static int __devinit hc_found_hci (int hcType,int hc, int memFenceType, int memF
 		hc, wu, irq, hc116x_read_reg32(hci, HcRevision), hc116x_read_reg16(hci, HcChipID));
 	usb_register_bus (hci->bus);
 
+	/* gpio36. i.e irq 59*/
+	printk(KERN_INFO __FILE__ "USB host interrupt: rising edge. Gpio 36\n");
+	set_GPIO_IRQ_edge(36, GPIO_RISING_EDGE);
+	
 	if (request_irq (irq, hc_interrupt, SA_INTERRUPT,
 			"ISP116x", hci) != 0) {
 		err ("request interrupt %d failed", irq);

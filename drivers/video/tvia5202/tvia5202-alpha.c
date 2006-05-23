@@ -1547,6 +1547,8 @@ void EnablePaletteMode(u8 bEnable)
 {
     u8 b3CE_F7, b3CE_FA;
 
+	printk("EnablePaletteMode\n");
+  
     /* Save banking */
     b3CE_F7 = In_Video_Reg( 0xF7 );
     b3CE_FA = In_Video_Reg( 0xFA );

@@ -131,6 +131,8 @@ if [ "$CONFIG_PARPORT" != "n" ]; then
 fi
 
 dep_tristate '  ADS7846 touchscreen support' CONFIG_ADS7846_TOUCHSCREEN $CONFIG_ARCH_PXA
+dep_tristate '  BIGBUF memory allocation (max 256kb cached and good for dma)' CONFIG_BIGBUF $CONFIG_ARCH_PXA
+dep_tristate '  BIGBUF1 memory allocation (max 256kb cached and good for dma)' CONFIG_BIGBUF1 $CONFIG_ARCH_PXA
 
 
 source drivers/i2c/Config.in
@@ -138,6 +140,7 @@ source drivers/i2c/Config.in
 if [ "$CONFIG_I2C" != "n" ]; then
     dep_tristate '  DS1307 RTC' CONFIG_I2C_DS1307 $CONFIG_I2C
     dep_tristate '  PCF8563 RTC (as in PXA BtWeb)' CONFIG_I2C_PCF8563 $CONFIG_I2C
+    dep_tristate '  TDA9885 MC44BS (as in PXA BtWeb)' CONFIG_I2C_TDA9885_MC44BS $CONFIG_I2C
     dep_tristate '  24256 NVRAM (as in PXA BtWeb)' CONFIG_I2C_24256 $CONFIG_I2C
     dep_tristate '  TC74 Thermometer (as in PXA BtWeb)' CONFIG_I2C_TC74 $CONFIG_I2C
 fi
