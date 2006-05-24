@@ -1,6 +1,13 @@
 Changes from Rubini cvs module named bt-kernels/linux-2.4.19-rmk7-pxa2-btweb
 (checkout of "May 23 12:33")
-to developing stable version 1_0_9_new (==1_0_10):
+to developing (stable) version 1_0_10:
+
+The extraversion is "-rmk7-pxa2-btweb-1_0_10" so the complete "uname -a" version
+is "2.4.19-rmk7-pxa2-btweb-1_0_10".
+"2.4.19-rmk7-pxa2-btweb-1_0_10" will be the TAG name of the first stable version
+
+2.4.19-rmk7-pxa2-btweb-1_0_10:
+(The code is the same of 1_0_9_new with usb gadget added)
 
 - The ".config" file for F453AV								(Raffaele Recalcati)
   config-F453AV-1_0_10
@@ -93,5 +100,11 @@ to developing stable version 1_0_9_new (==1_0_10):
   drivers/video/tvia5202/tviafb_core.c
   drivers/video/tvia5202/tviafb.h
   drivers/video/tvia5202/tvia.h
+
+- Added usb gadget from 2.4.27-vrs1-pxa1
+  drivers/usb/Config.in
+  drivers/usb/Makefile
+  drivers/usb/gadget/*
+
 
 # End of file
