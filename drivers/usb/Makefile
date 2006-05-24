@@ -99,8 +99,9 @@ obj-$(CONFIG_USB_BRLVGER)	+= brlvger.o
 obj-$(CONFIG_USB_USBIDE)	+= usbide.o
 
 # Object files in subdirectories
-mod-subdirs	:= serial hcd
+mod-subdirs	:= serial hcd gadget
 
+subdir-$(CONFIG_USB_GADGET)	+= gadget
 subdir-$(CONFIG_USB_SERIAL)	+= serial
 subdir-$(CONFIG_USB_STORAGE)	+= storage
 
@@ -133,4 +134,3 @@ quickcam.o: $(qc-objs)
 
 ohci116x.o: $(ohci116x-objs)
 	$(LD) -r -o $@ $(ohci116x-objs)
-

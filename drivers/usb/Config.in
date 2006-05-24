@@ -184,4 +184,7 @@ if [ "$CONFIG_USB" = "y" -o  "$CONFIG_USB" = "m" ]; then
    dep_tristate '  Tieman Voyager USB Braille display support (EXPERIMENTAL)' CONFIG_USB_BRLVGER $CONFIG_USB $CONFIG_EXPERIMENTAL
    dep_tristate '  Buslink HD support(EXPERIMENTAL)' CONFIG_USB_USBIDE  $CONFIG_USB $CONFIG_EXPERIMENTAL
 fi
+
+source drivers/usb/gadget/Config.in
+
 endmenu
