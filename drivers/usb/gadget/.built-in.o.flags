@@ -1,3 +1,0 @@
-ifeq (,$(strip $(subst $(comma),:,$(EXTRA_LDFLAGS) $(obj-y))))
-FILES_FLAGS_UP_TO_DATE += built-in.o
-endif

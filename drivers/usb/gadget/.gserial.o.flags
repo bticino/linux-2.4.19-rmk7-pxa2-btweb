@@ -1,3 +1,0 @@
-ifeq (-D__KERNEL__ -I/opt/sources/kernel_F453AV/linux-btweb/include -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -Uarm -fno-common -pipe -fno-omit-frame-pointer -mapcs -mno-sched-prolog -mapcs-32 -D__LINUX_ARM_ARCH__=5 -mcpu=xscale -mtune=xscale -mshort-load-bytes -msoft-float -Uarm -DMODULE -nostdinc -I /opt/snapgear-toolchain/lib/gcc-lib/arm-linux/3.3.2/include,$(strip $(subst $(comma),:,$(CFLAGS) $(EXTRA_CFLAGS_nostdinc) $(CFLAGS_gserial) $(CFLAGS_gserial.o))))
-FILES_FLAGS_UP_TO_DATE += gserial.o
-endif
