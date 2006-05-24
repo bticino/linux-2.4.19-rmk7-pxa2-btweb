@@ -31,13 +31,15 @@
 
 #include "pxa-audio.h"
 
-#define SNDCTL_BT_GETDELAY         _SIOWR('P',89, int)
+#define SNDCTL_BT_GETDELAY         _SIOWR('P',89, int) // usato per il GUA
 #define SNDCTL_BT_INCGAIN          _SIOWR('P',88, int)
 #define SNDCTL_BT_DECGAIN          _SIOWR('P',87, int)
+#define SNDCTL_BT_LINGETDELAY      _SIOWR('P',86, int) // usato per il LINPHONE
+
 
 #define AUDIO_NBFRAGS_DEFAULT	8
-
 /* To reduce driver audio fragment size by Carlos */
+//#define AUDIO_FRAGSIZE_DEFAULT 1280
 #define AUDIO_FRAGSIZE_DEFAULT 640
 //#define AUDIO_FRAGSIZE_DEFAULT 2048    // by Carlos
 //#define AUDIO_FRAGSIZE_DEFAULT 8192    /* ORIG 8192 */
@@ -56,21 +58,20 @@ MODULE_AUTHOR("Jaroslav Kysela");
 MODULE_DESCRIPTION("Yamaha YMF7xx PCI Audio");
 MODULE_LICENSE("GPL");
 
-
 int frame_count ;
 int frame_rx ;
 
 //static int ii = 0;
-struct timeval tim_rec, tim_pl;
-int t_usec, spk_loss= 0, time_pl_begin= 0, t_usec_old= 0;
-int first_irq_rx, first_irq_tx, time_add_start;
+struct timeval tim_rec0, tim_pl0, tim_pl1;
+unsigned int time_irq_rx0, count_irq_tx, diff_dma_txrx0, diff_dma_tx01;
+//int t_usec, spk_loss=0, time_pl_begin=0, t_usec_old=0;
 // only to debug !!
+
 
 extern struct ac97_codec pxa_ac97_codec1;
 
-
 DECLARE_MUTEX(CAR_mutex_1);
-#define ADDR_BASE_SEC  0x40500300
+#define ADDR_BASE_SEC  0x40500300	// mi riservo lo spazio di mem del codec secondario
 
 void pxa_ac97_wait1(struct ac97_codec *codec )
 {
@@ -240,7 +241,7 @@ static int audio_setup_buf(audio_stream_t * s)
 
 // definite per DEBUG queste variabili
 	frame_count=0, frame_rx=0;
-	first_irq_tx=0, first_irq_rx=0, time_add_start = 0;
+	time_irq_rx0=0, count_irq_tx=0, diff_dma_txrx0=0 , diff_dma_tx01=0;
 
 //printk("audio setup buf \n");
 
@@ -371,8 +372,13 @@ err:
 	return -ENOMEM;
 }
 
-int rd_open =0, wr_open =0;
+int rd_open=0, wr_open=0;
 int dma_ch_os, dma_ch_is;
+
+#define DRV_FOR_ALL
+
+//#define DRV_FOR_LINPHONE
+//#define DRV_FOR_VOCAL
 
 /*
  * Our DMA interrupt handler
@@ -383,10 +389,10 @@ static void audio_dma_irq(int ch, void *dev_id, struct pt_regs *regs)
 	u_int dcsr;
 //printk ("irq dma \n");
 /*
-if ( first_irq_rx ==0 ) 
-	printk ( "first irq tx %d \n", first_irq_tx );
-if ( first_irq_tx ==0 ) 
-	printk ( "first irq rx %d \n", first_irq_rx );
+if ( time_irq_rx0 ==0 ) 
+	printk ( "first irq tx %d \n", count_irq_tx );
+if ( count_irq_tx ==0 ) 
+	printk ( "first irq rx %d \n", time_irq_rx0 );
 */    /*
 if ( ch == 9 ) // solo x capire se prima che un'irq finisca nn ne parta un altro!
 	{	rd_open = 1;
@@ -400,26 +406,81 @@ if ( ch == 8 )
 	}
 */
 //printk ("audio_dma_irq ch %d dev_ptr %X \n", ch, dev_id );
-//if (  first_irq_rx==0 )
-//	printk ( "first irq rx time %d time add start %d, ch %d \n", first_irq_rx , time_add_start, ch );
+//if (  time_irq_rx0==0 )
+//	printk ( "first irq rx time %d time add start %d, ch %d \n", time_irq_rx0 , time_add_start, ch );
 
-if ( ( ch==dma_ch_is ) && ( first_irq_rx==0) )
+
+#ifdef DRV_FOR_VOCAL
+if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
 	{
 	do_gettimeofday(&tim_pl );
-	first_irq_rx = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
-//printk ( " first irq rx time %d time add start %d\n", first_irq_rx , time_add_start);
+	time_irq_rx0 = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
+printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+//printk ( " first irq rx time %d time add start %d\n", time_irq_rx0 , time_add_start);
 //	if ( t_usec < t_usec_old)
 //		t_usec = t_usec + 1000000;
 	}
-if ( ( ch==dma_ch_os ) && ( first_irq_tx==0 ) )
+if ( ( ch==dma_ch_os ) && ( count_irq_tx==0) )
 	{
 	do_gettimeofday(&tim_pl );
-	first_irq_tx = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
-//printk ( " first irq tx time %d time add start %d\n", first_irq_tx , time_add_start);
+	count_irq_tx = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
+printk ( "Irq tx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+//printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
 
 //	if ( t_usec < t_usec_old)
 //		t_usec = t_usec + 1000000;
 	}
+#endif
+
+#ifdef DRV_FOR_LINPHONE
+
+if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
+	{
+	if ( count_irq_tx==0 )
+		{
+		do_gettimeofday(&tim_pl_old );
+//		printk ( "Irq tx 0 %d s %d us \n", tim_pl_old.tv_sec, tim_pl_old.tv_usec );
+		}
+	else
+		{
+		do_gettimeofday(&tim_pl );
+//		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
+		int diff_dma_tx= (tim_pl.tv_sec - tim_pl_old.tv_sec)*1000000 + (tim_pl.tv_usec - tim_pl_old.tv_usec) ;
+		time_add_start = diff_dma_tx;
+		printk ("Irq TX1-TX0 %d \n",diff_dma_tx );
+		}
+	count_irq_tx++;
+//printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
+	}
+#endif
+
+#ifdef DRV_FOR_ALL
+if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
+	{
+	do_gettimeofday(&tim_rec0 );
+	time_irq_rx0 = (tim_rec0.tv_sec*1000000) + tim_rec0.tv_usec;
+//printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+//printk ( " first irq rx time %d time add start %d\n", time_irq_rx0 , time_add_start);
+	}
+
+if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
+	{
+	if ( count_irq_tx==0)
+		{
+		do_gettimeofday(&tim_pl0 );
+//		printk ( "Irq tx 0 %d s %d us \n", tim_pl_old.tv_sec, tim_pl_old.tv_usec );
+		}
+	else
+		{
+		do_gettimeofday(&tim_pl1 );
+//		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
+		diff_dma_tx01=(tim_pl1.tv_sec-tim_pl0.tv_sec)*1000000 + (tim_pl1.tv_usec-tim_pl0.tv_usec) ;
+		printk ("Irq TX1-TX0 %d \n",diff_dma_tx01 );
+		}
+	count_irq_tx++;
+	}
+#endif
+
 
 	dcsr = DCSR(ch);
 	DCSR(ch) = dcsr & ~DCSR_STOPIRQEN;
@@ -637,13 +698,6 @@ audio_stream_t *is = state->input_stream;
 	}
 //printk ("audio write end\n");
 
-/*
-do_gettimeofday(&tim_pl );
-t_usec = tim_pl.tv_usec;
-if ( t_usec < t_usec_old)
-	t_usec = t_usec + 1000000;
-*/
-//printk ("audio write time %d usec \n", t_usec);
 
 	// ogni buffer conta 2048 byte
 frame_count++;
@@ -668,29 +722,34 @@ static int audio_read(struct file *file, char *buffer,
 //printk ("audio read frame count %d ", frame_rx );
 	frame_rx++;
 
-/*
-do_gettimeofday(&tim_pl );
-t_usec = tim_pl.tv_usec;
-if ( t_usec < t_usec_old)
-	t_usec = t_usec + 1000000;
-printk ("audio read time %d usec \n", t_usec);
-*/
-
-if ( (first_irq_rx!=0) &&  (first_irq_tx!=0) && ( time_add_start == 0 ) )
+#ifdef DRV_FOR_VOCAL
+if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( time_add_start == 0 ) )
 	{
-	time_add_start = ( first_irq_tx - first_irq_rx ) + 4000;
-	if ( first_irq_tx  < ( first_irq_rx - 4000 ) )
+	time_add_start = ( count_irq_tx - time_irq_rx0 ) + 4000;
+	if ( count_irq_tx  < ( time_irq_rx0 - 4000 ) )
 		{
 		printk ( "occhio !! prima l'irq di TX sulla scheda, time_add_start sarebbe %d\n", time_add_start );
 		time_add_start = 1; // cosi' sfugge al controllo sullo zero
 		}
 	printk ("time to add to begin %d \n", time_add_start);
 	}
+#endif
 
-/*	do_gettimeofday(&tim_rec);
-	if (frame_rx < 1)
-		printk ("inizio buffer rec  %d usec frame %d count %d \n", tim_rec.tv_usec, frame_rx, count );
-*/
+
+#ifdef DRV_FOR_ALL	// questo pezzo serve solo x il VOCAL !!
+if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
+	{
+	diff_dma_txrx0 = ( count_irq_tx - time_irq_rx0 ) + 4000;
+	if ( count_irq_tx  < ( time_irq_rx0 - 4000 ) )
+		{
+//		printk ( "occhio !! prima l'irq di TX sulla scheda, time_add_start sarebbe %d\n", diff_dma_txrx0 );
+		diff_dma_txrx0 = 1; // cosi' sfugge al controllo sullo zero
+		}
+//	printk ("time to add to begin %d \n", diff_dma_txrx0);
+	}
+#endif
+
+
 
 	if (ppos != &file->f_pos)
 		return -ESPIPE;
@@ -890,9 +949,14 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 
 	switch (cmd) {
 // !!! parm / added to calc the begin delay
-	case SNDCTL_BT_GETDELAY:
-//printk( "bt get delay\n");
-		val = time_add_start;
+	case SNDCTL_BT_GETDELAY:	// used with GUA
+		val = diff_dma_txrx0;
+//		printk( "bt get delay %d\n", val);
+		return put_user(val, (int *) arg);
+
+	case SNDCTL_BT_LINGETDELAY:	// used with Linphone
+		val = diff_dma_tx01;
+//		printk( "bt get delay val %d\n", val);
 		return put_user(val, (int *) arg);
 
 	case SNDCTL_BT_INCGAIN:
@@ -1138,7 +1202,7 @@ static int audio_release(struct inode *inode, struct file *file)
 //printk ("audio release \n");
 
 	down(&state->sem);
-	time_add_start = 0; // the vlaue is read from GUA with ioctl
+//	time_add_start = 0; // the vlaue is read from GUA with ioctl
 
 	if (file->f_mode & FMODE_READ) {
 		audio_clear_buf(state->input_stream);
@@ -1195,7 +1259,7 @@ int pxa_audio_attach(struct inode *inode, struct file *file,
 			goto out;
 	os->dma_ch = err;
 	dma_ch_os = err; // per renderlo visibile al DMA int.
-printk (" request dma ch %d\n", err );
+//printk (" request dma ch %d\n", err );
 	}
 	if (file->f_mode & FMODE_READ) {
 		err = pxa_request_dma(is->name, DMA_PRIO_HIGH,
@@ -1214,7 +1278,7 @@ if (file->f_mode & FMODE_READ) {
 		}
 	is->dma_ch = err;
 	dma_ch_is = err; // per renderlo visibile al DMA int.
-printk (" request dma ch %d\n", err );
+//printk (" request dma ch %d\n", err );
 
 	}
 

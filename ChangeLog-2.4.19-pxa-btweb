@@ -1,0 +1,97 @@
+Changes from Rubini cvs module named bt-kernels/linux-2.4.19-rmk7-pxa2-btweb
+(checkout of "May 23 12:33")
+to developing stable version 1_0_9_new (==1_0_10):
+
+- The ".config" file for F453AV								(Raffaele Recalcati)
+  config-F453AV-1_0_10
+
+- Platform F453AV and gpio fix to be integrated 
+  in uboot (TODO)
+  arch/arm/mach-pxa/btweb.c									(Raffaele Recalcati)
+
+- F452V Dsp video added (even if not used)					(Rubini)
+  arch/arm/config.in 
+  arch/arm/mach-pxa/btweb_dsp.c
+  arch/arm/mach-pxa/Makefile
+
+- Tracing ramdisk boot to avoid problem booting larger ones	(Raffaele Recalcati)
+  arch/arm/kernel/setup.c
+  arch/arm/mm/init.c
+  drivers/block/rd.c
+  init/do_mounts.c 
+
+- The touchscreen driver set to be less reactive (H4684)	(Davide Bonfanti)
+  drivers/char/ads7846.c
+
+- Allocating fixed but cacheable buffer for dma
+  and m-jpeg video purposes:								(Alessandro Rubini)
+  drivers/char/bigbuf.c (declared in btweb.c)
+  drivers/char/bigbuf1.c
+
+- Managing I2C video modulator(MC44BS) and 
+  demodulator(TDA9885) devices configuration				(Raffaele Recalcati)
+  drivers/char/Config.in
+  drivers/char/Makefile
+  drivers/char/tda9885_mc44bs.c
+  
+- Back to 100Khz I2C pxa interface							(Raffaele Recalcati)
+
+- SMSC9118 ethernet driver: LEDs status made working		(Raffaele Recalcati)
+  drivers/net/smsc911x.c
+
+- Pxa pcmcia port driver (TODO: to be cleaned)				(Enrico Parmeggiani)
+  drivers/pcmcia/bt_cerf.c
+  drivers/pcmcia/bt_cerf.h
+  drivers/pcmcia/pxa/Makefile
+  drivers/pcmcia/pxa/pxa.c
+  drivers/pcmcia/pxa/pxa.h
+
+- Sound alsa pxa with primary and secondary codec			(Enrico Parmeggiani)
+  (TODO: to be cleaned)
+  drivers/sound/ac97_codec.c
+  drivers/sound/pxa-ac97.c
+  drivers/sound/pxa-audio.c
+
+- Usb host interrupt enabled								(Raffaele Recalcati)
+  drivers/usb/hc_isp116x.c
+
+- TODO verify video compilation								(Raffaele Recalcati)
+  drivers/video/Config.in
+
+- TODO decide extraversion 									(Raffaele Recalcati)
+  Makefile
+
+- take_over_console not called due to frame buffer			(Raffaele Recalcati)
+  errors (TODO to be fixed)
+  drivers/video/fbmem.c
+  
+- From Advantech PCM7230 Tvia5202 driver					(Raffaele Recalcati)
+  to BTicino F453AV Tvia5202 driver							(Carlos Perez)
+  drivers/video/tvia5202/igsmode_5202.c
+  drivers/video/tvia5202/igstv_5202.c
+  drivers/video/tvia5202/Makefile
+  drivers/video/tvia5202/saa7114.c
+  drivers/video/tvia5202/saa7114.h
+  drivers/video/tvia5202/tvia5202-alpha.c
+  drivers/video/tvia5202/tvia5202-alpha.h
+  drivers/video/tvia5202/tvia5202-capture.c
+  drivers/video/tvia5202/tvia5202-capture.h
+  drivers/video/tvia5202/tvia5202-def.h
+  drivers/video/tvia5202/tvia5202-dvideo.c
+  drivers/video/tvia5202/tvia5202-dvideo.h
+  drivers/video/tvia5202/tvia5202-i2c.c
+  drivers/video/tvia5202/tvia5202-i2c.h
+  drivers/video/tvia5202/tvia5202-ioctl.h
+  drivers/video/tvia5202/tvia5202-ks127tbl.h
+  drivers/video/tvia5202/tvia5202-misc.c
+  drivers/video/tvia5202/tvia5202-misc.h
+  drivers/video/tvia5202/tvia5202-overlay.c
+  drivers/video/tvia5202/tvia5202-overlay.h
+  drivers/video/tvia5202/tvia5202-synclock.c
+  drivers/video/tvia5202/tvia5202-synclock.h
+  drivers/video/tvia5202/tvia5202-synctbl.h
+  drivers/video/tvia5202/tviafb_core.c
+  drivers/video/tvia5202/tviafb.h
+  drivers/video/tvia5202/tvia.h
+
+# End of file

@@ -53,7 +53,7 @@
 #include <asm/uaccess.h>
 
 
-#define DEBUG 2
+//#define DEBUG 2
 		// valori che rotrovo in aumix in decimale !
 #define PCM_OUT_LEV  0x4B4B // scrive nel reg 18
 #define MONO_OUT_LEV 0x5151 // scrive nel reg 6 del Codec, phout secondo aumix
@@ -70,9 +70,7 @@ static void ac97_write_mixer(struct ac97_codec *codec, int oss_channel,
 static void ac97_set_mixer(struct ac97_codec *codec, unsigned int oss_mixer, unsigned int val );
 static int ac97_recmask_io(struct ac97_codec *codec, int rw, int mask);
 static int ac97_mixer_ioctl(struct ac97_codec *codec, unsigned int cmd, unsigned long arg);
-
 static int ac97_init_mixer(struct ac97_codec *codec);
-
 static int wolfson_init00(struct ac97_codec * codec);
 static int wolfson_init03(struct ac97_codec * codec);
 static int wolfson_init04(struct ac97_codec * codec);

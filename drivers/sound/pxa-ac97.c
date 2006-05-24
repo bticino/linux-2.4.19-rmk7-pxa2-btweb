@@ -44,8 +44,6 @@ static struct pm_dev *ac97_pm_dev=NULL;
 #define AC97_MODE_CTRL  0x5E
 #define AC_REMAP_SLOT56 0x10
 
-#define SNDCTL_BTGET_DELAY          _SIOWR('P',99, int)
-
 
 // !!! parm --- punto di partenza quella di Advantech senza opzioni PM
 
@@ -432,7 +430,7 @@ printk ("pxa ac97 get1, refcount %d \n", pxa_ac97_refcount);
 //		pxa_ac97_write(&pxa_ac97_codec, 0x6a, 0x0050);
 //		pxa_ac97_write(&pxa_ac97_codec, 0x6c, 0x0030);
 
-		pxa_ac97_write1(&pxa_ac97_codec1, 0x1A, 0x0 ); // mono input al secondary codec
+		pxa_ac97_write1(&pxa_ac97_codec1, 0x1A, 0x0 ); // scelgo il MIC come source per il secondary codec
 
 	pxa_ac97_refcount++;
 	up(&pxa_ac97_mutex_1);
@@ -640,7 +638,7 @@ printk( " DSP stereo \n");
 		return put_user(2, (long *) arg);
 
 	case SNDCTL_DSP_SPEED:
-printk( " DSP speed \n");
+//printk( " DSP speed to %d \n",val );
 
 		ret = get_user(val, (long *) arg);
 		if (ret)
@@ -722,9 +720,10 @@ printk( " DSP stereo \n");
 //		return put_user(1, (long *) arg);	// forzato al mono da noi, non funziona molto bene pero'
 
 	case SNDCTL_DSP_SPEED:
-//printk( "access to ioctl DSP speed \n");
 
 		ret = get_user(val, (long *) arg);
+printk( "set DSP speed to %d\n", val);
+
 		if (ret)
 			return ret;
 
@@ -816,7 +815,7 @@ static struct file_operations ac97_audio_fops = {
 };
 #endif
 
-
+			// definisco le strutture x i canali DMA
 #ifdef CODEC_SECONDARY
 
 				// ---- configurazione input mic, output modem
@@ -824,7 +823,7 @@ static struct file_operations ac97_audio_fops = {
 #define DCMD_TXPCDR_mono (DCMD_INCSRCADDR|DCMD_BURST32|DCMD_WIDTH4)
 
 
-static audio_stream_t ac97_audio1_out = {
+static audio_stream_t ac97_audio1_out = {	// contengono macro definite nel PXA per i ch.DMA
 	name:			"AC97 audio1 out",
 	dcmd:			DCMD_TXPCDR,// modem codec
 	drcmr:			&DRCMRTXMODR,
@@ -838,22 +837,6 @@ static audio_stream_t ac97_audio1_in = {
 	drcmr:			&DRCMRRXMCDR,	// add.  0x40000120, ch.register for ac97 DRCMR8
 	dev_addr:		__PREG(MCDR), // MIC FIFO data register
 };
-
-/*	--- confuigurazione per il secondary in audio pure esso
-static audio_stream_t ac97_audio1_in = {
-	name:			"AC97 audio1 in",
-	dcmd:			DCMD_RXPCDR,
-	drcmr:			&DRCMRRXPCDR,
-	dev_addr:		__PREG(PCDR),	// questi erano al primary
-};
-
-static audio_stream_t ac97_audio1_out = {
-	name:			"AC97 audio1 out",
-	dcmd:			DCMD_TXPCDR,	// buffer audio, lo stesso del primary
-	drcmr:			&DRCMRTXPCDR,
-	dev_addr:		__PREG(PCDR),
-};
-*/
 
 
 static audio_state_t ac97_audio1_state = {
