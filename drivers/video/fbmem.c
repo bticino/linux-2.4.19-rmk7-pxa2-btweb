@@ -293,6 +293,9 @@ static struct {
 #ifdef CONFIG_FB_SA1100
 	{ "sa1100", sa1100fb_init, NULL },
 #endif
+#ifdef CONFIG_FB_TVIA5202
+	{ "tviafb", tviafb_init, NULL },
+#endif
 #ifdef CONFIG_FB_PXA
 	{ "pxa", pxafb_init, NULL },
 #endif

@@ -442,6 +442,8 @@ static int __init rd_init (void)
 			       S_IFBLK | S_IRUSR | S_IWUSR,
 			       &rd_bd_op, NULL);
 
+	printk("RAMDISK: rd_size=%x\n",rd_size); /* !!!raf */
+
 	for (i = 0; i < NUM_RAMDISKS; i++)
 		register_disk(NULL, MKDEV(MAJOR_NR,i), 1, &rd_bd_op, rd_size<<1);
 
