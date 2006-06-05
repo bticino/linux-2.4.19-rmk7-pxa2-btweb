@@ -618,5 +618,5 @@ void sh_scan_waiting_intr_list(hci_t *hci)
 				hcs_urb_queue (hci, urb);
 			}
 		}
-        }
+	}
 }

@@ -1,4 +1,4 @@
-#ifdef CONFIG_USB_ISP116x_DMA
+#ifdef USE_DMA
 #define BURST_TRANSFER_SIZE 8		 //2 (single cycle, NOT supported on PXA250) used with no dma
 					 //8 (4 cycle burst), 16 (8 cycle burst)
 #else
@@ -63,22 +63,27 @@
 #define ISO_MARKER cpu_to_le32(X1PTD_FORMAT(1)|X1PTD_PID(2))
 #define REQ_CHAIN 0
 #define RSP_CHAIN 1
-int StartDmaChannel(hci_t * hci,struct frameList* fl,int chain);
+
+#ifdef USE_DMA
+int GetDmaChannel(hci_t * hci,int dma,char* name);
+void FreeDmaChannel(int dma);
+int StartDmaChannel(hci_t * hci,struct frameList* fl,int chain,int extra);
+int StartDmaExtra(hci_t * hci,int read);
+#endif
+
 int ScheduleWork(hci_t * hci, struct frameList* fl,struct ScheduleData * sd);
-void FakeDmaReqTransfer(int hcport, int reqCount, struct dmaWork* dw, hci_t * hci);
-void FakeDmaRspTransfer(int hcport, int rspCount, struct dmaWork* dw, hci_t * hci);
+void FakeDmaReqTransfer(port_t hcport, int reqCount, struct dmaWork* dw, hci_t * hci,int transferState);
+void FakeDmaRspTransfer(port_t hcport, int rspCount, struct dmaWork* dw, hci_t * hci,int transferState);
 
 void ReleaseDmaWork(struct dmaWork* dw);
-int GetDmaChannel(hci_t * hci,int dma,char* name);
 struct dmaWork* AllocDmaWork(hci_t * hci);
-void FreeDmaChannel(int dma);
+void FreeDmaWork(hci_t * hci,struct dmaWork* free);
 ////////////////////////
 int InitDmaWork(hci_t * hci, urb_t * urb);
 void AddToWorkList(hci_t * hci, urb_t * urb,int state);
 int SetCancel(hci_t * hci,urb_t * urb);
 int IntervalStatus(urb_t * urb);
 void WaitForIdle(hci_t * hci, urb_t * urb);
-void FreeDmaWork(hci_t * hci,struct dmaWork* free);
 int cancelled_request(urb_t* urb);
 int QueuePartner(hci_t * hci, urb_t * urb,urb_t * head);
 void ScanNewIsoWork(hci_t * hci,int i1);

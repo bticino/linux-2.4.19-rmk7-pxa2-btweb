@@ -73,6 +73,7 @@
 #define MAX_BUFFER_SIZE 16	//max space needed, 8 ptd 8 setup data
 #endif
 
+
 struct dmaDesc
 {
 	dma_addr_t next;	//-  points to req_next within this structure
@@ -80,7 +81,6 @@ struct dmaDesc
 	dma_addr_t target;	//-
 	int	   cmd;		//b
 };
-
 //this structure is in none-cacheable memory and aligned on 16 byte boundary
 //it is pointed to by urb_t.hcpriv
 struct dmaWork;
@@ -228,10 +228,26 @@ struct dmaWork* AllocDmaWork(hci_t * hci)
 			memset(ret, 0, PAGE_SIZE);
 #if BURST_TRANSFER_SIZE >= 8
 			if (hci->zero==0) {
-				dma_addr_t d = dma_handle+PAGE_SIZE-BURST_TRANSFER_SIZE;
-				hci->zero = d;
-				hci->trash = d-BURST_TRANSFER_SIZE;
-				end = (struct dmaWork*)(((unsigned char*)end) - (BURST_TRANSFER_SIZE<<1));
+				dma_addr_t zero = dma_handle+PAGE_SIZE-BURST_TRANSFER_SIZE;
+				dma_addr_t trash = zero-BURST_TRANSFER_SIZE;
+				struct dmaDesc* desc;
+				end = (struct dmaWork*)(((unsigned char*)end) - ((BURST_TRANSFER_SIZE+sizeof(struct dmaDesc))<<1));
+				desc = (struct dmaDesc*)end;
+
+				hci->zero = zero;
+				desc->next   = DDADR_STOP;
+				desc->source = zero;				//src zero
+				desc->target = hci->hp.dmaport;
+				desc->cmd    = REQ_CMD_IN+EXTRA_DMA_REQ_CNT;
+				hci->zeroDesc = trash - (sizeof(struct dmaDesc)<<1);
+
+				desc++;
+				hci->trash = trash;
+				desc->next   = DDADR_STOP;
+				desc->source = hci->hp.dmaport;
+				desc->target = trash;				//dest trash
+				desc->cmd    = RSP_CMD_OUT+EXTRA_DMA_RSP_CNT;
+				hci->trashDesc = trash - (sizeof(struct dmaDesc));
 			}
 #else
 			ret->freeable = 1;
@@ -469,7 +485,7 @@ static void InitDmaStruct(struct dmaWork* dw,int d0,int d1,int* buf,hci_t * hci)
 			int ll;
 			len_trailing = lengthInPtd & (BURST_TRANSFER_SIZE-1);
 			len_virt -= len_trailing;
-			
+
 			ll = len_virt;
 			dw->req[1].source = hci->zero;
 			dw->rsp[1].target = dw->dmaAddr;
@@ -895,31 +911,89 @@ void doprint(const char* title, unsigned d0, unsigned d1)
 	}
 }
 
+//keep disabled, for testing only
+#if 0
+#define ISP116x_INW(port) inw(port)
+#define ISP116x_OUTW(val,port) outw(val,port)
+#endif
+
+//enable if byte swapping needed
+#if 1
+#define chk_cpu_to_le16(val) cpu_to_le16(val)
+#define chk_le16_to_cpu(val) le16_to_cpu(val)
+#else
+#define chk_cpu_to_le16(val) (val)
+#define chk_le16_to_cpu(val) (val)
+#endif
+
+
+#ifdef CONFIG_ISP116x_IO
+//functions ISP116x_INW & ISP116x_OUTW need to be defined
+#define my_inw(port)  chk_le16_to_cpu(ISP116x_INW( (volatile long*)port))
+#define my_inw_le(port)  ISP116x_INW( (volatile long*)port)
+#define my_inw_ns(port)  ISP116x_INW( (volatile long*)port)
+#define my_insw(port,buf,length) ISP116x_INSW(port,(__u16*)buf,length)
+
+#define my_outw(val,port) ISP116x_OUTW(chk_cpu_to_le16(val), (volatile int*)port)
+#define my_outw_le(val,port) ISP116x_OUTW(val, (volatile int*)port)
+#define my_outw_ns(val,port) ISP116x_OUTW(val, (volatile int*)port)
+#define my_outsw(port,buf,length) ISP116x_OUTSW(port,(__u16*)buf,length)
+
+#else
+#define my_inw(port)  chk_le16_to_cpu(inw(port))
+#define my_inw_le(port)  inw(port)
+#define my_inw_ns(port)  inw(port)
+#define my_insw(port,buf,length) insw((int)port,buf,length)
+
+#define my_outw(val,port) outw(chk_cpu_to_le16(val),port)
+#define my_outw_le(val,port) outw(val,port)
+#define my_outw_ns(val,port) outw(val,port)
+#define my_outsw(port,buf,length) outsw((int)port,buf,length)
+#endif
+
+
+
+static inline void ISP116x_INSW (port_t port, __u16 *buffer, int length)
+{
+	while (length) {
+		*buffer++ = my_inw(port);
+		length--;
+	}
+}
+static inline void ISP116x_OUTSW (port_t port, __u16* buffer, int length)
+{
+	while (length) {
+		my_outw(*buffer++,port);
+		length--;
+	}
+}
 
 #if 0
-#define my_outsw outsw
-#define my_insw insw
+#define align_outsw(port,buf,length) my_outsw(port,buf,length)
+#define align_insw(port,buf,length) my_insw(port,buf,length)
 #else
-static inline void my_outsw(int hcport, void* buf, int length)
+
+
+static void align_outsw(port_t hcport, void* buf, int length)
 {
-	if ( (((int)buf) & 1) ==0) outsw(hcport,buf,length);
+	if ( (((int)buf) & 1) ==0) my_outsw(hcport,buf,length);
 	else {
 		__u8* buffer = (__u8*)buf;
 		while (length>0) {
 			int val = *buffer++;
 			val |= (*buffer++)<<8;
-			outw (val, hcport);
+			my_outw_le(val, hcport);
 			length--;
 		}
 	}
 }
-static inline void my_insw(int hcport, void* buf, int length)
+static void align_insw(port_t hcport, void* buf, int length)
 {
-	if ( (((int)buf) & 1) ==0) insw(hcport,buf,length);
+	if ( (((int)buf) & 1) ==0) my_insw(hcport,buf,length);
 	else {
 		__u8* buffer = (__u8*)buf;
 		while (length>0) {
-			int val = inw (hcport);
+			int val = my_inw_le (hcport);
 			*buffer++ = val;
 			*buffer++ = val >> 8;
 			length--;
@@ -955,18 +1029,19 @@ void DBG_STATUS(struct dmaWork* dw,int bReq)
 #else
 #define DBG_STATUS(dw,bReq) do {} while(0)
 #endif
-static inline void MarkTransferActive(hci_t* hci,struct dmaWork* dw,int chain)
+static inline void MarkTransferActive(hci_t* hci,struct dmaWork* dw,int chain,int transferState)
 {
 	hci->transfer.chain = chain;
 	hci->transfer.progress = dw;
+	hci->transfer.extra = (transferState & TFM_DmaExtraPending) ? AE_extra_pending : AE_extra_none;
 	wmb();
-	hci->transferState = TF_TransferInProgress;
+	hci->transferState = transferState;
 }
 
-void FakeDmaReqTransfer(int hcport, int reqCount, struct dmaWork* dw, hci_t * hci)
+void FakeDmaReqTransfer(port_t hcport, int reqCount, struct dmaWork* dw, hci_t * hci,int transferState)
 {
 	int cnt=0;
-	MarkTransferActive(hci,dw,REQ_CHAIN);
+	MarkTransferActive(hci,dw,REQ_CHAIN,transferState);
 #if BURST_TRANSFER_SIZE >= 8
 	while (dw && (cnt < reqCount)) {
 		int i;
@@ -981,15 +1056,18 @@ void FakeDmaReqTransfer(int hcport, int reqCount, struct dmaWork* dw, hci_t * hc
 				dma_addr_t src = dw->req[i].source;
 				cnt += len;
 				if (src == prb) {
-					my_outsw(hcport, rb, (len+1)>>1);
+					align_outsw(hcport, rb, (len+1)>>1);
 					rb += len;
 					prb += len;
 				}
-				else if (src == pZero) while (len>0) { outw(0,hcport); len -= 2; }
-				else my_outsw(hcport, dw->virt_buffer, (len+1)>>1);
+				else if (src == pZero) while (len>0) { my_outw_ns(0,hcport); len -= 2; }
+				else align_outsw(hcport, dw->virt_buffer, (len+1)>>1);
 			}
 			if (dw->req[i].next & DDADR_STOP) {
-				if (cnt==reqCount) return;
+				if (cnt==reqCount) {
+					hci->transfer.progress = NULL;
+					return;
+				}
 				goto error1;
 			}
 		}
@@ -1003,49 +1081,56 @@ error1:
 		DBG_STATUS(dw,1);
 		if (Is_PID_IN(dw->req_buffer)) {
 			if (bLast) {
-				my_outsw(hcport, (char*)(&dw->req_buffer[0]), 8>>1);
+				align_outsw(hcport, (char*)(&dw->req_buffer[0]), 8>>1);
 				cnt += 8;
-				if (cnt==reqCount) return;
+				if (cnt==reqCount) {
+					hci->transfer.progress = NULL;
+					return;
+				}
 				break;
 			}
-			my_outsw(hcport, (char*)(&dw->req_buffer[0]), dw->len_ptd>>1);
+			align_outsw(hcport, (char*)(&dw->req_buffer[0]), dw->len_ptd>>1);
 			cnt += dw->len_ptd;
 			len = (len+3)&~3;
 			cnt += len;
-			while (len>0) { outw(0,hcport); outw(0,hcport); len-=4; }
+			while (len>0) { my_outw_ns(0,hcport); my_outw_ns(0,hcport); len-=4; }
 		}
 		else {
-			my_outsw(hcport, (char*)(&dw->req_buffer[0]), dw->len_ptd>>1);
+			align_outsw(hcport, (char*)(&dw->req_buffer[0]), dw->len_ptd>>1);
 			cnt += dw->len_ptd;
 			if (len) {
-				if (len>>1) my_outsw(hcport, dw->virt_buffer, len>>1);
+				if (len>>1) align_outsw(hcport, dw->virt_buffer, len>>1);
 				if (len&1) {
 					unsigned char* p = ((unsigned char*)(dw->virt_buffer)) + len -1;
-					outw(*p,hcport);
+					my_outw_le(*p,hcport);
 					if (!bLast) len++;
 				}
-				if (!bLast) if (len&2) { outw(0,hcport); len+=2;}
+				if (!bLast) if (len&2) { my_outw_ns(0,hcport); len+=2;}
 				cnt += len;
 			}
-			if (dw->req_buffer[0] & cpu_to_le32(X0PTD_LAST(1))) {
-				if (cnt==reqCount) return;
+			if (bLast) {
+				if (cnt==reqCount) {
+					hci->transfer.progress = NULL;
+					return;
+				}
 				break;
 			}
 		}
 		dw = dw->virt_next;
 	}
 #endif
+	hci->transfer.progress = NULL;
 	{
 		int len = reqCount - cnt;
-		while (len > 0) { outw(0,hcport); len -= 2; }
+		while (len > 0) { my_outw_ns(0,hcport); len -= 2; }
 	}
 	printk(KERN_ERR __FILE__ ": Req count mismatch %i vs %i\n",cnt,reqCount);
 
 }
-void FakeDmaRspTransfer(int hcport, int rspCount, struct dmaWork* dw, hci_t * hci)
+void FakeDmaRspTransfer(port_t hcport, int rspCount, struct dmaWork* dw, hci_t * hci,int transferState)
 {
 	int cnt=0;
-	MarkTransferActive(hci,dw,RSP_CHAIN);
+	MarkTransferActive(hci,dw,RSP_CHAIN,transferState);
 #if BURST_TRANSFER_SIZE >= 8
 	while (dw && (cnt < rspCount)) {
 		int i;
@@ -1058,22 +1143,25 @@ void FakeDmaRspTransfer(int hcport, int rspCount, struct dmaWork* dw, hci_t * hc
 				dma_addr_t target = dw->rsp[i].target;
 				cnt += len;
 				if (target == prb) {
-					my_insw(hcport, rb, (len+1)>>1);
+					align_insw(hcport, rb, (len+1)>>1);
 					if (i==0) DBG_STATUS(dw,0);
 					rb += len;
 					prb += len;
 				}
-				else if (target == pTrash) while (len>0) { inw(hcport); len -= 2; }
+				else if (target == pTrash) while (len>0) { my_inw_ns(hcport); len -= 2; }
 				else {
-					if (len>>1) my_insw(hcport, dw->virt_buffer, len>>1);
+					if (len>>1) align_insw(hcport, dw->virt_buffer, len>>1);
 					if (len&1) {
 						unsigned char* p = ((unsigned char*)(dw->virt_buffer)) + len -1;
-						*p = inw(hcport);
+						*p = my_inw_le(hcport);
 					}
 				}
 			}
 			if (dw->rsp[i].next & DDADR_STOP) {
-				if (cnt==rspCount) return;
+				if (cnt==rspCount) {
+					hci->transfer.progress = NULL;
+					return;
+				}
 				goto error1;
 			}
 		}
@@ -1085,45 +1173,59 @@ error1:
 		int len = dw->len_virt;
 		int bLast = dw->req_buffer[0] & cpu_to_le32(X0PTD_LAST(1));
 		if (Is_PID_IN(dw->req_buffer)) {
-			my_insw(hcport, (char*)(&dw->rsp_buffer[0]), dw->len_ptd>>1);
+			align_insw(hcport, (char*)(&dw->rsp_buffer[0]), dw->len_ptd>>1);
 			DBG_STATUS(dw,0);
 			cnt += dw->len_ptd;
 			if (len) {
-				if (len>>1) my_insw(hcport, dw->virt_buffer, len>>1);
+				if (len>>1) align_insw(hcport, dw->virt_buffer, len>>1);
 				if (len&1) {
 					unsigned char* p = ((unsigned char*)(dw->virt_buffer)) + len -1;
-					*p = inw(hcport);
+#if 1
+					*p = my_inw_le(hcport);
+#else
+					unsigned short val = my_inw_le(hcport);
+					*p = val;
+					printk(KERN_ERR __FILE__ ": last word of odd length read: %4x,%4x",val,cpu_to_le16(val));
+#endif
+
 					if (!bLast) len++;
 				}
-				if (!bLast) if (len&2) { inw(hcport); len+=2;}
+				if (!bLast) if (len&2) { my_inw_ns(hcport); len+=2;}
 				cnt += len;
 			}
 			if (bLast) {
-				if (cnt==rspCount) return;
+				if (cnt==rspCount) {
+					hci->transfer.progress = NULL;
+					return;
+				}
 				break;
 			}
 		}
 		else {
 			if (bLast) {
-				my_insw(hcport, (char*)(&dw->rsp_buffer[0]), 8>>1);
+				align_insw(hcport, (char*)(&dw->rsp_buffer[0]), 8>>1);
 				DBG_STATUS(dw,0);
 				cnt += 8;
-				if (cnt==rspCount) return;
+				if (cnt==rspCount) {
+					hci->transfer.progress = NULL;
+					return;
+				}
 				break;
 			}
-			my_insw(hcport, (char*)(&dw->rsp_buffer[0]), dw->len_ptd>>1);
+			align_insw(hcport, (char*)(&dw->rsp_buffer[0]), dw->len_ptd>>1);
 			DBG_STATUS(dw,0);
 			cnt += dw->len_ptd;
 			len = (len+3) & ~3;
 			cnt += len;
-			while (len>0) { inw(hcport); inw(hcport); len-=4; }
+			while (len>0) { my_inw_ns(hcport); my_inw_ns(hcport); len-=4; }
 		}
 		dw = dw->virt_next;
 	}
 #endif
+	hci->transfer.progress = NULL;
 	{
 		int len = rspCount - cnt;
-		while (len > 0) { inw(hcport); len -= 2; }
+		while (len > 0) { my_inw_ns(hcport); len -= 2; }
 	}
 	printk(KERN_ERR __FILE__ ": Rsp count mismatch %i vs %i\n",cnt,rspCount);
 
@@ -1432,6 +1534,17 @@ static int inline GetNewSize(struct dmaWork* dw,int max)
 {
 	int lengthInPtd = dw->orig_lengthInPtd;
 	if (lengthInPtd > max) lengthInPtd = max & ~(dw->minsize-1);
+	return lengthInPtd;
+}
+static int inline GetNewSizeMiddle(struct dmaWork* dw,int max)
+{
+	int lengthInPtd = dw->orig_lengthInPtd;
+	if (lengthInPtd > max) lengthInPtd = max;
+
+	lengthInPtd &= ~(dw->minsize-1);
+#if BURST_TRANSFER_SIZE==16
+	lengthInPtd &= ~(BURST_TRANSFER_SIZE-1);
+#endif
 	return lengthInPtd;
 }
 
@@ -1814,8 +1927,8 @@ int ScheduleWork(hci_t * hci, struct frameList* fl,struct ScheduleData * sdata)
 			//try to increase usage
 			sd->units_left += sd->dwLastReduced->unit_count;
 			{
-				int newSize = GetNewSize(sd->dwLastReduced,sd->units_left - MAX(BURST_TRANSFER_SIZE,8));
-				if (newSize != sd->dwLastReduced->minsize) {
+				int newSize = GetNewSizeMiddle(sd->dwLastReduced,sd->units_left - MAX(BURST_TRANSFER_SIZE,8));
+				if (newSize > sd->dwLastReduced->minsize) {
 					ChangeUsage(sd->dwLastReduced,newSize);
 				}
 			}
@@ -1858,7 +1971,7 @@ int ScheduleWork(hci_t * hci, struct frameList* fl,struct ScheduleData * sdata)
 }
 
 
-
+#ifdef USE_DMA
 #if BURST_TRANSFER_SIZE >= 8
 static inline struct dmaWork* UpdateDmaPosition(hci_t * hci,struct frameList* fl,int ch)
 {
@@ -1912,6 +2025,33 @@ static inline struct dmaWork* UpdateDmaPosition(hci_t * hci,struct frameList* fl
 	}
 	return hci->transfer.progress;
 }
+static void KickStartHc(hci_t * hci,struct pt_regs *regs)
+{
+//AllEOTInterrupt may happen before this DMA interrupt if enabled
+//so call hc_interrupt from here instead
+	if (hci->bhActive==0) {
+#if 1
+		if (hci->inInterrupt) hci->doubleInt=1;
+		else hc_interrupt(0,hci,regs);
+#else
+		tasklet_schedule(&hci->bottomHalf);
+#endif
+	}
+	else {
+		unsigned long flags;
+		spin_lock_irqsave(&hci->command_port_lock, flags);
+		if (hci->transferState & TF_DmaInProgress) {
+			if (hci->transfer.progress==NULL) {
+				hci->transferState &= ~TFM_DmaPending;
+				if (hci->transfer.extra==AE_extra_done) {
+					hci->transferState &= ~TFM_DmaExtraPending;
+				}
+			}
+		}
+		hci->intHappened = 1;
+		spin_unlock_irqrestore(&hci->command_port_lock, flags);
+	}
+}
 /*
  * Our DMA interrupt handler
  */
@@ -1936,17 +2076,12 @@ static void hc_dma_interrupt(int ch, void *dev_id, struct pt_regs *regs)
 		wmb();
 		if (hci->transfer.progress) {
 			hci->transfer.progress=NULL;
-//AllEOTInterrupt may happen before this DMA interrupt if enabled
-//so call hc_interrupt from here instead
-			if (hci->bhActive==0) {
-#if 1
-				if (hci->inInterrupt) hci->doubleInt=1;
-				else hc_interrupt(0,hci,regs);
-#else
-				tasklet_schedule(&hci->bottomHalf);
-#endif
+			KickStartHc(hci,regs);
+		} else {
+			if (hci->transfer.extra==AE_extra_inprogress) {
+				hci->transfer.extra=AE_extra_done;
+				KickStartHc(hci,regs);
 			}
-			else hci->intHappened = 1;
 		}
 	} else {
 		DCSR(ch) = dcsr;	//try getting write as close to read as possible
@@ -1989,9 +2124,9 @@ void FreeDmaChannel(int dma)
 }
 
 //chain 0 - request, 1 - response
-int StartDmaChannel(hci_t * hci,struct frameList * fl,int chain)
+int StartDmaChannel(hci_t * hci,struct frameList * fl,int chain,int transferState)
 {
-#if BURST_TRANSFER_SIZE >= 8
+#if (BURST_TRANSFER_SIZE >= 8) && defined(TRY_DMA)
 	if (hci->hp.dmaport) {
 		int channel = hci->hp.dmaChannel;
 		struct dmaWork* dw = fl->chain;
@@ -2007,10 +2142,11 @@ int StartDmaChannel(hci_t * hci,struct frameList * fl,int chain)
 		if (dw) {
 			unsigned long flags;
 			spin_lock_irqsave(&hci->command_port_lock, flags);
-				DDADR(channel) = dw->dma_base + ((chain==REQ_CHAIN)?(int)( &((struct dmaWork*)0)->req[0].next) : (int)( &((struct dmaWork*)0)->rsp[0].next));
-//				printk("DDADR:%8x\n",DDADR(channel));
-				DCSR(channel) = DCSR_RUN|DCSR_STOPIRQEN;
-				MarkTransferActive(hci,dw,chain);
+			DDADR(channel) = dw->dma_base + ((chain==REQ_CHAIN)?(int)( &((struct dmaWork*)0)->req[0].next) :
+																(int)( &((struct dmaWork*)0)->rsp[0].next));
+//			printk("DDADR:%8x\n",DDADR(channel));
+			DCSR(channel) = DCSR_RUN|DCSR_STOPIRQEN;
+			MarkTransferActive(hci,dw,chain,transferState);
 			spin_unlock_irqrestore(&hci->command_port_lock, flags);
 		} else {
 			printk(KERN_ERR __FILE__ ": Nothing queued!! chain:%i, req:%i, rsp:%i\n",chain,fl->reqCount,fl->rspCount);
@@ -2022,3 +2158,27 @@ int StartDmaChannel(hci_t * hci,struct frameList * fl,int chain)
 //	printk("init1:0,");
 	return -1;
 }
+int StartDmaExtra(hci_t * hci,int read)
+{
+#if (BURST_TRANSFER_SIZE >= 8) && defined(TRY_DMA)
+	if (hci->hp.dmaport) {
+		unsigned long flags;
+		int channel = hci->hp.dmaChannel;
+		if ((DCSR(channel) & DCSR_STOPSTATE)==0) {
+			DCSR(channel) = 0;
+			printk(KERN_ERR __FILE__ ": Channel is ALREADY active!!\n");
+			do { rmb(); } while ((DCSR(channel) & DCSR_STOPSTATE)==0);
+		}
+
+		spin_lock_irqsave(&hci->command_port_lock, flags);
+		DDADR(channel) = (read) ? hci->trashDesc : hci->zeroDesc;
+		DCSR(channel) = DCSR_RUN|DCSR_STOPIRQEN;
+		hci->transfer.extra=AE_extra_inprogress;
+		spin_unlock_irqrestore(&hci->command_port_lock, flags);
+//		printk(KERN_DEBUG __FILE__ ": extra dma started\n");
+		return 0;
+	}
+#endif
+	return -1;
+}
+#endif //defined(USE_DMA)
