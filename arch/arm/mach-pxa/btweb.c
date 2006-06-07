@@ -47,7 +47,7 @@ EXPORT_SYMBOL(btweb_bigbuf1);
 EXPORT_SYMBOL(btweb_features);
 EXPORT_SYMBOL(btweb_globals);
 
-static int __init is_f452(void)
+static int __init is_f452(void) // and MH200
 {
 	struct btweb_features feat = {
 		.eth_reset = 63, 
@@ -60,15 +60,25 @@ static int __init is_f452(void)
 		.pic_reset = 62,
 		.buzzer = 0,
 		.mdcnfg = 0x19C9,
+		.ctrl_hifi = -1,
+		.ctrl_video = -1,
+		.virt_conf = -1,
+		.abil_mod_video = -1,
+		.abil_mod_hifi = -1,
+		.abil_fon = -1,
 	};
 	/* GPIO6 is low */
 	set_GPIO_mode( 6 | GPIO_IN );
 	if (GPLR(6) & GPIO_bit(6)) return -ENODEV;
 
+	/* GPIO7 is high */
+	set_GPIO_mode( 7 | GPIO_IN );
+	if (!(GPLR(7) & GPIO_bit(7))) return -ENODEV;
+
 	btweb_features = feat;
 	return 0;
 }
-static int __init is_ts(void)
+static int __init is_ts(void) // H4684 product
 {
 	struct btweb_features feat = {
 		.eth_reset = 3, 
@@ -77,22 +87,35 @@ static int __init is_ts(void)
 		.rtc_irq = 8,
 		.led = -1,
 		.usb_irq = 26,
-                .backlight = 12,
+		.backlight = 12,
 		.pic_reset = 44,
 		.buzzer = 1,
 		.mdcnfg = 0x19C9,
+		.ctrl_hifi = -1,
+		.ctrl_video = -1,
+		.virt_conf = -1,
+		.abil_mod_video = -1,
+		.abil_mod_hifi = -1,
+		.abil_fon = -1,
 	};
 	/* GPIO6 is high (it's already in IN mode)  */
 	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
 
-	/* GPIO7 is low */
-	set_GPIO_mode( 7 | GPIO_IN );
+	/* GPIO7 is low (it's already in IN mode) */
 	if (GPLR(7) & GPIO_bit(7)) return -ENODEV;
+
+	/* GPIO82 is low */
+	set_GPIO_mode( 82 | GPIO_IN );
+	if (GPLR(82) & GPIO_bit(82)) return -ENODEV;
+
+	/* GPIO84 is low */
+	set_GPIO_mode( 84 | GPIO_IN );
+	if (GPLR(84) & GPIO_bit(84)) return -ENODEV;
 
 	btweb_features = feat;
 	return 0;
 }
-static int __init is_fpga(void)
+static int __init is_fpga(void)   // First master of F453AV/Interf2filitcp/ip
 {
 	struct btweb_features feat = {
 		.eth_reset = 3,
@@ -101,16 +124,66 @@ static int __init is_fpga(void)
 		.rtc_irq = 8,
 		.led = 40,
 		.usb_irq = 21,
-		.backlight = 12,
+		.backlight = -1,
 		.pic_reset = 44,
-		.buzzer = 1,
+		.buzzer = -1,
 		.mdcnfg = 0x19C9,
+		.ctrl_hifi = 0,
+		.ctrl_video = 1,
+		.virt_conf = 2,
+		.abil_mod_video = 35,
+		.abil_mod_hifi = 41,
+		.abil_fon = 54,
 	};
 	/* GPIO6 is high (it's already in IN mode)  */
 	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
 
 	/* GPIO7 is high (it's already in IN mode)  */
-	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
+	if (!(GPLR(7) & GPIO_bit(7))) return -ENODEV;
+
+	/* GPIO82 is high (it's already in IN mode)  */
+	if (!(GPLR(82) & GPIO_bit(82))) return -ENODEV;
+
+	/* GPIO84 is high (it's already in IN mode)  */
+	if (!(GPLR(84) & GPIO_bit(84))) return -ENODEV;
+	
+	btweb_features = feat;
+	return 0;
+}
+
+static int __init is_f453av(void)
+{
+	struct btweb_features feat = {
+		.eth_reset = 3,
+		.eth_irq = 22,
+		.e2_wp = 10,
+		.rtc_irq = 8,
+		.led = 40,
+		.usb_irq = 21,
+		.backlight = -1,
+		.pic_reset = 44,
+		.buzzer = -1,
+		.mdcnfg = 0x19C9,
+		.ctrl_hifi = -1,
+		.ctrl_video = 1,
+		.virt_conf = 2,
+		.abil_mod_video = 35,
+		.abil_mod_hifi = 41,
+		.abil_fon = 54,
+	};
+
+	/* GPIO6 is low (it's already in IN mode)  */
+	if (GPLR(6) & GPIO_bit(6)) return -ENODEV;
+
+	/* GPIO7 is low (it's already in IN mode)  */
+	if (GPLR(7) & GPIO_bit(7)) return -ENODEV;
+
+	/* GPIO82 is low (it's already in IN mode)  */
+	if (GPLR(82) & GPIO_bit(82)) return -ENODEV;
+
+	/* GPIO84 is high (it's already in IN mode)  */
+	if (!(GPLR(84) & GPIO_bit(84))) return -ENODEV;
+	
 
 	btweb_features = feat;
 	return 0;
@@ -128,11 +201,14 @@ static struct btweb_flavor {
 	{is_f452,   BTWEB_F452, "F452X-MH200 web server",64<<20},
 	{is_ts,     BTWEB_TS,   "Touch-screen engine",   64<<20},
 	{is_fpga,   BTWEB_FPGA, "FPGA-enabled engine",   64<<20},
+	{is_f453av, BTWEB_F453AV, "F453AV web server",64<<20},
 	{NULL,}
 };
 
 static int __init btweb_find_device(void)
 {
+	
+	
 	struct btweb_flavor *fptr;
 	for (fptr = fltab; fptr->f; fptr++)
 		if (!fptr->f())
@@ -198,14 +274,14 @@ fixup_btweb(struct machine_desc *desc, struct param_struct *params,
 	}
 
 	/* Some boards have 32MB some 64MB.  Let's use a safe default */
-	printk("btweb:memsize=%x\n",memsize); /* !!!raf */
+	printk("btweb:memsize=%x\n",memsize); /* For debugging purpose */
 	SET_BANK (0, 0xa0000000, memsize);
 	mi->nr_banks      = 1;
 }
 
 static struct map_desc btweb_io_desc[] __initdata = {
  /* virtual     physical    length      domain     r  w  c  b */
-  { 0xf1000000, 0x0c000000, 0x00100000, DOMAIN_IO, 0, 1, 0, 0 }, /* LAN91C96 IO */
+  { 0xf1000000, 0x0c000000, 0x00100000, DOMAIN_IO, 0, 1, 0, 0 }, /* LAN91C96 and SMC9118 IO */
   { 0xf1100000, 0x0e000000, 0x00100000, DOMAIN_IO, 0, 1, 0, 0 }, /* LAN91C96 Attr */
   { 0xf4000000, 0x10000000, 0x00400000, DOMAIN_IO, 0, 1, 0, 0 }, /* SA1111 */
   LAST_DESC
@@ -229,15 +305,9 @@ static void __init btweb_map_io(void)
 	/* This is for the SMC chip select */
 	set_GPIO_mode(GPIO79_nCS_3_MD);
 
-   /* To be sure that ethernet chip is not in reset state */
-   set_GPIO_mode(btweb_features.eth_reset | GPIO_OUT);
-   GPCR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
-
-	printk("NOW SOME GPIO FIX FOR F453AV (TO BE PORTED TO UBOOT IN A FAR FUTURE\n");
-
-	/* To be sure that pic is not in reset state */
-   set_GPIO_mode(btweb_features.pic_reset | GPIO_OUT);
-   GPSR(btweb_features.pic_reset) = GPIO_bit(btweb_features.pic_reset);
+	/* To be sure that ethernet chip is not in reset state */
+	set_GPIO_mode(btweb_features.eth_reset | GPIO_OUT);
+	GPCR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
 
 	/* NVRAM write protect */
 	set_GPIO_mode(btweb_features.e2_wp | GPIO_OUT);
@@ -247,46 +317,57 @@ static void __init btweb_map_io(void)
 	set_GPIO_mode(54 | GPIO_OUT);
 	GPCR(54) = GPIO_bit(54);
 
-	/* !!!raf Some fix to F453AV */
-	/* Enabling video modulator/demodulator */
-	set_GPIO_mode(35 | GPIO_OUT);
-	GPSR(35) = GPIO_bit(35);
+	if ((BTWEB_FPGA==btweb_globals.flavor) || (BTWEB_F453AV==btweb_globals.flavor)) {
 
-	/* gpio0,1 hifi and video source selection*/
-	set_GPIO_mode(0 | GPIO_OUT);
-	GPSR(0) = GPIO_bit(0); /* hifi internal source */
-	set_GPIO_mode(1 | GPIO_OUT);
-	GPCR(1) = GPIO_bit(1); /* video internal source from tvia */
+		printk("NOW SOME GPIO FIX FOR F453AV (TO BE PORTED TO UBOOT IN A near FUTURE\n");
 
-      /* some fix for Tvia */
-      set_GPIO_mode(19 | GPIO_IN);
-	  /* mfill -b 0x40E0000C -l 0x4 -p 0xD381BE0B -4 */
-	  /*  GPCR1=0x2000; */
-	  /* mfill -b 0x40E00028 -l 0x4 -p 0x2000 -4 */
-	  /* sleep 1/10 second */
-	  /* set_current_state(TASK_INTERRUPTIBLE); */
-	  /* schedule_timeout(HZ/10); */
-	  /* GPSR1=0x2000; */
-	  /* set_current_state(TASK_INTERRUPTIBLE); */
-	  /* schedule_timeout(HZ/10); */
+		if (BTWEB_FPGA==btweb_globals.flavor)
+			printk("First Master of F453AV named FPGA: keep only for compatibility\n");
 
-	  /* mfill -b 0x40E0001C -l 0x4 -p 0x2000 -4 */
-	  /* bus */
-	  MSC2=0x92347FF1;    /* BUS veloce */
-	  /* MSC2=0x23447FF1;    BUS medio */
-	  /* MSC2=0x7ff47FF1;    BUS lento */
 
-	  /* Reset Tvia5202 - gpio45 output */
-      set_GPIO_mode(45 | GPIO_OUT);
-      GPCR(45) = GPIO_bit(45);  /* tvia5202 HW reset */
+		/* To be sure that pic is not in reset state */
+		set_GPIO_mode(btweb_features.pic_reset | GPIO_OUT);
+		GPSR(btweb_features.pic_reset) = GPIO_bit(btweb_features.pic_reset);
 
-	  /* mfill -b 0x48000010 -l 0x04 -p 0x7ff47FF1 -4 */
-	  /* clock */
-	  /*MDREFR=0x000DC018; */
-	  /* mfill -b 0x48000004 -l 0x04 -p 0x000DC018 -4 */
-	 
+		/* Enabling video modulator/demodulator  */
+		set_GPIO_mode(35 | GPIO_OUT);
+		GPSR(35) = GPIO_bit(35);
 
+		/* gpio0,1 hifi and video source selection*/
+		set_GPIO_mode(0 | GPIO_OUT);
+		GPSR(0) = GPIO_bit(0); /* hifi internal source */
+		set_GPIO_mode(1 | GPIO_OUT);
+		GPCR(1) = GPIO_bit(1); /* video internal source from tvia */
+
+		/* some fix for Tvia */
+		set_GPIO_mode(19 | GPIO_IN);
+		/* mfill -b 0x40E0000C -l 0x4 -p 0xD381BE0B -4 */
+		/*  GPCR1=0x2000; */
+		/* mfill -b 0x40E00028 -l 0x4 -p 0x2000 -4 */
+		/* sleep 1/10 second */
+		/* set_current_state(TASK_INTERRUPTIBLE); */
+		/* schedule_timeout(HZ/10); */
+		/* GPSR1=0x2000; */
+		/* set_current_state(TASK_INTERRUPTIBLE); */
+		/* schedule_timeout(HZ/10); */
+
+		/* mfill -b 0x40E0001C -l 0x4 -p 0x2000 -4 */
+		/* bus */
+		MSC2=0x92347FF1;    /* BUS veloce su chip select Tvia5202 */
+		/* MSC2=0x23447FF1;    BUS medio */
+		/* MSC2=0x7ff47FF1;    BUS lento */
+
+		/* Reset Tvia5202 - gpio45 output */
+		set_GPIO_mode(45 | GPIO_OUT);
+		GPCR(45) = GPIO_bit(45);  /* tvia5202 HW reset */
+
+		/* mfill -b 0x48000010 -l 0x04 -p 0x7ff47FF1 -4 */
+
+		/* clock for Tvia5202 */
+		/* MDREFR=0x000DC018; */
+		/* mfill -b 0x48000004 -l 0x04 -p 0x000DC018 -4 */
 	
+	}
 
 	/* setup sleep mode values */
 	PWER  = 0x00000002;

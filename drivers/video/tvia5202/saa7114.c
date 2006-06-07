@@ -2,12 +2,34 @@
  *   Philips 7114 video decoder driver
  */
 
+/*#include <linux/module.h> */
+#include <linux/kernel.h>
+/*#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/tty.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/vmalloc.h>
+#include <linux/fb.h>
+#include <linux/init.h>
+#include <linux/pm.h>
+*/
+
+
+#ifdef DEBUG
+	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
+#else
+	#define dbg(format, arg...) do {} while (0)
+#endif
+
+#define DEBUG0(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
+
+
 #include "tvia5202-def.h"
 #include "tvia5202-i2c.h"
 #include "tvia5202-misc.h"
 #include "saa7114.h"
-
-#define DEBUG0		printk
 
 #define P7114_Count     169
 
@@ -620,11 +642,11 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
     //    u8 bData;
     int nCounter;
 
-    printk("InitDecoder7114\n");
+    DEBUG0("InitDecoder7114");
     InitI2C();
 
     if(DetectI2C(I2CPort[nWhichDecoder])==0) {
-    	DEBUG0("DetectI2C failed\n");
+    	DEBUG0("DetectI2C failed");
         return -1;
     }
 
@@ -635,7 +657,7 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
                     if(SendOneByte(I2CPort[nWhichDecoder], 
                         Phil7114_NTSC[0][nCounter * 2], 
                         Phil7114_NTSC[0][nCounter * 2+1]) == 0) {
-                        DEBUG0("Failed to initialize Philips 7114(1) decoder!\n");
+                        DEBUG0("Failed to initialize Philips 7114(1) decoder");
                         return -1;
                     }
                 }
@@ -643,13 +665,13 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
                     if(SendOneByte(I2CPort[nWhichDecoder], 
                         Phil7114_NTSC[1][nCounter * 2], 
                         Phil7114_NTSC[1][nCounter * 2+1])==0) {
-                        DEBUG0("Failed to initialize Philips 7114(1) decoder!\n");
+                        DEBUG0("Failed to initialize Philips 7114(1) decoder");
                         return -1;
                     }
                 }
             }
             if(nTuner==1) SendOneByte(I2CPort[nWhichDecoder], bSubAddr, 0xC0);
-            DEBUG0("Initialized Philips 7114(1) to NTSC mode successfully!\n");
+            DEBUG0("Initialized Philips 7114(1) to NTSC mode successfully!");
         }
         else if(nWhichDecoder==Philips7114_40) {
             for(nCounter=0; nCounter<P7114_Count; nCounter++) {
@@ -657,7 +679,7 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
                     if(SendOneByte(I2CPort[nWhichDecoder], 
                         Phil7114_NTSC[0][nCounter * 2], 
                         Phil7114_NTSC[0][nCounter * 2+1])==0) {
-                        DEBUG0("Failed to initialize Philips 7114(2) decoder!\n");
+                        DEBUG0("Failed to initialize Philips 7114(2) decoder!");
                         return -1;
                     }
                  
@@ -666,24 +688,24 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
                     if(SendOneByte(I2CPort[nWhichDecoder], 
                         Phil7114_NTSC[1][nCounter * 2], 
                         Phil7114_NTSC[1][nCounter * 2+1]) == 0) {
-                        DEBUG0("Failed to initialize Philips 7114(2) decoder!\n");
+                        DEBUG0("Failed to initialize Philips 7114(2) decoder!");
                         return -1;
                     }
                 }
             }
 			WriteReg(0x3d4, 0xe1, ReadReg(0x3d4, 0xe1) | 0x0c);
-            DEBUG0("Initialized Philips 7114(2) to NTSC mode successfully!\n");
+            DEBUG0("Initialized Philips 7114(2) to NTSC mode successfully!");
         }
     }
     else {
         if(nWhichDecoder==Philips7114) {
 
-          DEBUG0("Initializing Philips 7114(1) to PAL mode ...\n");
+          DEBUG0("Initializing Philips 7114(1) to PAL mode ...");
 
 		  		for(nCounter=0; nCounter<P7114_Count; nCounter++) {
                 if(SendOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], 
                     Phil7114_PAL[nCounter * 2+1])==0) {
-                    DEBUG0("Failed to initialize Philips 7114(1) decoder!\n");
+                    DEBUG0("Failed to initialize Philips 7114(1) decoder!");
                     return -1;
                 }
 					//
@@ -692,34 +714,34 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
 					{ u8 tmp;
 			  	  if (ReadOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], &tmp)){
 							if (tmp!=Phil7114_PAL[nCounter * 2+1]){
-			          DEBUG0("Problem configuring Philips 7114(1) at byte %x : read %x, correct %x\n",Phil7114_PAL[nCounter * 2], tmp, Phil7114_PAL[nCounter * 2+1]);
+								if (Phil7114_PAL[nCounter * 2]!=0xf) // Is only readable, it doesn't accept modifying and so test fails
+									DEBUG0("Problem configuring Philips 7114(1) at byte %x : read %x, correct %x",Phil7114_PAL[nCounter * 2], tmp, Phil7114_PAL[nCounter * 2+1]);
 				  		//return -1;
 						}
 //					else
 //					  DEBUG0("\t\t(%x) = %x\t\tOK\n",Phil7114_PAL[nCounter * 2],tmp);
 				  }
 				  else{
-						DEBUG0("Problem configuring Philips 7114(1) at byte %x : not read\n",Phil7114_PAL[nCounter * 2]);
+						DEBUG0("Problem configuring Philips 7114(1) at byte %x : not read",Phil7114_PAL[nCounter * 2]);
 				  	return -1;
 				  }
 					}
             }
-            DEBUG0("\n");
 			
             if(nVBI==1) SendOneByte(I2CPort[nWhichDecoder], 0x87, 0x01);
             if(nTuner==1) SendOneByte(I2CPort[nWhichDecoder], bSubAddr, 0xC0);
-            DEBUG0("Initialized Philips 7114(1) to PAL mode successfully!\n");
+            DEBUG0("Initialized Philips 7114(1) to PAL mode successfully!");
         }
         else if(nWhichDecoder==Philips7114_40) {
             for(nCounter=0; nCounter<P7114_Count; nCounter++) {
                 if(SendOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], 
                     Phil7114_PAL[nCounter * 2+1])==0) {
-                    DEBUG0("Failed to initialize Philips 7114(2) decoder!\n");
+                    DEBUG0("Failed to initialize Philips 7114(2) decoder!");
                     return -1;
                 }
             }
 	    WriteReg(0x3d4, 0xe1, ReadReg(0x3d4, 0xe1) | 0x0c); 
-            DEBUG0("Initialized Philips 7114(2) to PAL mode successfully!\n");
+            DEBUG0("Initialized Philips 7114(2) to PAL mode successfully!");
         }
     }
 
@@ -728,39 +750,39 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
 	//
   { u8 tmp;
       if (ReadOneByte(0x42, 0x88, &tmp))
-			printk("SAA7114: Power Save Control (0x88) = %x\n",tmp);
+			DEBUG0("SAA7114: Power Save Control (0x88) = %x",tmp);
       else
-			printk("SAA7114: Power Save Control not read\n");
+			DEBUG0("SAA7114: Power Save Control not read");
       tmp |= 0x01;
       SendOneByte(0x42,0x88,tmp);
       if (ReadOneByte(0x42, 0x88, &tmp))
-			printk("SAA7114: Power Save Control (0x88) = %x\n",tmp);
+			DEBUG0("SAA7114: Power Save Control (0x88) = %x",tmp);
       else
-			printk("SAA7114: Power Save Control not read\n");
+			DEBUG0("SAA7114: Power Save Control not read");
  
       if (ReadOneByte(0x42, 0x8f, &tmp))
-			printk("SAA7114: Decoder byte test (0x8f) = %x\n",tmp);
+			DEBUG0("SAA7114: Decoder byte test (0x8f) = %x",tmp);
       else
       {
-			printk("SAA7114: Decoder byte test not read\n");
-			printk("SAA7114: Startup may be failed\n");
+			DEBUG0("SAA7114: Decoder byte test not read");
+			DEBUG0("SAA7114: Startup may be failed");
       }
 
       if (ReadOneByte(0x42, 0x00, &tmp))
-			printk("SAA7114: Chip Version (0x00) = %x\n",tmp);
+			DEBUG0("SAA7114: Chip Version (0x00) = %x",tmp);
       else
-			printk("SAA7114: Chip Version not read\n");
+			DEBUG0("SAA7114: Chip Version not read");
 
       if (ReadOneByte(0x42, 0x1f, &tmp))
-			printk("SAA7114: Status Byte (0x1f) = %x\n",tmp);
+			DEBUG0("SAA7114: Status Byte (0x1f) = %x",tmp);
       else
-			printk("SAA7114: Decoder Status Byte not read\n");
+			DEBUG0("SAA7114: Decoder Status Byte not read");
     }
 
   //
   // Necessario per avviare le task del SAA7114
   //
-  printk("SAA7114 Reset\n");
+  DEBUG0("SAA7114 Task Reset");
   SendOneByte(0x42,0x88,0x58);
   udelay(100000);           // 0.1 sec 
   udelay(100000);           // 0.1 sec 
@@ -768,7 +790,7 @@ int InitDecoder7114(int nWhichDecoder, int nVideoSys, int nTuner, int nVBI)
   udelay(100000);           // 0.1 sec  
   udelay(100000);           // 0.1 sec  
   SendOneByte(0x42,0x88,0x78);
-  printk("SAA7114 GOOO!!!\n");
+  DEBUG0("SAA7114 GOOO!!!");
 
     return 0;
 }
@@ -782,41 +804,41 @@ u8 DecoderTest(u8 type, u8 index, u8 val)
   
   if (type==1) {
 	if (ReadOneByte(0x42, 0x1f, &tmp))
-	  printk("Decoder Status Byte (0x1f) = %x\n",tmp);
+	  DEBUG0("Decoder Status Byte (0x1f) = %x",tmp);
 	else
-	  printk("Decoder Status Byte not read\n");
+	  DEBUG0("Decoder Status Byte not read");
   }
   else if (type==2) {
-	printk("PAL decoder Dump:\n");
+	DEBUG0("PAL decoder Dump:");
 	
 	for(nCounter=0; nCounter<P7114_Count; nCounter++) {
 	  if (ReadOneByte(I2CPort[nWhichDecoder], Phil7114_PAL[nCounter * 2], &tmp)){
-		printk("\t\t(%x) = %2x\n",Phil7114_PAL[nCounter * 2],tmp);
+		DEBUG0("\t\t(%x) = %2x",Phil7114_PAL[nCounter * 2],tmp);
 	  } else {
-		printk("\t\t(%x) = NOT READ FROM I2C\n",Phil7114_PAL[nCounter * 2]);
+		DEBUG0("\t\t(%x) = NOT READ FROM I2C",Phil7114_PAL[nCounter * 2]);
       }
 	}
-	printk("Go to the pub!\n");
+	DEBUG0("Go to the pub!");
   }
   else if (type==3) {
 	
 	if (ReadOneByte(0x42, index, &tmp))
-	  printk("Read from Decoder (%x) = %x\n",index,tmp);
+	  DEBUG0("Read from Decoder (%x) = %x",index,tmp);
 	else
-	  printk("Decoder Register %x not read\n",index);
+	  DEBUG0("Decoder Register %x not read",index);
   }
   else if (type==4) {
-    printk("Writing to Decoder (%x) = %x\n",index,val);
+    DEBUG0("Writing to Decoder (%x) = %x",index,val);
 	
 	if (SendOneByte(0x42, index, val)) {
 	  if (ReadOneByte(0x42, index, &tmp))
 		if (tmp==val)
-		  printk("Write to Decoder (%x) = %x (re-read)\n",tmp,val);
+		  DEBUG0("Write to Decoder (%x) = %x (re-read)",tmp,val);
 		else
-		  printk("Write to Decoder Register %x ko: correct=%x,read=%x\n",val,tmp);
+		  DEBUG0("Write to Decoder Register %x ko: correct=%x,read=%x",val,tmp);
 	}
 	else
-	  printk("Decoder Register %x not read\n",index);
+	  DEBUG0("Decoder Register %x not read",index);
 
   }
 

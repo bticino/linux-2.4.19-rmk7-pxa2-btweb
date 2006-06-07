@@ -1,12 +1,49 @@
+Explanation
+-----------
 Changes from Rubini cvs module named bt-kernels/linux-2.4.19-rmk7-pxa2-btweb
 (checkout of "May 23 12:33")
-to developing (stable) version 1_0_10:
+to developing (stable) version btweb-X_Y_Z (CVS TAG):
 
-The extraversion is "-rmk7-pxa2-btweb-1_0_10" so the complete "uname -a" version
-is "2.4.19-rmk7-pxa2-btweb-1_0_10".
-"2.4.19-rmk7-pxa2-btweb-1_0_10" will be the TAG name of the first stable version
+STABLE VERSION
+TAG=btweb-1_0_10
+
+The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
+
+
+Beginning of developing notes
+-----------------------------
+
+2.4.19-rmk7-pxa2-btweb-1_0_11:
+
+- New usb master for pxa									(Raffaele Recalcati)
+  /drivers/usb/hc_isp116x.c
+  /drivers/usb/hc_isp116x.h
+  /drivers/usb/hc_simple116x.c
+  /drivers/usb/pxa-dmaWork.c
+  /drivers/usb/pxa-dmaWork.h
+
+- Get off some useless modules 								(Raffaele Recalcati)
+  config-F453AV-1_0_11
+
+- Trying to have a multiplatform kernel						(Raffaele Recalcati)
+  arch/arm/mach-pxa/btweb.c
+
+- Ethernet driver smc9118									(Raffaele Recalcati)
+  smsc911x-readme.txt added
+
+- F453AV platform added - GPIO virtualisation in /proc		(Raffaele Recalcati)
+  arch/arm/mach-pxa/btweb-sysctl.c
+  include/asm-arm-arch-pxa/btweb.h
+
+- Video Mod/Demod: enabling/disabling power at insmod/rmmod	(Raffaele Recalcati)
+  drivers/char/tda9885_mc44bs.c
+  
+- F453AV mtd partition										(Raffaele Recalcati)
+  driver/mtd/maps/btweb.c
+
 
 2.4.19-rmk7-pxa2-btweb-1_0_10:
+
 (The code is the same of 1_0_9_new with usb gadget added)
 
 - The ".config" file for F453AV								(Raffaele Recalcati)

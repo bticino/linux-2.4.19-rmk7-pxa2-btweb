@@ -24,6 +24,14 @@ struct btweb_features {
 	int pic_reset;
 	int buzzer; /* 1 or 0 */
 	int mdcnfg;
+	int ctrl_hifi;
+	int ctrl_video;
+	int virt_conf;
+	int abil_mod_video;
+	int abil_mod_hifi;
+	int abil_fon;
+
+
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
@@ -47,6 +55,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_F452    1
 #define BTWEB_TS      2
 #define BTWEB_FPGA    3
+#define BTWEB_F453AV  4
 /* more flavors to come */
 
 
@@ -55,15 +64,22 @@ extern void btweb_backlight(int onoff);
  */
 #define DEV_BTWEB 0x4274 /* "Bt" */
 #define BTWEB_LED        1 /* led on/off */
-#define BTWEB_LCD        2 /* lcd backlight */
+#define BTWEB_LCD        2 /* lcd backlight - used for lcd presence */
 #define BTWEB_CNTR       3 /* lcd contrast */
 #define BTWEB_BUZZER     4 /* buzzer frequency and time */
 #define BTWEB_BENABLE    5 /* enabled or not */
 #define BTWEB_UPSIDEDOWN 6 /* turn upside-down the lcd display */
-#define BTWEB_TAGO       7 /* touch-ago (seconds) */
+#define BTWEB_TAGO       7 /* touch-ago (seconds) - only read */
 #define BTWEB_RTCINVALID 8 /* rtc is invalid */
 #define BTWEB_HWNAME     9 /* string: name of device */
 #define BTWEB_HWVERSION 10 /* number (4 bits) */
+#define BTWEB_CTRL_HIFI 11 /* audio source from modulator or AC97 - only first master */
+#define BTWEB_CTRL_VIDEO 12 /* video source from demodulator or TVIA5202 */
+#define BTWEB_VIRT_CONF  13 /* virtual conf button - only input */
+#define BTWEB_ABIL_MOD_VIDEO 14 /* video mod/demod power */
+#define BTWEB_ABIL_MOD_HIFI  15 /* audio hifi mod/demod power */
+#define BTWEB_ABIL_FON  16 /* "fork" power */
+
+
 
 #endif
-

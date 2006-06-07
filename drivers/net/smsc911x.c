@@ -18,7 +18,7 @@
  *
  ***************************************************************************
  * File: smsc911x.c
- *   see readme.txt for programmers guide
+ *   see smsc911x-readme.txt for programmers guide
  */
 
 

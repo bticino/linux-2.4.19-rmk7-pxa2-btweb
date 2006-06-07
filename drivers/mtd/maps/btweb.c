@@ -80,6 +80,56 @@ static struct map_info btweb_map = {
 	copy_to:	btweb_copy_to
 };
 
+
+#if 1 /* F453AV fix flash partitions */
+
+/* In a redboot point of view
+fis create -b 0x880000 -l 0x060000 -f 0x40000 "conf"
+fis create -b 0x880000 -l 0x060000 -f 0xa0000 "conf_copy"
+fis create -b 0x880000 -l 0x120000 -f 0x100000 "Kernel"
+fis create -b 0x880000 -l 0x8A0000 -f 0x220000 "btweb_only"
+fis create -b 0x880000 -l 0x280000 -f 0xAC0000 "btweb_appl"
+fis create -b 0x880000 -l 0x280000 -f 0xD40000 "btweb_appl_copy"
+fis create -b 0x880000 -l 0x020000 -f 0xFC0000 "extra"
+*/
+
+static struct mtd_partition btweb_partitions[] = {
+	{
+		name:		"Bootloader",
+		size:		0x00040000,
+		offset:		0,
+	},{
+		name:		"conf",
+		size:		0x00060000,
+		offset:		0x00040000,
+	},{
+		name:		"conf_copy",
+		size:		0x00060000,
+		offset:		0x000a0000,
+	},{
+		name:		"Kernel",
+		size:		0x00120000,
+		offset:		0x00100000,
+	},{
+		name:		"btweb_only",
+		size:		0x008a0000,
+		offset:		0x00220000,
+	},{
+		name:		"btweb_app",
+		size:		0x00280000,
+		offset:		0x00ac0000
+	},{
+		name:		"btweb_app_copy",
+		size:		0x00280000,
+		offset:		0x00d40000
+	},{
+		name:		"extra",
+		size:		0x00020000,
+		offset:		0x00fc0000
+	}
+};
+
+#else  /* Old small partitions */
 static struct mtd_partition btweb_partitions[] = {
 	{
 		name:		"Bootloader",
@@ -95,6 +145,7 @@ static struct mtd_partition btweb_partitions[] = {
 		offset:		0x00140000
 	}
 };
+#endif
 
 #define NB_OF(x)  (sizeof(x)/sizeof(x[0]))
 
@@ -141,6 +192,7 @@ static int __init init_btweb(void)
 		parts = parsed_parts;
 		nb_parts = parsed_nr_parts;
 	} else {
+		printk(KERN_NOTICE "Mtd F453AV partitions\n");
 		parts = btweb_partitions;
 		nb_parts = NB_OF(btweb_partitions);
 	}
@@ -168,4 +220,3 @@ static void __exit cleanup_btweb(void)
 
 module_init(init_btweb);
 module_exit(cleanup_btweb);
-

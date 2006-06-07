@@ -12,6 +12,7 @@
 #include <linux/i2c-dev.h>
 #include <asm/hardware.h>
 
+#define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
 
 /*
  * The buzzer is always there; the pointer is set in btweb.c::btweb_init.
@@ -79,6 +80,12 @@ void btweb_backlight(int onoff)
 
 static int btsys_led = 0;
 static int btsys_cntr = 255;
+static int btsys_ctrl_hifi = 0;
+static int btsys_ctrl_video = 0;
+static int btsys_virt_conf = 0;
+static int btsys_abil_mod_video = 0;
+static int btsys_abil_mod_hifi = 0;
+static int btsys_abil_fon = 0;
 
 static int bool_min[] = {0};
 static int bool_max[] = {1};
@@ -162,7 +169,7 @@ static int btsys_apply(int name)
 		case BTWEB_LED:
 			if (btweb_features.led < 0)
 				return -EOPNOTSUPP;
-			if (btsys_led)
+			if (!btsys_led)
 				GPSR(btweb_features.led) =
 					GPIO_bit(btweb_features.led);
 			else
@@ -180,7 +187,7 @@ static int btsys_apply(int name)
 			return btsys_i2c_do(0x28, 0xa9, btsys_cntr);
 			break;
 		case BTWEB_BUZZER:
-                        if (!btweb_features.buzzer)
+            if (!btweb_features.buzzer)
                                 return -EOPNOTSUPP;
 			btweb_kd_mksound(btsys_buz[0], btsys_buz[1]);
 			btsys_buz[1] = 0; /* to be safe next time */
@@ -201,7 +208,72 @@ static int btsys_apply(int name)
 			break;
 		case BTWEB_TAGO:
 			break;
-	}
+		case BTWEB_CTRL_HIFI:
+			if (btweb_features.ctrl_hifi < 0)
+				return -EOPNOTSUPP;
+			if (btsys_ctrl_hifi){
+				GPSR(btweb_features.ctrl_hifi) =
+					GPIO_bit(btweb_features.ctrl_hifi);
+			}
+			else{
+				GPCR(btweb_features.ctrl_hifi) =
+					GPIO_bit(btweb_features.ctrl_hifi);
+			}
+		break;
+		case BTWEB_CTRL_VIDEO:
+			if (btweb_features.ctrl_video < 0)
+				return -EOPNOTSUPP;
+			if (btsys_ctrl_video){
+				GPSR(btweb_features.ctrl_video) =
+					GPIO_bit(btweb_features.ctrl_video);
+			}
+			else{
+				GPCR(btweb_features.ctrl_video) =
+					GPIO_bit(btweb_features.ctrl_video);
+			}
+		break;
+		case BTWEB_VIRT_CONF:
+			break;
+		break;
+		case BTWEB_ABIL_MOD_VIDEO:
+			if (btweb_features.abil_mod_video < 0)
+				return -EOPNOTSUPP;
+			if (btsys_abil_mod_video){
+				GPSR(btweb_features.abil_mod_video) =
+					GPIO_bit(btweb_features.abil_mod_video);
+			}
+			else{
+				GPCR(btweb_features.abil_mod_video) =
+					GPIO_bit(btweb_features.abil_mod_video);
+			}
+		break;
+		case BTWEB_ABIL_MOD_HIFI:
+			if (btweb_features.abil_mod_hifi < 0)
+				return -EOPNOTSUPP;
+			if (btsys_abil_mod_hifi){
+				GPSR(btweb_features.abil_mod_hifi) =
+					GPIO_bit(btweb_features.abil_mod_hifi);
+			}
+			else{
+				GPCR(btweb_features.abil_mod_hifi) =
+					GPIO_bit(btweb_features.abil_mod_hifi);
+			}
+		break;
+		case BTWEB_ABIL_FON:
+			if (btweb_features.abil_fon < 0)
+				return -EOPNOTSUPP;
+			if (btsys_abil_fon){
+				GPSR(btweb_features.abil_fon) =
+					GPIO_bit(btweb_features.abil_fon);
+			}
+			else{
+				GPCR(btweb_features.abil_fon) =
+					GPIO_bit(btweb_features.abil_fon);
+			}
+		break;
+
+
+		}
 	return 0;
 }
 
@@ -214,10 +286,12 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 	/* first update the touch-ago value */
 	btsys_tago = (jiffies - btweb_globals.last_touch) / HZ;
 
-	if (table->extra1)
+	if (table->extra1){
 		retval = proc_dointvec_minmax(table, write, filp, buff, lenp);
-	else
+	}
+	else{
 		retval = proc_dointvec(table, write, filp, buff, lenp);
+	}
 	if (!write || retval < 0) return retval;
 	/* written: apply the change */
 	return btsys_apply(table->ctl_name);
@@ -236,6 +310,7 @@ static int btsys_sysctl(ctl_table *table, int *name, int nlen,
 	retval = sysctl_intvec(table, name, nlen, oldval, oldlenp,
 			       newval, newlen, context);
 	if (!newval || retval < 0) return retval;
+	trace("Modifying %s",table->procname);
 	return btsys_apply(table->ctl_name);
 }
 
@@ -343,6 +418,113 @@ ctl_table btsys_table[] = {
 	{0,}
 };
 
+ctl_table btsys_table_F453AV[] = {
+	{
+		.ctl_name =      BTWEB_LED,
+		.procname =      "led",
+		.data =          &btsys_led,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        bool_min,
+		.extra2 =        bool_max,
+	},
+	{
+		.ctl_name =      BTWEB_RTCINVALID,
+		.procname =      "rtc_invalid",
+		.data =          &btweb_globals.rtc_invalid,
+		.maxlen =        sizeof(int),
+		.mode =          0444,
+		.proc_handler =  proc_dointvec,
+		.strategy =      sysctl_intvec,
+	},
+	{
+		.ctl_name =      BTWEB_HWNAME,
+		.procname =      "name",
+		.data =          btweb_globals.name,
+		.maxlen =        BTWEB_NAMELEN,
+		.mode =          0444,
+		.proc_handler =  proc_dostring,
+		.strategy =      sysctl_string,
+	},
+	{
+		.ctl_name =      BTWEB_HWVERSION,
+		.procname =      "hw_version",
+		.data =          &btweb_globals.hw_version,
+		.maxlen =        sizeof(int),
+		.mode =          0444,
+		.proc_handler =  proc_dointvec,
+		.strategy =      sysctl_intvec,
+	},
+	{
+		.ctl_name =      BTWEB_CTRL_HIFI,
+		.procname =      "ctrl_hifi",
+		.data =          &btsys_ctrl_hifi,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        bool_min,
+		.extra2 =        bool_max,
+	},
+	{
+		.ctl_name =      BTWEB_CTRL_VIDEO,
+		.procname =      "ctrl_video",
+		.data =          &btsys_ctrl_video,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        bool_min,
+		.extra2 =        bool_max,
+	},
+	{
+		.ctl_name =      BTWEB_VIRT_CONF,
+		.procname =      "virt_conf",
+		.data =          &btsys_virt_conf,
+		.maxlen =        sizeof(int),
+		.mode =          0444,
+		.proc_handler =  proc_dointvec,
+		.strategy =      sysctl_intvec,
+	},
+	{
+		.ctl_name =      BTWEB_ABIL_MOD_VIDEO,
+		.procname =      "abil_mod_video",
+		.data =          &btsys_abil_mod_video,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        bool_min,
+		.extra2 =        bool_max,
+	},
+	{
+		.ctl_name =      BTWEB_ABIL_MOD_HIFI,
+		.procname =      "abil_mod_hifi",
+		.data =          &btsys_abil_mod_hifi,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        bool_min,
+		.extra2 =        bool_max,
+	},
+	{
+		.ctl_name =      BTWEB_ABIL_FON,
+		.procname =      "abil_fon",
+		.data =          &btsys_abil_fon,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        bool_min,
+		.extra2 =        bool_max,
+	},
+	{0,}
+};
+
+
 static ctl_table dev_table[] = {
 	{
 		.ctl_name =      DEV_BTWEB,
@@ -376,8 +558,40 @@ int btsys_init(void)
 		btsys_apply(BTWEB_LCD);
 		//btsys_apply(BTWEB_CNTR); -- can't do this with no process
         }
+
+	if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_FPGA)) {
+		trace("btsys_init: Mapping F453AV or FPGA I/O");
+		dev_table[0].child=btsys_table_F453AV;
+		trace("btsys_init1: modifying devtable named: %s",dev_table[0].procname);
+		
+		if (btweb_features.abil_mod_video >= 0) {
+			set_GPIO_mode(btweb_features.abil_mod_video | GPIO_OUT);
+			btsys_apply(BTWEB_ABIL_MOD_VIDEO);
+		}
+		if (btweb_features.ctrl_hifi >= 0) {
+			set_GPIO_mode(btweb_features.ctrl_hifi | GPIO_OUT);
+			btsys_apply(BTWEB_CTRL_HIFI);
+		}
+		if (btweb_features.ctrl_video >= 0) {
+			set_GPIO_mode(btweb_features.ctrl_video | GPIO_OUT);
+			btsys_apply(BTWEB_CTRL_VIDEO);
+		}
+		if (btweb_features.abil_mod_hifi >= 0) {
+			set_GPIO_mode(btweb_features.abil_mod_hifi | GPIO_OUT);
+			btsys_apply(BTWEB_ABIL_MOD_HIFI);
+		}
+		if (btweb_features.abil_fon >= 0) {
+			set_GPIO_mode(btweb_features.abil_fon | GPIO_OUT);
+			btsys_apply(BTWEB_ABIL_FON);
+		}
+	}
+
 	btsys_header = register_sysctl_table(root_table, 0);
+
+
 	if (btsys_header) return 0;
+		
+	
 	return -EBUSY;
 }
 
