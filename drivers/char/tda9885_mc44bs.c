@@ -85,6 +85,7 @@ tdamc_attach(struct i2c_adapter *adap, int addr, unsigned short flags,int kind)
 	};
 	int ret;
 
+	
 	c = (struct i2c_client *)kmalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return -ENOMEM;
@@ -103,7 +104,7 @@ tdamc_attach(struct i2c_adapter *adap, int addr, unsigned short flags,int kind)
 		printk ("tdamc_attach(): i2c_transfer() returned %d.\n",ret);
 
 	tdamc_i2c_client = c;
-
+	
 	return i2c_attach_client(c);
 }
 
@@ -216,7 +217,9 @@ tdamc_ioctl( struct inode *inode, struct file *file,
 		break;
 	}
 
+	printk("tdamc_i2c_client: %p\n",tdamc_i2c_client);
 	tdamc_i2c_client->addr=slave_address;
+	printk("tdamc_ioctl exiting\n");
 	return 0;
 }
 
@@ -237,6 +240,10 @@ static __init int tdamc_init(void)
 {
 	int retval=0;
 
+	printk("tdamc9885_mc44bs.c: Switching on mod/demod power\n");
+	GPSR(btweb_features.abil_mod_video) =
+		GPIO_bit(btweb_features.abil_mod_video);
+	
 	normal_addr[0] = slave_address;
 
 	if(normal_addr[0] >= 0x80)
@@ -262,6 +269,11 @@ static __exit void tdamc_exit(void)
 {
 	misc_deregister(&tdamc_miscdev);
 	i2c_del_driver(&tdamc_driver);
+	
+	printk("tdamc9885_mc44bs.c: Switching off mod/demod power\n");
+	GPCR(btweb_features.abil_mod_video) =
+		GPIO_bit(btweb_features.abil_mod_video);
+
 }
 
 module_init(tdamc_init);
