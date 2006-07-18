@@ -2195,7 +2195,7 @@ static int Tvia_DMAReadFrame()
 	/* Config sig. acceso DMA */
 	DCSR(r_dma_ch) = DCSR_NODESC;	/* Configure NO DESC MODE */
 	
-	DTADR(r_dma_ch) = virt_to_bus(orga);
+	DTADR(r_dma_ch) = virt_to_bus(dsta);
 	//DTADR(r_dma_ch) = 0xa3f00000 + 1*320; // RAFFA PROC BUFFER MEM PXA (DMA)
 	 
 	DSADR(r_dma_ch) = pconf->dsadr; /* Alineada a 8 bytes (2:0 = 000)*/
@@ -3037,8 +3037,8 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 				//DEBUG
 				else{
 					r_dma_ch_flag = 1;
-					//orga = (int) ((int)&org[7] & 0xFFFFFFF8);
-					orga = (int)btweb_bigbuf; //First bigbuf
+					//dsta = (int) ((int)&org[7] & 0xFFFFFFF8);
+					dsta = (int)btweb_bigbuf; //First bigbuf
 				}
 			} else {
 				trace("WARNING: video1 READ DMA Channel Already in Use");
@@ -3086,7 +3086,7 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 				copy_from_user(&RConf, (void *)arg, sizeof(TVIA5202_DMACONF));
 		
 				//DEBUG
-				//copy_to_user(RConf.dtadr, (void *)orga, RConf.width*RConf.height);
+				//copy_to_user(RConf.dtadr, (void *)dsta, RConf.width*RConf.height);
 		
 				return(Tvia_DMAReadFrame());		
 			} else {

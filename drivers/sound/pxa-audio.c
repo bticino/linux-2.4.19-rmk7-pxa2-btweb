@@ -447,7 +447,7 @@ if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
 //		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
 		int diff_dma_tx= (tim_pl.tv_sec - tim_pl_old.tv_sec)*1000000 + (tim_pl.tv_usec - tim_pl_old.tv_usec) ;
 		time_add_start = diff_dma_tx;
-		printk ("Irq TX1-TX0 %d \n",diff_dma_tx );
+//		printk ("Irq TX1-TX0 %d \n",diff_dma_tx );
 		}
 	count_irq_tx++;
 //printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
@@ -1253,16 +1253,16 @@ int pxa_audio_attach(struct inode *inode, struct file *file,
 
 	/* request DMA channels */
 	if (file->f_mode & FMODE_WRITE) {
-		err = pxa_request_dma(os->name, DMA_PRIO_HIGH, 
+		err = pxa_request_dma(os->name, DMA_PRIO_MEDIUM,
 					  audio_dma_irq, os);
 		if (err < 0)
 			goto out;
 	os->dma_ch = err;
 	dma_ch_os = err; // per renderlo visibile al DMA int.
-//printk (" request dma ch %d\n", err );
+	printk ("Audio OUT dma ch %d\n", err );
 	}
 	if (file->f_mode & FMODE_READ) {
-		err = pxa_request_dma(is->name, DMA_PRIO_HIGH,
+		err = pxa_request_dma(is->name, DMA_PRIO_MEDIUM,
 					  audio_dma_irq, is);
 /*						// messo per prova questo sotto, pare non contare!
 if (file->f_mode & FMODE_READ) {
@@ -1279,6 +1279,7 @@ if (file->f_mode & FMODE_READ) {
 	is->dma_ch = err;
 	dma_ch_is = err; // per renderlo visibile al DMA int.
 //printk (" request dma ch %d\n", err );
+	printk ("Audio IN dma ch %d\n", err );
 
 	}
 

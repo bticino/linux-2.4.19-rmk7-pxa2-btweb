@@ -143,6 +143,7 @@ if [ "$CONFIG_I2C" != "n" ]; then
     dep_tristate '  TDA9885 MC44BS (as in PXA BtWeb)' CONFIG_I2C_TDA9885_MC44BS $CONFIG_I2C
     dep_tristate '  24256 NVRAM (as in PXA BtWeb)' CONFIG_I2C_24256 $CONFIG_I2C
     dep_tristate '  TC74 Thermometer (as in PXA BtWeb)' CONFIG_I2C_TC74 $CONFIG_I2C
+    dep_tristate '  BTCFG - CONFIGURATORS READER (as in PXA BtWeb)' CONFIG_I2C_BTCFG $CONFIG_I2C
 fi
 
 source drivers/l3/Config.in
