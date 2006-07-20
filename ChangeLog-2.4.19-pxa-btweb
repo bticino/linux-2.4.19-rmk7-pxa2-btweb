@@ -13,6 +13,25 @@ The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 Beginning of developing notes
 -----------------------------
 
+2.4.19-rmk7-pxa2-btweb-1_0_12:
+
+- New i2c communication with pic for reading configurator and setting I/O
+															(Davide Bonfanti)
+  /drivers/char/btcfg.c
+  /drivers/char/Makefile
+  /drivers/char/Config.in
+  /include/linux/i2c-id.h 
+  /include/linux/miscdevice.h
+
+- Sound alsa 												(Enrico PArmeggiani)
+  /drivers/sound/pxa-audio.c
+  allocating dma channels as medium level, not to overpose to video channels
+
+- Video tvia5202
+  /drivers/video/tviafb_core.c
+  Now it is possible to change video direction without rebooting
+
+
 2.4.19-rmk7-pxa2-btweb-1_0_11:
 
 - New usb master for pxa									(Raffaele Recalcati)
