@@ -31,13 +31,18 @@
 
 #include "pxa-audio.h"
 
-#define SNDCTL_BT_GETDELAY         _SIOWR('P',89, int) // usato per il GUA
+#define SNDCTL_BT_GETDELAY	       _SIOWR('P',89, int) // usato per il GUA
 #define SNDCTL_BT_INCGAIN          _SIOWR('P',88, int)
 #define SNDCTL_BT_DECGAIN          _SIOWR('P',87, int)
 #define SNDCTL_BT_LINGETDELAY      _SIOWR('P',86, int) // usato per il LINPHONE
 
+#define SNDCTL_BT_SETREC_GAIN       _SIOWR('P',85, int)
+#define SNDCTL_BT_SETLINE     		_SIOWR('P',84, int)
+#define SNDCTL_BT_SETPCM     		_SIOWR('P',83, int)
+
 
 #define AUDIO_NBFRAGS_DEFAULT	8
+
 /* To reduce driver audio fragment size by Carlos */
 //#define AUDIO_FRAGSIZE_DEFAULT 1280
 #define AUDIO_FRAGSIZE_DEFAULT 640
@@ -475,7 +480,7 @@ if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
 		do_gettimeofday(&tim_pl1 );
 //		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
 		diff_dma_tx01=(tim_pl1.tv_sec-tim_pl0.tv_sec)*1000000 + (tim_pl1.tv_usec-tim_pl0.tv_usec) ;
-		printk ("Irq TX1-TX0 %d \n",diff_dma_tx01 );
+//		printk ("Irq TX1-TX0 %d \n",diff_dma_tx01 );
 		}
 	count_irq_tx++;
 	}
@@ -948,6 +953,28 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 //printk("audio_ioctl ");
 
 	switch (cmd) {
+	case SNDCTL_BT_SETREC_GAIN:
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, (int) arg );
+//printk( "ac97: set rec gain to %X\n", arg);
+		return 0;
+	case SNDCTL_BT_SETLINE:
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_MASTER_VOL_STEREO, (int) arg );
+//printk( "ac97: set lineout to %X\n", arg);
+		return 0;
+
+	case SNDCTL_BT_SETPCM:
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_PCMOUT_VOL, (int) arg );
+//printk( "ac97: set pcm vol to %X\n", arg);
+		return 0;
+
+/* ------------ from ac97.h  ------------------
+#define  AC97_MASTER_VOL_STEREO  0x0002		// Line Out
+#define  AC97_MASTER_VOL_MONO    0x0006     // TAD Output
+#define  AC97_PCMOUT_VOL         0x0018
+#define  AC97_RECORD_GAIN        0x001c
+#define  AC97_MIC_VOL            0x000e     // MIC Input (mono)
+*/
+
 // !!! parm / added to calc the begin delay
 	case SNDCTL_BT_GETDELAY:	// used with GUA
 		val = diff_dma_txrx0;
@@ -958,6 +985,7 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 		val = diff_dma_tx01;
 //		printk( "bt get delay val %d\n", val);
 		return put_user(val, (int *) arg);
+
 
 	case SNDCTL_BT_INCGAIN:
 //printk( "bt inc gain\n");

@@ -352,7 +352,7 @@ static void ac97_write_mixer(struct ac97_codec *codec, int oss_channel,
 	u16 val = 0;
 	int scale;
 	struct ac97_mixer_hw *mh = &ac97_hw[oss_channel];
-printk ("ac97_write_mixer \n");
+//printk ("ac97_write_mixer \n");
 
 #ifdef DEBUG
 	printk("ac97_codec: wrote OSS mixer %2d (%s ac97 register 0x%02x), "
@@ -445,7 +445,7 @@ printk ("ac97_write_mixer \n");
 static void ac97_set_mixer(struct ac97_codec *codec, unsigned int oss_mixer, unsigned int val ) 
 {
 	unsigned int left,right;
-printk ("ac97_set_mixer \n");
+//printk ("ac97_set_mixer \n");
 
 	/* cleanse input a little */
 	right = ((val >> 8)  & 0xff) ;
