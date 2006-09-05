@@ -20,19 +20,19 @@ controller-$(CONFIG_USB_GOKU)		+= goku_udc.o
 controller-$(CONFIG_USB_SUPERH)		+= superh_udc.o
 
 # ... and only one of these, too; kbuild/kconfig don't help though.
-g_zero-objs			:= zero.o usbstring.o
+g_zero-objs			:= zero.o usbstring.o config.o epautoconf.o
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 
 g_ether-objs			:= ether.o usbstring.o
-obj-$(CONFIG_USB_ETH)		+= g_ether.o
+#obj-$(CONFIG_USB_ETH)		+= g_ether.o
 
 gadgetfs-objs			:= inode.o usbstring.o
-obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
+#obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
 
 g_file_storage-objs		:= file_storage.o usbstring.o
-obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
+#obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
 
-g_serial-objs			:= gserial.o usbstring.o
+g_serial-objs			:= gserial.o usbstring.o config.o epautoconf.o
 obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
 
 export-objs :=			$(controller-y) $(controller-m)

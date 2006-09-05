@@ -1,10 +1,9 @@
 /*
  * linux/drivers/usb/gadget/pxa2xx_udc.h
  * Intel PXA2xx on-chip full speed USB device controller
- * 
+ *
  * Copyright (C) 2003 Robert Schwebel <r.schwebel@pengutronix.de>, Pengutronix
  * Copyright (C) 2003 David Brownell
- * Copyright (C) 2003 Joshua Wise
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -41,10 +40,8 @@
 #define UDCCFR_AREN	(1 << 7)	/* ACK response enable (now) */
 #define UDCCFR_ACM	(1 << 2)	/* ACK control mode (wait for AREN) */
 
-/* for address space reservation */
-#define	REGISTER_FIRST	((unsigned long)(&UDCCR))
-#define	REGISTER_LAST	((unsigned long)(&UDDR14))	/* not UDDR15! */
-#define REGISTER_LENGTH	((REGISTER_LAST - REGISTER_FIRST) + 4)
+/* latest pxa255 errata define new "must be one" bits in UDCCFR */
+#define	UDCCFR_MB1	(0xff & ~(UDCCFR_AREN|UDCCFR_ACM))
 
 /*-------------------------------------------------------------------------*/
 
@@ -76,7 +73,7 @@ struct pxa2xx_ep {
 	volatile u32				*reg_ubcr;
 	volatile u32				*reg_uddr;
 #ifdef USE_DMA
-	volatile u32				*reg_drcmr;
+	volatile u32			*reg_drcmr;
 #define	drcmr(n)  .reg_drcmr = & DRCMR ## n ,
 #else
 #define	drcmr(n)  
@@ -126,7 +123,8 @@ struct pxa2xx_udc {
 	enum ep0_state				ep0state;
 	struct udc_stats			stats;
 	unsigned				got_irq : 1,
-						got_disc : 1,
+						vbus : 1,
+						pullup : 1,
 						has_cfr : 1,
 						req_pending : 1,
 						req_std : 1,
@@ -135,44 +133,13 @@ struct pxa2xx_udc {
 #define start_watchdog(dev) mod_timer(&dev->timer, jiffies + (HZ/200))
 	struct timer_list			timer;
 
+	struct device				*dev;
+	struct pxa2xx_udc_mach_info		*mach;
+	u64					dma_mask;
 	struct pxa2xx_ep			ep [PXA_UDC_NUM_ENDPOINTS];
 };
 
-/* 2.5 changes ... */
-
-#ifndef container_of
-#define container_of    list_entry
-#endif
-
-#ifndef WARN_ON
-#define WARN_ON BUG_ON
-#endif
-
 /*-------------------------------------------------------------------------*/
-
-/* please keep machine-specific defines in alphabetical order. */
-
-// CONFIG_ARCH_ADI_COYOTE behaves
-
-#ifdef CONFIG_ARCH_E7XX
-#  include <asm/arch/e7xx-gpio.h>
-#endif
-
-#ifdef CONFIG_ARCH_H1900
-#  include <asm/arch/h1900-gpio.h>
-#endif
-
-#ifdef CONFIG_ARCH_H3900
-#  include <asm/arch/h3900-gpio.h>
-#endif
-
-#ifdef CONFIG_ARCH_H5400
-#  include <asm/arch/h5400-gpio.h>
-#endif
-
-#ifdef CONFIG_ARCH_INNOKOM
-#include <asm/arch/innokom.h>
-#endif
 
 #ifdef CONFIG_ARCH_LUBBOCK
 #include <asm/arch/lubbock.h>
@@ -180,45 +147,8 @@ struct pxa2xx_udc {
 
 #ifdef DEBUG
 #define HEX_DISPLAY(n)	if (machine_is_lubbock()) { LUB_HEXLED = (n); }
-
-#define LED_CONNECTED_ON	if (machine_is_lubbock()) { \
-	DISCRETE_LED_ON(D26); }
-#define LED_CONNECTED_OFF	if(machine_is_lubbock()) { \
-	DISCRETE_LED_OFF(D26); LUB_HEXLED = 0; }
-#define LED_EP0_ON	if (machine_is_lubbock()) { DISCRETE_LED_ON(D25); }
-#define LED_EP0_OFF	if (machine_is_lubbock()) { DISCRETE_LED_OFF(D25); }
-#endif /* DEBUG */
-
 #endif
 
-#ifdef CONFIG_ARCH_PXA_CORGI
-/* Sharp Zaurus C-700, C-750, C-760, C-860 */
-#define	CORGI_CONNECT_GPIO	45
-/* use the ARM-Linux registered symbol, not a Lineo-private one */
-#define CONFIG_MACH_CORGI
-#endif
-
-#ifdef CONFIG_ARCH_PXA_POODLE
-/* Sharp B-500, SL-5600 */
-#define	POODLE_CONNECT_GPIO	20
-/* use the ARM-Linux registered symbol, not a Lineo-private one */
-#define CONFIG_MACH_POODLE
-#endif
-
-#ifdef CONFIG_ARCH_ADSBITSYX
-#include <asm/arch/adsbitsyx.h>
-#endif
-
-#ifdef CONFIG_ARCH_ADSAGX
-#include <asm/arch/adsagx.h>
-#endif
-
-#ifdef CONFIG_ARCH_ADSVGX
-#include <asm/arch/adsvgx.h>
-#endif
-
-#ifdef CONFIG_MACH_ADSGCX
-#include <asm/arch/adsgcx.h>
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -228,249 +158,59 @@ struct pxa2xx_udc {
 #define HEX_DISPLAY(n)		do {} while(0)
 #endif
 
+#ifdef DEBUG
+#include <asm/leds.h>
+
+#define LED_CONNECTED_ON	leds_event(led_green_on)
+#define LED_CONNECTED_OFF	do { \
+					leds_event(led_green_off); \
+					HEX_DISPLAY(0); \
+				} while(0)
+#endif
+
 #ifndef LED_CONNECTED_ON
 #define LED_CONNECTED_ON	do {} while(0)
 #define LED_CONNECTED_OFF	do {} while(0)
-#endif
-#ifndef LED_EP0_ON
-#define LED_EP0_ON		do {} while (0)
-#define LED_EP0_OFF		do {} while (0)
 #endif
 
 /*-------------------------------------------------------------------------*/
 
 static struct pxa2xx_udc *the_controller;
 
-/* one GPIO should be used to detect host disconnect */
-static int is_usb_connected(void)
+/* one GPIO should be used to detect VBUS from the host */
+static inline int is_vbus_present(void)
 {
-	static int first = 0;
-
-	pr_debug("%s()\n", __FUNCTION__);
-	
-	// CONFIG_ARCH_ADI_COYOTE cannot detect or force disconnect
-#ifdef CONFIG_ARCH_E7XX
-	if (machine_is_e7xx())
-		return (GPLR(GPIO_E7XX_USB_DISC)
-				& GPIO_bit(GPIO_E7XX_USB_DISC));
-#endif
 #if 0
-#ifdef CONFIG_ARCH_H1900
-	if (machine_is_h1900())
-		return (!(GPLR(GPIO_NR_H1900_USB_DETECT_N)
-				& GPIO_bit(GPIO_NR_H1900_USB_DETECT_N)));
-#endif
-#ifdef CONFIG_ARCH_H3900
-	if (machine_is_h3900())
+	if (!the_controller->mach->udc_is_connected)
 		return 1;
-#endif
-#ifdef CONFIG_ARCH_H5400
-	// h5400 ... ?
-#endif
-#endif
-#ifdef CONFIG_ARCH_INNOKOM
-	if (machine_is_innokom())
-		return (GPLR(GPIO_INNOKOM_USB_DISC)
-				& GPIO_bit(GPIO_INNOKOM_USB_DISC));
-#endif
-#ifdef CONFIG_ARCH_LUBBOCK
-	if (machine_is_lubbock())
-		return ((LUB_MISC_RD & (1 << 9)) == 0);
-#endif
-#ifdef CONFIG_ARCH_ADSBITSYX
-	if (machine_is_adsbitsyx())
-		return adsbitsyx_usb_connected();
-#endif
-#ifdef CONFIG_ARCH_ADSAGX
-	if (machine_is_adsagx())
-		return adsagx_usb_connected();
-#endif
-#ifdef CONFIG_ARCH_ADSVGX
-	if (machine_is_adsvgx())
-		return adsvgx_usb_connected();
-#endif
-#ifdef CONFIG_MACH_ADSGCX
-	if (machine_is_adsgcx())
-		return adsgcx_usb_connected();
-#endif
-	// Sharp's sources didn't show a corgi or poodle hook
-
-	if (!first) {
-		pr_info("%s: can't check host connect\n", driver_name);
-		first++;
-	}
+	return the_controller->mach->udc_is_connected();
+#else
 	return 1;
+#endif
 }
 
-static int disc_first = 0;
-
-/* one GPIO should force the host to see this device (or not) */
-static void make_usb_disappear(void)
+/* one GPIO should control a D+ pullup, so host sees this device (or not) */
+static inline void pullup_off(void)
 {
-	pr_debug("%s()\n", __FUNCTION__);
-
-	// CONFIG_ARCH_ADI_COYOTE cannot detect or force disconnect
-#ifdef CONFIG_ARCH_E7XX
-	if (machine_is_e7xx()) {
-		GPSR(GPIO_E7XX_USB_PULLUP) = GPIO_bit(GPIO_E7XX_USB_PULLUP);
+#if 0
+	if (!the_controller->mach->udc_command)
 		return;
-	}
+	the_controller->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+#else
+	GPSR(btweb_features.usb_soft_enum_n) = GPIO_bit(btweb_features.usb_soft_enum_n);
 #endif
-	// h1900 ... ?
-#ifdef CONFIG_ARCH_H3900
-	if (machine_is_h3900()) {
-		GPDR0 &= ~GPIO_H3900_USBP_PULLUP;
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_H5400
-	if (machine_is_h5400()) {
-		GPDR(GPIO_NR_H5400_USB_PULLUP) &=
-					~GPIO_bit(GPIO_NR_H5400_USB_PULLUP);
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_INNOKOM
-	if (machine_is_innokom()) {
-		GPSR(GPIO_INNOKOM_USB_ONOFF) = GPIO_bit(GPIO_INNOKOM_USB_ONOFF);
-		printk("RS: disappear\n");
-		udelay(5);
-		return;
-	}
-#endif
-	// lubbock has no D+ pullup
-#ifdef CONFIG_MACH_CORGI
-	if (machine_is_corgi()) {
-		GPDR(CORGI_CONNECT_GPIO) |= GPIO_bit(CORGI_CONNECT_GPIO);
-		GPCR(CORGI_CONNECT_GPIO) = GPIO_bit(CORGI_CONNECT_GPIO);
-	}
-#endif
-#ifdef CONFIG_MACH_POODLE
-	if (machine_is_poodle()) {
-		GPDR(POODLE_CONNECT_GPIO) |= GPIO_bit(POODLE_CONNECT_GPIO);
-		GPCR(POODLE_CONNECT_GPIO) = GPIO_bit(POODLE_CONNECT_GPIO);
-	}
-#endif
-#ifdef CONFIG_ARCH_ADSBITSYX
-	if (machine_is_adsbitsyx()) {
-		adsbitsyx_usb_reconn(0);
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_ADSAGX
-	if (machine_is_adsagx()) {
-		adsagx_usb_reconn(0);
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_ADSVGX
-	if (machine_is_adsvgx()) {
-		adsvgx_usb_reconn(0);
-		return;
-	}
-#endif
-#ifdef CONFIG_MACH_ADSGCX
-	if (machine_is_adsgcx()) {
-		adsgcx_usb_reconn(0);
-		return;
-	}
-#endif
-
-	if (!disc_first) {
-		pr_info("%s: can't force usb disconnect\n", driver_name);
-		disc_first++;
-	}
 }
 
-static void let_usb_appear(void)
+static inline void pullup_on(void)
 {
-	pr_debug("%s()\n", __FUNCTION__);
-
-	// CONFIG_ARCH_ADI_COYOTE cannot detect or force disconnect
-#ifdef CONFIG_ARCH_E7XX
-	if (machine_is_e7xx()) {
-		GPCR(GPIO_E7XX_USB_PULLUP) = GPIO_bit(GPIO_E7XX_USB_PULLUP);
+#if 0
+	if (!the_controller->mach->udc_command)
 		return;
-	}
+	the_controller->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
+#else
+	GPCR(btweb_features.usb_soft_enum_n) = GPIO_bit(btweb_features.usb_soft_enum_n);
 #endif
-	// h1900 ... ?
-#ifdef CONFIG_ARCH_H3900
-	if (machine_is_h3900()) {
-		GPDR0 |= GPIO_H3900_USBP_PULLUP;
-		GPSR0 |= GPIO_H3900_USBP_PULLUP;
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_H5400
-	if (machine_is_h5400()) {
-		GPDR(GPIO_NR_H5400_USB_PULLUP) |=
-					GPIO_bit(GPIO_NR_H5400_USB_PULLUP);
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_INNOKOM
-	if (machine_is_innokom()) {
-		GPCR(GPIO_INNOKOM_USB_ONOFF) = GPIO_bit(GPIO_INNOKOM_USB_ONOFF);
-		printk("RS: appear\n");
-		udelay(5);
-		return;
-	}
-#endif
-	// lubbock has no D+ pullup
-#ifdef CONFIG_MACH_CORGI
-	if (machine_is_corgi()) {
-		GPDR(CORGI_CONNECT_GPIO) |= GPIO_bit(CORGI_CONNECT_GPIO);
-		GPSR(CORGI_CONNECT_GPIO) = GPIO_bit(CORGI_CONNECT_GPIO);
-	}
-#endif
-#ifdef CONFIG_MACH_POODLE
-	if (machine_is_poodle()) {
-		GPDR(POODLE_CONNECT_GPIO) |= GPIO_bit(POODLE_CONNECT_GPIO);
-		GPSR(POODLE_CONNECT_GPIO) = GPIO_bit(POODLE_CONNECT_GPIO);
-	}
-#endif
-#ifdef CONFIG_ARCH_ADSBITSYX
-	if (machine_is_adsbitsyx()) {
-		adsbitsyx_usb_reconn(1);
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_ADSAGX
-	if (machine_is_adsagx()) {
-		adsagx_usb_reconn(1);
-		return;
-	}
-#endif
-#ifdef CONFIG_ARCH_ADSVGX
-	if (machine_is_adsvgx()) {
-		adsvgx_usb_reconn(1);
-		return;
-	}
-#endif
-#ifdef CONFIG_MACH_ADSGCX
-	if (machine_is_adsgcx()) {
-		adsgcx_usb_reconn(1);
-		return;
-	}
-#endif
-
-	if (!disc_first) {
-		pr_info("%s: can't force usb disconnect\n", driver_name);
-		disc_first++;
-	}
 }
-
-/*-------------------------------------------------------------------------*/
-
-/* LEDs are only for debug */
-#ifndef LED_CONNECTED_ON
-#define LED_CONNECTED_ON	do {} while(0)
-#define LED_CONNECTED_OFF	do {} while(0)
-#endif
-#ifndef LED_EP0_ON
-#define LED_EP0_ON		do {} while (0)
-#define LED_EP0_OFF		do {} while (0)
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -498,6 +238,9 @@ static const char *state_name[] = {
 #else
 #    define UDC_DEBUG DBG_NORMAL
 #endif
+
+// !!!raf
+#define UDC_DEBUG DBG_VERY_NOISY
 
 static void __attribute__ ((__unused__))
 dump_udccr(const char *label)
@@ -538,8 +281,8 @@ dump_state(struct pxa2xx_udc *dev)
 	u32		tmp;
 	unsigned	i;
 
-	DMSG("%s %s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
-		is_usb_connected() ? "host " : "disconnected",
+	DMSG("%s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n", /* For compiling with DEBUG */
+		/*is_usb_connected() ? "host " : "disconnected",*/
 		state_name[dev->ep0state],
 		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
 	dump_udccr("udccr");
@@ -553,11 +296,11 @@ dump_state(struct pxa2xx_udc *dev)
 	if (!dev->driver) {
 		DMSG("no gadget driver bound\n");
 		return;
-	} else
-		DMSG("ep0 driver '%s'\n", dev->driver->driver.name);
-	
-	if (!is_usb_connected())
-		return;
+	}/* else
+		DMSG("ep0 driver '%s'\n", dev->driver->driver.name); */
+
+/*	FIXME if (!is_usb_connected())
+		return; */
 
 	dump_udccs0 ("udccs0");
 	DMSG("ep0 IN %lu/%lu, OUT %lu/%lu\n",
@@ -587,11 +330,6 @@ dump_state(struct pxa2xx_udc *dev)
 
 #define WARN(stuff...) printk(KERN_WARNING "udc: " stuff)
 #define INFO(stuff...) printk(KERN_INFO "udc: " stuff)
-
-
-/* 2.4 backport support */
-#define irqreturn_t	void
-#define	IRQ_HANDLED
 
 
 #endif /* __LINUX_USB_GADGET_PXA2XX_H */

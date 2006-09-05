@@ -5,13 +5,68 @@ Changes from Rubini cvs module named bt-kernels/linux-2.4.19-rmk7-pxa2-btweb
 to developing (stable) version btweb-X_Y_Z (CVS TAG):
 
 STABLE VERSION
-TAG=btweb-1_0_10
+TAG=btweb-1_0_13
 
 The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 
 
 Beginning of developing notes
 -----------------------------
+
+2.4.19-rmk7-pxa2-btweb-1_0_13:
+
+Kernel has been adapted to the new hw (MASTER B).
+It should even work with to first MASTER.
+
+- Fixing some problem for i2c communication with pic for reading configurator and setting I/O
+                                                                                                                        (Davide Bonfanti)
+  /include/../btweb.h
+
+- Separating I2C video modulator(MC44BS) from
+  demodulator(TDA9885) devices configuration                            				(Davide Bonfanti,Raffaele Recalcati)
+TODO: TO BE FINISHED
+
+- Video Tvia5202													(Raffaele Recalcati)
+  /drivers/video/tvia5202/tviafb_core.c 
+  VGA port now is enabled and works together with CVBS out
+TODO: TO BE DISABLED for INTERF2FIP, to be fix 640x480 instead of 720x576
+  /drivers/video/tvia5202/saa7114.c
+  The AI21 input coming from upside connector works
+
+- New gpioS added for demotulating hifi and video							 (Davide Bonfanti,Raffaele Recalcati)
+  arch/arm/mach-pxa/btweb.c
+  Changed also irq for pcmcia and for usb slave enumeration startup
+
+- New script added for transformin zImage in u-boot image 								(Davide Bonfanti)
+  make-Image
+
+- gadget driver backported from 2.6.17									(Alessandro Rubini,Raffaele Recalcati)
+  In /drivers/usb/gadget:  M=Modified,A=Added,N=not working
+  A backport-26.h
+  A config.c
+  A epautoconf.c
+  MN ether.c not 
+  MN file_storage.c
+  M  gadget_chips.h
+  M  gserial.c
+  A  gserial_new.c
+  MN inode.c
+  M  Makefile
+  M  ndis.h
+  MN net2280.c
+  MN net2280.h
+  M  pxa2xx_udc.c
+  M  pxa2xx_udc.h 
+  A  rndis.c
+  A  rndis.h
+  A  udc.h
+  A  usb_cdc.h
+
+- pcmcia testing													(Davide Bonfanti)
+  config-F453AV-1_0_13
+
+- Changed Makefile for extraversion 1_0_13							
+
 
 2.4.19-rmk7-pxa2-btweb-1_0_12:
 

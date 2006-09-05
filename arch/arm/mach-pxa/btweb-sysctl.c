@@ -84,7 +84,9 @@ static int btsys_ctrl_hifi = 0;
 static int btsys_ctrl_video = 0;
 static int btsys_virt_conf = 0;
 static int btsys_abil_mod_video = 0;
+static int btsys_abil_dem_video = 0;
 static int btsys_abil_mod_hifi = 0;
+static int btsys_abil_dem_hifi = 0;
 static int btsys_abil_fon = 0;
 
 static int bool_min[] = {0};
@@ -247,6 +249,18 @@ static int btsys_apply(int name)
 					GPIO_bit(btweb_features.abil_mod_video);
 			}
 		break;
+               case BTWEB_ABIL_DEM_VIDEO:
+                        if (btweb_features.abil_dem_video < 0)
+                                return -EOPNOTSUPP;
+                        if (btsys_abil_dem_video){
+                                GPSR(btweb_features.abil_dem_video) =
+                                        GPIO_bit(btweb_features.abil_dem_video);
+                        }
+                        else{
+                                GPCR(btweb_features.abil_dem_video) =
+                                        GPIO_bit(btweb_features.abil_dem_video);
+                        }
+                break;
 		case BTWEB_ABIL_MOD_HIFI:
 			if (btweb_features.abil_mod_hifi < 0)
 				return -EOPNOTSUPP;
@@ -259,6 +273,18 @@ static int btsys_apply(int name)
 					GPIO_bit(btweb_features.abil_mod_hifi);
 			}
 		break;
+                case BTWEB_ABIL_DEM_HIFI:
+                        if (btweb_features.abil_dem_hifi < 0)
+                                return -EOPNOTSUPP;
+                        if (btsys_abil_dem_hifi){
+                                GPSR(btweb_features.abil_dem_hifi) =
+                                        GPIO_bit(btweb_features.abil_dem_hifi);
+                        }
+                        else{
+                                GPCR(btweb_features.abil_dem_hifi) =
+                                        GPIO_bit(btweb_features.abil_dem_hifi);
+                        }
+                break;
 		case BTWEB_ABIL_FON:
 			if (btweb_features.abil_fon < 0)
 				return -EOPNOTSUPP;
@@ -499,6 +525,17 @@ ctl_table btsys_table_F453AV[] = {
 		.extra1 =        bool_min,
 		.extra2 =        bool_max,
 	},
+        {
+                .ctl_name =      BTWEB_ABIL_DEM_VIDEO,
+                .procname =      "abil_dem_video",
+                .data =          &btsys_abil_dem_video,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
 	{
 		.ctl_name =      BTWEB_ABIL_MOD_HIFI,
 		.procname =      "abil_mod_hifi",
@@ -510,6 +547,17 @@ ctl_table btsys_table_F453AV[] = {
 		.extra1 =        bool_min,
 		.extra2 =        bool_max,
 	},
+        {
+                .ctl_name =      BTWEB_ABIL_DEM_HIFI,
+                .procname =      "abil_dem_hifi",
+                .data =          &btsys_abil_dem_hifi,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
 	{
 		.ctl_name =      BTWEB_ABIL_FON,
 		.procname =      "abil_fon",
@@ -568,6 +616,10 @@ int btsys_init(void)
 			set_GPIO_mode(btweb_features.abil_mod_video | GPIO_OUT);
 			btsys_apply(BTWEB_ABIL_MOD_VIDEO);
 		}
+                if (btweb_features.abil_dem_video >= 0) {
+                        set_GPIO_mode(btweb_features.abil_dem_video | GPIO_OUT);
+                        btsys_apply(BTWEB_ABIL_DEM_VIDEO);
+                }
 		if (btweb_features.ctrl_hifi >= 0) {
 			set_GPIO_mode(btweb_features.ctrl_hifi | GPIO_OUT);
 			btsys_apply(BTWEB_CTRL_HIFI);
@@ -580,6 +632,10 @@ int btsys_init(void)
 			set_GPIO_mode(btweb_features.abil_mod_hifi | GPIO_OUT);
 			btsys_apply(BTWEB_ABIL_MOD_HIFI);
 		}
+                if (btweb_features.abil_dem_hifi >= 0) {
+                        set_GPIO_mode(btweb_features.abil_dem_hifi | GPIO_OUT);
+                        btsys_apply(BTWEB_ABIL_DEM_HIFI);
+                }
 		if (btweb_features.abil_fon >= 0) {
 			set_GPIO_mode(btweb_features.abil_fon | GPIO_OUT);
 			btsys_apply(BTWEB_ABIL_FON);

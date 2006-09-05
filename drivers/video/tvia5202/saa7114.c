@@ -2,20 +2,8 @@
  *   Philips 7114 video decoder driver
  */
 
-/*#include <linux/module.h> */
 #include <linux/kernel.h>
-/*#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/vmalloc.h>
-#include <linux/fb.h>
-#include <linux/init.h>
-#include <linux/pm.h>
-*/
-
 
 #ifdef DEBUG
 	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
@@ -396,11 +384,11 @@ static u8 Phil7114_NTSC[2][P7114_Count*2] =
 
 static u8 Phil7114_PAL[P7114_Count*2] = 
 {
-    0x88, 0x58, /* analog chn 2 disabled, audio disabled */
+    0x88, 0x58, /* analog chn 2 disabled(8th bit -> 0xd8), audio disabled */
 
     /* Video Decoder */
     0x01, 0x08, /* Recommemded position */
-    0x02, 0xc0, /* Set to AI11 input for F453AV */
+    0x02, 0xc0, /* 0xc0=Set to AI11 input for F453AV, 0xc2 Set to AI21 */
     0x03, 0x20, /* 15/11/2005 Cislaghi */
     0x04, 0x90,
     0x05, 0x90,
@@ -631,8 +619,8 @@ static u8 Phil7114_PAL[P7114_Count*2] =
     0xef, 0x00,
 
     /* Reset Sequence */
-    0x88, 0x58, /* reset analog chn 2 disabled, audio disabled */
-    0x88, 0x78  /* not reset  analog chn 2 disabled, audio disabled */
+    0x88, 0x58, /* reset analog chn 2 disabled: to enable 0xd8, audio disabled */
+    0x88, 0x78  /* running tasks: analog chn 2 disabled (to enable 0xf8), audio disabled */
 
 };
 
@@ -831,11 +819,12 @@ u8 DecoderTest(u8 type, u8 index, u8 val)
     DEBUG0("Writing to Decoder (%x) = %x",index,val);
 	
 	if (SendOneByte(0x42, index, val)) {
-	  if (ReadOneByte(0x42, index, &tmp))
+	  if (ReadOneByte(0x42, index, &tmp)) {
 		if (tmp==val)
-		  DEBUG0("Write to Decoder (%x) = %x (re-read)",tmp,val);
+		  DEBUG0("Write to Decoder (%x) = %x (re-read)",index,val);
 		else
-		  DEBUG0("Write to Decoder Register %x ko: correct=%x,read=%x",val,tmp);
+		  DEBUG0("Write to Decoder Register %x ko: correct=%x,read=%x",index,val,tmp);
+	  }
 	}
 	else
 	  DEBUG0("Decoder Register %x not read",index);

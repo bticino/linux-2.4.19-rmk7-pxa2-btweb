@@ -1,0 +1,4 @@
+cd arch/arm/boot
+sudo /opt/sources/u-boot/u-boot-2006-04-18-1106-btweb-devel/tools/mkimage -A arm -O linux -T kernel -C none -a a0480000 -n `date +%y%m%d-%H%M` -d ./zImage ./uImage
+sudo cp -a uImage /tftpboot
+cd ../../..

@@ -2,7 +2,7 @@
 #include <asm/types.h>
 #include <asm/ioctl.h>
 
-#include "usb_ch9.h"
+#include <linux/usb_ch9.h>
 
 /*
  * Filesystem based user-mode API to USB Gadget controller hardware
@@ -71,3 +71,5 @@ struct usb_gadgetfs_event {
  * some hardware (like pxa2xx) can't support this.
  */
 #define	GADGETFS_CLEAR_HALT	_IO('g',3)
+
+

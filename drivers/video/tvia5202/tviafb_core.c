@@ -51,12 +51,14 @@
 #include <video/fbcon-cfb16.h>
 #include <video/fbcon-cfb24.h>
 
-//CARLOS DMA
+/* DMA */
 #include <asm/dma.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <asm/siginfo.h>
-//CARLOS DMA END
+
+/* DEBUG */
+#undef DEBUG
 
 #ifdef DEBUG
 	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
@@ -81,6 +83,10 @@
 #define VMEM_HIGH_MEMORY_63MB 	0xA3F00000 /* 63-simo MB */
 #define MEM_FOR_MOTION_JPEG 320*240*2
 //#define MEM_FOR_MOTION_JPEG 320
+
+/* Enabling RGBDAC and VGA HSINC/VSINC outputs */
+#undef DISABLE_RGBDAC
+/* #define DISABLE_RGBDAC 1 */
 
 
 #ifdef CONFIG_PM
@@ -370,6 +376,7 @@ static void EnableChip(void)
     SetDACPower(OFF);
 }
 
+#if 0 /* Replaced with similar instructions at the beginning of _init */
 static int TestChip(void)
 {
     int idx;
@@ -512,6 +519,7 @@ static int TestChip(void)
 	
     return 0;
 }
+#endif
 
 static void CleanUpReg(void)
 {
@@ -589,7 +597,7 @@ static void InitChip(void)
 #endif
     }
 
-    trace("SetExtSGReg");
+    dbg("SetExtSGReg");
     SetExtSGReg(ExtSGRegData_5202, sizeof(ExtSGRegData_5202) / 2);
 
     tvia_outb(0x70, 0x3ce);
@@ -598,7 +606,7 @@ static void InitChip(void)
     tvia_outb(0x36, 0x3c4);
     tvia_outb(0x3D, 0x3c5);     /*activate SG/SDRAM initial cycle */
 
-    trace("SGRAM init");
+    dbg("SGRAM init");
     /* wait for SGRAM initializaion stable */
     for (i = 0; i < 10; i++) {  /* wait for 15 CRT vertical sync */
 #ifdef __arm__
@@ -654,14 +662,14 @@ static void PostRoutine(void)
     /*clean up some reigsters in case warm boot */
     CleanUpReg();
 
-    trace("CleanUpReg() pass");
+    dbg("CleanUpReg() pass");
     InitChip();                 /* initialize to 800x600x16 @60Hz mode */
 }
 
 static void tvia_init_hw(void)
 {
     EnableChip();
-    trace("EnableChip() pass");
+    dbg("EnableChip() pass");
     PostRoutine();
 }
 
@@ -1082,7 +1090,7 @@ static void EnableTV(u16 iOnOff)
  		  trace("iTmp=%x",iTmp);
           tvia_outb(iTmp | 0x25, 0x3cf); 
 
-/*
+#if 0 /* To directly test RGB output */
  		  trace("Test RGB");
   		  tvia_outb(0xF7, 0x3ce);     // Banking I/O control 
 		  tvia_outb(0x00, 0x3cf);
@@ -1103,7 +1111,7 @@ static void EnableTV(u16 iOnOff)
 		  tvia_outb(0x70, 0x3cf);
 		  tvia_outb(0xce, 0x3ce);     // test rgb Red val 
 		  tvia_outb(0x70, 0x3cf);
-*/		  
+#endif		  
 		  
 		  }
     } else {
@@ -1117,7 +1125,7 @@ static void TVOn(u16 iOnOff)
 {
     if (iOnOff == ON) {
 
-     	trace("TVOn");
+     	dbg("TVOn");
 	  
         tvia_outb(0x5C, 0x3ce);
         tvia_outb(tvia_inb(0x3cf) | 0x20, 0x3cf);    //ORIG 
@@ -1127,7 +1135,7 @@ static void TVOn(u16 iOnOff)
 	  
         if (current_par.device_id == 0x5000) {
 
-            trace("TVOn: id 5000");
+            dbg("TVOn: id 5000");
 		  
             tvia_outb(0xFA, 0x3ce);
             tvia_outb(0x05, 0x3cf);
@@ -2417,7 +2425,7 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 		}
 	case FBIO_TVIA5202_SetCapturePath: {
 			TVIA5202_CAPTUREPATH path;
-		  trace("FBIO_TVIA5202_SetCapturePath called");
+			dbg("FBIO_TVIA5202_SetCapturePath called");
 			copy_from_user(&path, (void *)arg, sizeof(TVIA5202_CAPTUREPATH));
 			Tvia_SetCapturePath(path.bWhichPort, path.bWhichCapEngine);
 			return 0;
@@ -3216,14 +3224,14 @@ tviafb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
 
 //	unlock_kernel();
 
-	trace("tviafb_mmap:5");
+	dbg("tviafb_mmap:5");
 	start &= PAGE_MASK;
 	
 
 	if((vma->vm_end - vma->vm_start + off) > len)
 		return -EINVAL;
 
-	trace("tviafb_mmap:6");
+	dbg("tviafb_mmap:6");
 	off += start;
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 	
@@ -3495,7 +3503,7 @@ static int __init tvia5202fb_init(void)
 	current_par.memtype = 1;
 	current_par.palette_size = 256;
 
-	trace("Tvia5202 INIT 1.6.5");
+	trace("Tvia5202 INIT 1.6.7");
 
     /* Reset Tvia5202 - gpio45 output */
     set_GPIO_mode(45 | GPIO_OUT);
@@ -3522,6 +3530,9 @@ static int __init tvia5202fb_init(void)
 
 // ------------
 
+   trace("Setting MDREFR to 0xDC018");
+   MDREFR=0x000DC018;
+
 
 	/* Wake up the chip */
 	tvia_outb(0x18, 0x46e8);
@@ -3532,7 +3543,7 @@ static int __init tvia5202fb_init(void)
 	/* Enable linear address */
 	//tvia_outb(0x33, 0x3ce);
 	//tvia_outb(0x01, 0x3cf);
-	trace("Enable linear address SHOULD ALREADY ENABLED");
+	dbg("Enable linear address SHOULD ALREADY ENABLED");
 
 	trace("Now enable NO_BE_MODE");
 
@@ -3540,7 +3551,7 @@ static int __init tvia5202fb_init(void)
 	tvia_outb(0x33, 0x3ce);
 	tvia_outb(0x40, 0x3cf); /* set the banking */
 
-	//trace("tviafb: enable NO_BE_MODE 1");
+	dbg("tviafb: enable NO_BE_MODE 1");
 
 	tvia_outb(0x3c, 0x3ce);
 	tvia_outb(0x40, 0x3cf); /* set NO_BE_MODE */
@@ -3568,10 +3579,10 @@ static int __init tvia5202fb_init(void)
 	tvia_outb(0x00, 0x3cf);  /* clear the banking */
 	trace("OK NO_BE_MODE");
 
-    trace("tviafb_init_fbinfo");
+    dbg("tviafb_init_fbinfo");
     tviafb_init_fbinfo();
 
-    trace("tvia_init_hw");
+    dbg("tvia_init_hw");
     tvia_init_hw();
 
     /* Initialize cursor info */
@@ -3583,9 +3594,9 @@ static int __init tvia5202fb_init(void)
 
     tviafb_set_var(&init_var, -1, &fbinfo);
 
-    trace("Going to ProgramTV");
+    dbg("Going to ProgramTV");
     ProgramTV();
-    trace("ProgramTV done");
+    dbg("ProgramTV done");
 
     if (init_var.bits_per_pixel >= 16)
         BypassMode(ON);         /*want bypass mode */
@@ -3593,9 +3604,10 @@ static int __init tvia5202fb_init(void)
         BypassMode(OFF);        /*want index mode */
         SetRamDac(RamDacData, sizeof(RamDacData) / 3);
     }
-   trace("SetDACPower");
+   dbg("SetDACPower");
    SetDACPower(ON);            /*power on DAC to turn on screen */
 
+#ifdef DISABLE_RGBDAC
    trace("Disabling RGBDAC");
    tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
    iTmpFA = tvia_inb(0x3cf);
@@ -3611,22 +3623,47 @@ static int __init tvia5202fb_init(void)
    tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
    tvia_outb(iTmpFA, 0x3cf);
    trace("Disabling RGBDAC done");
+#else 
+   trace("Enabling RGBDAC");
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   iTmpFA = tvia_inb(0x3cf);
+   tvia_outb(0x02, 0x3cf);
+
+   tvia_outb(0xB1, 0x3ce);
+   iTmp = tvia_inb(0x3cf);
+   trace("read 3cf/bf02.3cf/b1=%x",iTmp);
+   iTmp = (iTmp&0xC0);/////per abilitare 3f
+   trace("writing 3cf/fa05.3cf/b1=%x",iTmp);
+   tvia_outb(iTmp, 0x3cf);
+
+   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+   tvia_outb(iTmpFA, 0x3cf);
+   trace("Enabling RGBDAC done");
+#endif
 
    trace("Disabling DigitalRGB");
    EnableDigitalRGB(OFF);
    trace("Disabling DigitalCursor");
    EnableDigitalCursor(OFF);
 
-   trace("Disabling HSync,VSync");
+#ifdef DISABLE_RGBDAC
+    trace("Disabling HSync,VSync");
+    //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
+    //00  ----- enable Hsync
+    //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
+    Out_Video_Reg_M(0x16,0x05,0xF0);
+#else
+   trace("Enabling HSync,VSync");
    //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
    //00  ----- enable Hsync
    //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
-   Out_Video_Reg_M(0x16,0x05,0xF0);
+   Out_Video_Reg_M(0x16,0x00,0xF0);
+#endif
 
-   trace("Disable hardware cursor");
+   dbg("Disable hardware cursor");
    tvia_outb(0x56, 0x3ce);
    tvia_outb(tvia_inb(0x3cf) & 0xfe, 0x3cf);
-   trace("Hardware cursor done");
+   dbg("Hardware cursor done");
 
     if (init_var.bits_per_pixel == 8) {
         b = 0;
@@ -3643,7 +3680,7 @@ static int __init tvia5202fb_init(void)
     tvia_outw(w - 1, 0xbf218);
     tvia_outb(b, 0xbf01c);
 
-    trace("SetDACPower ON");
+    dbg("SetDACPower ON");
     SetDACPower(ON);
 
     if (register_framebuffer(&fbinfo) < 0) {

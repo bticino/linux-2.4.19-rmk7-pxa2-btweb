@@ -64,8 +64,12 @@ static int __init is_f452(void) // and MH200
 		.ctrl_video = -1,
 		.virt_conf = -1,
 		.abil_mod_video = -1,
+                .abil_dem_video = -1,
 		.abil_mod_hifi = -1,
+                .abil_dem_hifi = -1,
 		.abil_fon = -1,
+                .cf_irq = -1,
+                .usb_soft_enum_n = -1,
 	};
 	/* GPIO6 is low */
 	set_GPIO_mode( 6 | GPIO_IN );
@@ -95,8 +99,12 @@ static int __init is_ts(void) // H4684 product
 		.ctrl_video = -1,
 		.virt_conf = -1,
 		.abil_mod_video = -1,
+                .abil_dem_video = -1,
 		.abil_mod_hifi = -1,
+                .abil_dem_hifi = -1,
 		.abil_fon = -1,
+                .cf_irq = -1,
+		.usb_soft_enum_n = -1,
 	};
 	/* GPIO6 is high (it's already in IN mode)  */
 	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
@@ -132,8 +140,12 @@ static int __init is_fpga(void)   // First master of F453AV/Interf2filitcp/ip
 		.ctrl_video = 1,
 		.virt_conf = 2,
 		.abil_mod_video = 35,
+                .abil_dem_video = 35, /* The same pin: compatibility for further hw versions */
 		.abil_mod_hifi = 41,
+                .abil_dem_hifi = 41,  /* The same pin: compatibility for further hw versions */
 		.abil_fon = 54,
+                .cf_irq = -1,
+                .usb_soft_enum_n = -1,
 	};
 	/* GPIO6 is high (it's already in IN mode)  */
 	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
@@ -168,8 +180,12 @@ static int __init is_f453av(void)
 		.ctrl_video = 1,
 		.virt_conf = 2,
 		.abil_mod_video = 35,
+                .abil_dem_video = 16,
 		.abil_mod_hifi = 41,
+                .abil_dem_hifi = 12,
 		.abil_fon = 54,
+		.cf_irq = 11,
+                .usb_soft_enum_n = 27,
 	};
 
 	/* GPIO6 is low (it's already in IN mode)  */
@@ -331,7 +347,10 @@ static void __init btweb_map_io(void)
 
 		/* Enabling video modulator/demodulator  */
 		set_GPIO_mode(35 | GPIO_OUT);
-		GPSR(35) = GPIO_bit(35);
+		/* GPSR(35) = GPIO_bit(35); */
+		
+		/* Setting usb soft_enum_n direction as output */
+		set_GPIO_mode(27 | GPIO_OUT);
 
 		/* gpio0,1 hifi and video source selection*/
 		set_GPIO_mode(0 | GPIO_OUT);

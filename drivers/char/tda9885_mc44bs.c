@@ -29,6 +29,9 @@
 #include <linux/proc_fs.h>
 #include <asm/hardware.h> /* for btweb_globals when ARCH_BTWEB is set */
 
+static int tda_power;
+static int mc_power;
+
 #define DEBUG 3
 
 #if DEBUG
@@ -231,7 +234,7 @@ static struct file_operations tdamc_fops = {
 
 };
 static struct miscdevice tdamc_miscdev = {
-	145,
+	TDAMC_MINOR,
 	"tdamc",
 	&tdamc_fops
 };
@@ -241,8 +244,17 @@ static __init int tdamc_init(void)
 	int retval=0;
 
 	printk("tdamc9885_mc44bs.c: Switching on mod/demod power\n");
-	GPSR(btweb_features.abil_mod_video) =
-		GPIO_bit(btweb_features.abil_mod_video);
+
+//        if (mc_power) {
+                GPSR(btweb_features.abil_mod_video) =
+                        GPIO_bit(btweb_features.abil_mod_video);
+                slave_address = SLAVE_ADDRESS_MC;
+//        }
+//        if (tda_power) {
+                GPSR(btweb_features.abil_dem_video) =
+                        GPIO_bit(btweb_features.abil_dem_video);
+                slave_address = SLAVE_ADDRESS_TDA;
+//        }
 	
 	normal_addr[0] = slave_address;
 
@@ -271,8 +283,15 @@ static __exit void tdamc_exit(void)
 	i2c_del_driver(&tdamc_driver);
 	
 	printk("tdamc9885_mc44bs.c: Switching off mod/demod power\n");
-	GPCR(btweb_features.abil_mod_video) =
-		GPIO_bit(btweb_features.abil_mod_video);
+
+        if (tda_power) {
+                GPCR(btweb_features.abil_dem_video) =
+                        GPIO_bit(btweb_features.abil_dem_video);
+        }
+        if (mc_power) {
+                GPCR(btweb_features.abil_mod_video) =
+                        GPIO_bit(btweb_features.abil_mod_video);
+        }
 
 }
 
@@ -281,6 +300,10 @@ module_exit(tdamc_exit);
 
 MODULE_PARM (slave_address, "i");
 MODULE_PARM_DESC (slave_address, "I2C slave address for TDA9885 and MC44BS chips.");
+MODULE_PARM (tda_power, "i");
+MODULE_PARM_DESC(tda_power, "TDA9885 demodulator power (default=0 off)");
+MODULE_PARM (mc_power, "i");
+MODULE_PARM_DESC(mc_power, "MC44BS modulator power (default=0 off)");
 
 MODULE_AUTHOR ("Raffaele Recalcati");
 MODULE_LICENSE("GPL");

@@ -28,10 +28,12 @@ struct btweb_features {
 	int ctrl_video;
 	int virt_conf;
 	int abil_mod_video;
+        int abil_dem_video;
 	int abil_mod_hifi;
+        int abil_dem_hifi;
 	int abil_fon;
-
-
+        int cf_irq;
+	int usb_soft_enum_n;
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
@@ -76,10 +78,13 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_CTRL_HIFI 11 /* audio source from modulator or AC97 - only first master */
 #define BTWEB_CTRL_VIDEO 12 /* video source from demodulator or TVIA5202 */
 #define BTWEB_VIRT_CONF  13 /* virtual conf button - only input */
-#define BTWEB_ABIL_MOD_VIDEO 14 /* video mod/demod power */
-#define BTWEB_ABIL_MOD_HIFI  15 /* audio hifi mod/demod power */
-#define BTWEB_ABIL_FON  16 /* "fork" power */
-
+#define BTWEB_ABIL_MOD_VIDEO 14 /* video mod power */
+#define BTWEB_ABIL_DEM_VIDEO 15 /* video demod power */
+#define BTWEB_ABIL_MOD_HIFI  16 /* audio hifi mod power */
+#define BTWEB_ABIL_DEM_HIFI  17 /* audio hifi demod power */
+#define BTWEB_ABIL_FON       18 /* "fork" power */
+#define BTWEB_CF_IRQ         19 /* compact flash interrupt */
+#define BTWEB_USB_SOFT_ENUM_N 20 /* usb soft enumeration control */
 
 
 #endif
