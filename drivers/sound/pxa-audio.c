@@ -36,16 +36,18 @@
 #define SNDCTL_BT_DECGAIN          _SIOWR('P',87, int)
 #define SNDCTL_BT_LINGETDELAY      _SIOWR('P',86, int) // usato per il LINPHONE
 
+										// these to set the volumes !
 #define SNDCTL_BT_SETREC_GAIN       _SIOWR('P',85, int)
 #define SNDCTL_BT_SETLINE     		_SIOWR('P',84, int)
 #define SNDCTL_BT_SETPCM     		_SIOWR('P',83, int)
 
+// #define BT_DEBUG
+			// PARM: x attivare scritte di debug, meglio farne a meno !
 
 #define AUDIO_NBFRAGS_DEFAULT	8
 
 /* To reduce driver audio fragment size by Carlos */
-//#define AUDIO_FRAGSIZE_DEFAULT 1280
-#define AUDIO_FRAGSIZE_DEFAULT 640
+#define AUDIO_FRAGSIZE_DEFAULT 640	// riduce la latenza e cosi'svuota ogni 20 ms
 //#define AUDIO_FRAGSIZE_DEFAULT 2048    // by Carlos
 //#define AUDIO_FRAGSIZE_DEFAULT 8192    /* ORIG 8192 */
 
@@ -97,7 +99,7 @@ void pxa_ac97_wait1(struct ac97_codec *codec )
 		while(i==1) {
 			val = *ioaddr;
 			while(!(GSR & GSR_SDONE)) {
-				udelay(1);
+				udelay(1);	// nn definita ???
 			}
 			GSR |= GSR_SDONE;
 			if(GSR & GSR_RDCS) {
@@ -381,7 +383,6 @@ int rd_open=0, wr_open=0;
 int dma_ch_os, dma_ch_is;
 
 #define DRV_FOR_ALL
-
 //#define DRV_FOR_LINPHONE
 //#define DRV_FOR_VOCAL
 
@@ -393,12 +394,15 @@ static void audio_dma_irq(int ch, void *dev_id, struct pt_regs *regs)
 	audio_stream_t *s = dev_id;
 	u_int dcsr;
 //printk ("irq dma \n");
-/*
-if ( time_irq_rx0 ==0 ) 
-	printk ( "first irq tx %d \n", count_irq_tx );
-if ( count_irq_tx ==0 ) 
-	printk ( "first irq rx %d \n", time_irq_rx0 );
-*/    /*
+
+#ifdef BT_DEBUG
+	if ( time_irq_rx0 ==0 ) 
+		printk ( "first irq tx %d \n", count_irq_tx );
+	if ( count_irq_tx ==0 ) 
+		printk ( "first irq rx %d \n", time_irq_rx0 );
+#endif
+
+    /*
 if ( ch == 9 ) // solo x capire se prima che un'irq finisca nn ne parta un altro!
 	{	rd_open = 1;
 	if ( wr_open == 1)
@@ -416,24 +420,26 @@ if ( ch == 8 )
 
 
 #ifdef DRV_FOR_VOCAL
-if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
-	{
-	do_gettimeofday(&tim_pl );
-	time_irq_rx0 = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
-printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
-//printk ( " first irq rx time %d time add start %d\n", time_irq_rx0 , time_add_start);
-//	if ( t_usec < t_usec_old)
-//		t_usec = t_usec + 1000000;
-	}
-if ( ( ch==dma_ch_os ) && ( count_irq_tx==0) )
-	{
-	do_gettimeofday(&tim_pl );
-	count_irq_tx = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
-printk ( "Irq tx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
-//printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
+	if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
+		{
+		do_gettimeofday(&tim_pl );
+		time_irq_rx0 = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
+#ifdef BT_DEBUG
+		printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+#endif
+		}
 
-//	if ( t_usec < t_usec_old)
-//		t_usec = t_usec + 1000000;
+	if ( ( ch==dma_ch_os ) && ( count_irq_tx==0) )
+		{
+		do_gettimeofday(&tim_pl );
+		count_irq_tx = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
+#ifdef BT_DEBUG
+		printk ( "Irq tx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+#endif
+	//printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
+	
+	//	if ( t_usec < t_usec_old)
+	//		t_usec = t_usec + 1000000;
 	}
 #endif
 
@@ -464,8 +470,8 @@ if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
 	{
 	do_gettimeofday(&tim_rec0 );
 	time_irq_rx0 = (tim_rec0.tv_sec*1000000) + tim_rec0.tv_usec;
-//printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
-//printk ( " first irq rx time %d time add start %d\n", time_irq_rx0 , time_add_start);
+//	printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+//	printk ( " first irq rx time %d time add start %d\n", time_irq_rx0 , time_add_start);
 	}
 
 if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
@@ -480,12 +486,13 @@ if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
 		do_gettimeofday(&tim_pl1 );
 //		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
 		diff_dma_tx01=(tim_pl1.tv_sec-tim_pl0.tv_sec)*1000000 + (tim_pl1.tv_usec-tim_pl0.tv_usec) ;
-//		printk ("Irq TX1-TX0 %d \n",diff_dma_tx01 );
+#ifdef BT_DEBUG
+		printk ("Irq TX1-TX0 %d \n",diff_dma_tx01 );	// questo è un parametro importante
+#endif
 		}
 	count_irq_tx++;
 	}
 #endif
-
 
 	dcsr = DCSR(ch);
 	DCSR(ch) = dcsr & ~DCSR_STOPIRQEN;
@@ -521,12 +528,11 @@ if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
 		default: cur_dma_frag =
 			    cur_dma_desc / (s->descs_per_frag * DMA_DESC_SIZE);
 		}
-//if ( frame_rx <2 )
-//	printk ("irq ch %d frame rx %d frame tx %d dma_desc_size %d \n", ch, frame_rx , frame_count, DMA_DESC_SIZE );
 
-
-//if ( frame_rx <2 )
-//	printk ("   irq  cur dma desc %d descs per frag %d cur_dma_frag %d usr_frag %d\n", cur_dma_desc, s->descs_per_frag , cur_dma_frag, s->usr_frag);
+/*	if ( frame_rx <2 )	{
+		printk ("irq ch %d frame rx %d frame tx %d dma_desc_size %d \n", ch, frame_rx , frame_count, DMA_DESC_SIZE );
+		printk ("   irq  cur dma desc %d descs per frag %d cur_dma_frag %d usr_frag %d\n", cur_dma_desc, s->descs_per_frag , cur_dma_frag, s->usr_frag);
+		}					*/
 
 		/* Account for possible wrap back of cur_dma_desc above */
 		if (cur_dma_frag >= s->nbfrags)
@@ -741,20 +747,20 @@ if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( time_add_start == 0 ) )
 #endif
 
 
-#ifdef DRV_FOR_ALL	// questo pezzo serve solo x il VOCAL !!
+#ifdef DRV_FOR_ALL
+					// ma questo pezzo forse serve solo x il VOCAL in realtà
 if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
 	{
 	diff_dma_txrx0 = ( count_irq_tx - time_irq_rx0 ) + 4000;
 	if ( count_irq_tx  < ( time_irq_rx0 - 4000 ) )
 		{
-//		printk ( "occhio !! prima l'irq di TX sulla scheda, time_add_start sarebbe %d\n", diff_dma_txrx0 );
+#ifdef BT_DEBUG
+		printk ( "Warning!! prima l'irq di TX sulla scheda, time_add_start sarebbe %d\n", diff_dma_txrx0 );
+#endif
 		diff_dma_txrx0 = 1; // cosi' sfugge al controllo sullo zero
 		}
-//	printk ("time to add to begin %d \n", diff_dma_txrx0);
 	}
 #endif
-
-
 
 	if (ppos != &file->f_pos)
 		return -ESPIPE;
@@ -762,8 +768,6 @@ if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
 		return -ENXIO;
 	if (!s->buffers && audio_setup_buf(s))
 		return -ENOMEM;
-
-//printk ("audio read 1\n");
 
 	while (count > 0) {
 		audio_buf_t *b = &s->buffers[s->usr_frag];
@@ -774,7 +778,6 @@ if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
 				s->buffers[s->dma_frag].dma_desc->ddadr;
 			DCSR(s->dma_ch) = DCSR_RUN;
 		}
-//printk ("audio read 2 \n");
 
 		/* Wait for a buffer to become full */
 		if (file->f_flags & O_NONBLOCK) {
@@ -786,7 +789,6 @@ if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
 			if (down_interruptible(&s->sem))
 				break;
 		}
-//printk ("audio read 3 \n");
 		/* Grab data from current buffer */
 		chunksize = s->fragsize - b->offset;
 		if (chunksize > count)
@@ -802,7 +804,6 @@ if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
 			up(&s->sem);
 			break;
 		}
-//printk ("audio read 4 \n");
 		/* 
 		 * Make this buffer available for DMA again.
 		 * We unlock this fragment's checkpoint descriptor and
@@ -816,14 +817,9 @@ if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
 		/* move the index to the next fragment */
 		if (++s->usr_frag >= s->nbfrags)
 			s->usr_frag = 0;
-//printk ("audio read 5 \n");
 	}
-//printk ("audio read 6 \n");
 	if ((buffer - buffer0))
 		ret = buffer - buffer0;
-
-//	if (frame_rx < 20)
-//		printk ("ret %d \n", ret);
 
 	return ret;
 }
@@ -950,21 +946,26 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 	audio_stream_t *os = state->output_stream;
 	audio_stream_t *is = state->input_stream;
 	long val;
-//printk("audio_ioctl ");
 
 	switch (cmd) {
 	case SNDCTL_BT_SETREC_GAIN:
 		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, (int) arg );
-//printk( "ac97: set rec gain to %X\n", arg);
+#ifdef BT_DEBUG
+		printk( "ac97: set rec gain to %X\n", arg);
+#endif 
 		return 0;
 	case SNDCTL_BT_SETLINE:
 		pxa_ac97_write1( &pxa_ac97_codec1, AC97_MASTER_VOL_STEREO, (int) arg );
-//printk( "ac97: set lineout to %X\n", arg);
+#ifdef BT_DEBUG
+		printk( "ac97: set lineout to %X\n", arg);
+#endif 
 		return 0;
 
 	case SNDCTL_BT_SETPCM:
 		pxa_ac97_write1( &pxa_ac97_codec1, AC97_PCMOUT_VOL, (int) arg );
-//printk( "ac97: set pcm vol to %X\n", arg);
+#ifdef BT_DEBUG
+		printk( "ac97: set pcm vol to %X\n", arg);
+#endif 
 		return 0;
 
 /* ------------ from ac97.h  ------------------
@@ -978,7 +979,6 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 // !!! parm / added to calc the begin delay
 	case SNDCTL_BT_GETDELAY:	// used with GUA
 		val = diff_dma_txrx0;
-//		printk( "bt get delay %d\n", val);
 		return put_user(val, (int *) arg);
 
 	case SNDCTL_BT_LINGETDELAY:	// used with Linphone
@@ -986,17 +986,16 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 //		printk( "bt get delay val %d\n", val);
 		return put_user(val, (int *) arg);
 
-
-	case SNDCTL_BT_INCGAIN:
-//printk( "bt inc gain\n");
+	case SNDCTL_BT_INCGAIN:		// nn + usato 
+//		printk( "bt inc gain\n");
 //		equ_level--;
 		val = pxa_ac97_read1( &pxa_ac97_codec1, AC97_RECORD_GAIN );
 		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, val+1 );
 							// uno dei pochi reg a ragionare in diretta, senza attenuazione
 		return put_user( 0, (int *) arg);
 
-	case SNDCTL_BT_DECGAIN:
-//printk( "bt dec gain\n");
+	case SNDCTL_BT_DECGAIN:		// nn + usato 
+//		printk( "bt dec gain\n");
 //		equ_level++;
 		val = pxa_ac97_read1( &pxa_ac97_codec1, AC97_RECORD_GAIN );
 		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, val-1 );
@@ -1004,7 +1003,7 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 		return put_user(0, (int *) arg);
 
 	case OSS_GETVERSION:
-printk("OSS get version \n");
+		printk("OSS get version \n");
 		return put_user(SOUND_VERSION, (int *)arg);
 
 	case SNDCTL_DSP_GETBLKSIZE:
@@ -1015,14 +1014,14 @@ printk("OSS get version \n");
 			return put_user(is->fragsize, (int *)arg);
 
 	case SNDCTL_DSP_GETCAPS:
-//printk("sndctl_dsp_getcaps \n");
+//		printk("sndctl_dsp_getcaps \n");
 		val = DSP_CAP_REALTIME|DSP_CAP_TRIGGER|DSP_CAP_MMAP;
 		if (is && os)
 			val |= DSP_CAP_DUPLEX;
 		return put_user(val, (int *)arg);
 
 	case SNDCTL_DSP_SETFRAGMENT:
-//printk("sndctl_dsp_setfragments \n");
+//		printk("sndctl_dsp_setfragments \n");
 		if (get_user(val, (long *) arg))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
@@ -1044,19 +1043,19 @@ printk("OSS get version \n");
 		return 0;
 
 	case SNDCTL_DSP_SYNC:
-//printk("sndctl_dsp_sync \n");
+//		printk("sndctl_dsp_sync \n");
 		return audio_sync(file);
 
 	case SNDCTL_DSP_SETDUPLEX:
-//printk("sndctl_dsp_setduplex \n");
+//		printk("sndctl_dsp_setduplex \n");
 		return 0;
 
 	case SNDCTL_DSP_POST:
-//printk("sndctl_dsp_post \n");
+//		printk("sndctl_dsp_post \n");
 		return 0;
 
 	case SNDCTL_DSP_GETTRIGGER:
-//printk("sndctl_dsp_gettrigger \n");
+//		printk("sndctl_dsp_gettrigger \n");
 		val = 0;
 		if (file->f_mode & FMODE_READ && DCSR(is->dma_ch) & DCSR_RUN)
 			val |= PCM_ENABLE_INPUT;
@@ -1065,7 +1064,7 @@ printk("OSS get version \n");
 		return put_user(val, (int *)arg);
 
 	case SNDCTL_DSP_SETTRIGGER:
-//printk("sndctl_dsp_settrigger \n");
+//		printk("sndctl_dsp_settrigger \n");
 		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
@@ -1287,7 +1286,9 @@ int pxa_audio_attach(struct inode *inode, struct file *file,
 			goto out;
 	os->dma_ch = err;
 	dma_ch_os = err; // per renderlo visibile al DMA int.
+#ifdef BT_DEBUG
 	printk ("Audio OUT dma ch %d\n", err );
+#endif
 	}
 	if (file->f_mode & FMODE_READ) {
 		err = pxa_request_dma(is->name, DMA_PRIO_MEDIUM,
@@ -1306,9 +1307,9 @@ if (file->f_mode & FMODE_READ) {
 		}
 	is->dma_ch = err;
 	dma_ch_is = err; // per renderlo visibile al DMA int.
-//printk (" request dma ch %d\n", err );
+#ifdef BT_DEBUG
 	printk ("Audio IN dma ch %d\n", err );
-
+#endif
 	}
 
 	file->private_data	= state;
