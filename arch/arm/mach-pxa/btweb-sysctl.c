@@ -297,8 +297,6 @@ static int btsys_apply(int name)
 					GPIO_bit(btweb_features.abil_fon);
 			}
 		break;
-
-
 		}
 	return 0;
 }
@@ -569,6 +567,16 @@ ctl_table btsys_table_F453AV[] = {
 		.extra1 =        bool_min,
 		.extra2 =        bool_max,
 	},
+        {
+		.ctl_name =      BTWEB_USB_PXA_SLAVE_CONNECTED,
+                .procname =      "usb_pxa_slave_connected",
+                .data =          &btweb_globals.usb_pxa_slave_connected,
+                .maxlen =        sizeof(int),
+                .mode =          0444,
+                .proc_handler =  proc_dointvec,
+                .strategy =      sysctl_intvec,
+	},
+
 	{0,}
 };
 

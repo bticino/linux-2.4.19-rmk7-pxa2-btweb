@@ -47,9 +47,10 @@
 #include <asm/uaccess.h>
 
 #include <video/fbcon.h>
-#include <video/fbcon-cfb8.h>
+/* ADVANTECH  #include <video/fbcon-cfb8.h> */
 #include <video/fbcon-cfb16.h>
-#include <video/fbcon-cfb24.h>
+/* ADVANTECH #include <video/fbcon-cfb24.h> */
+
 
 /* DMA */
 #include <asm/dma.h>
@@ -1499,6 +1500,8 @@ tviafb_decode_var(struct fb_var_screeninfo *var, int *visual,
 
     bpp = var->bits_per_pixel;
 
+    dbg("tviafb_decode_var: start");
+
     if (var->pixclock == 50000)
         clock = 50;
     else if (var->pixclock == 60000)
@@ -1516,6 +1519,7 @@ tviafb_decode_var(struct fb_var_screeninfo *var, int *visual,
 #endif
 #ifdef FBCON_HAS_CFB16
     case 16:
+	dbg("tviafb_decode_var: CFB16");
         *visual = FB_VISUAL_TRUECOLOR;
         break;
 #endif
@@ -1536,6 +1540,10 @@ tviafb_decode_var(struct fb_var_screeninfo *var, int *visual,
     if (total_num <= 0)
         return -EINVAL;
 
+#ifdef CONFIG_FBCON_CFB16 
+    dbg("tviafb_decode_var: CONFIG_FBCON_CFB16 defined");
+#endif 
+
     /*find the mode we needed--i is the modenum */
     for (i = 0; i < total_num; i++) {
         if (xres == (modetable + i)->xres && yres == (modetable + i)->yres
@@ -1543,6 +1551,8 @@ tviafb_decode_var(struct fb_var_screeninfo *var, int *visual,
             && clock == (modetable + i)->clock)
             break;
     }
+
+    dbg("tviafb_decode_var: mode=%d,total_num=%d",i,total_num);
 
     /*underscan--don't support */
     /*if(underscan) */
@@ -1558,6 +1568,8 @@ tviafb_decode_var(struct fb_var_screeninfo *var, int *visual,
 
     if (i >= total_num)
         return -EINVAL;
+
+    dbg("tviafb_decode_var: ok mode=%d",i);
 
     clock = (modetable + i)->clock;
 
@@ -1647,6 +1659,8 @@ tviafb_get_var(struct fb_var_screeninfo *var, int con,
     else
         *var = fb_display[con].var;
 
+    *var = init_var;
+
     return 0;
 }
 
@@ -1658,14 +1672,20 @@ tviafb_set_var(struct fb_var_screeninfo *var, int con,
     int err, chgvar = 0, visual;
     struct sModeParam sm0;
 
+    dbg("tvia_fb_get_var started");
+
     if (con >= 0)
         display = fb_display + con;
     else
         display = &global_disp;
 
+    dbg("tvia_fb_get_var started 1");
+
     err = tviafb_decode_var(var, &visual, &sm0);
     if (err)
         return err;
+
+    dbg("tvia_fb_get_var started 1.5"); 
 
     switch (var->activate & FB_ACTIVATE_MASK) {
     case FB_ACTIVATE_TEST:
@@ -1678,6 +1698,8 @@ tviafb_set_var(struct fb_var_screeninfo *var, int con,
     default:
         return -EINVAL;
     }
+
+    dbg("tvia_fb_get_var started 2");
 
     if (con >= 0) {
         if (display->var.xres != var->xres)
@@ -1718,6 +1740,7 @@ tviafb_set_var(struct fb_var_screeninfo *var, int con,
     switch (display->var.bits_per_pixel) {
 #ifdef FBCON_HAS_CFB8
     case 8:
+	dbg ("tviafb_set_var: setting fbcon_cfb8 to %p",fbcon_cfb8);
         dispsw = &fbcon_cfb8;
         display->dispsw_data = NULL;
         var->bits_per_pixel = 8;
@@ -1731,6 +1754,7 @@ tviafb_set_var(struct fb_var_screeninfo *var, int con,
 #endif
 #ifdef FBCON_HAS_CFB16
     case 16:
+        dbg ("tviafb_set_var: setting fbcon_cfb16",fbcon_cfb16);
         dispsw = &fbcon_cfb16;
         display->dispsw_data = current_par.c_table.cfb16;
         var->bits_per_pixel = 16;
@@ -1763,10 +1787,14 @@ tviafb_set_var(struct fb_var_screeninfo *var, int con,
     }
 
     if (display->var.accel_flags & FB_ACCELF_TEXT &&
-        dispsw != &fbcon_dummy)
+        dispsw != &fbcon_dummy) {
         display->dispsw = &fbcon_cyber_accel;
-    else
+	dbg("tvia_fb_set_var: setting &fbcon_cyber_accel"); 
+    }
+    else {
         display->dispsw = dispsw;
+        dbg("tvia_fb_set_var: setting dispsw");
+    }
 
     if (chgvar && info && info->changevar)
         info->changevar(con);
@@ -3495,15 +3523,15 @@ static int fb_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
 
 static int __init tvia5202fb_init(void)
 {
-   //volatile unsigned char *ioaddr;
-	int w, b;
-   u8 tmp,iTmpFA,iTmp;
+    //volatile unsigned char *ioaddr;
+    int w, b;
+    u8 tmp,iTmpFA,iTmp;
 
-	current_par.device_id = 0x5202;
-	current_par.memtype = 1;
-	current_par.palette_size = 256;
+    current_par.device_id = 0x5202;
+    current_par.memtype = 1;
+    current_par.palette_size = 256;
 
-	trace("Tvia5202 INIT 1.6.7");
+    trace("Tvia5202 INIT 1.7.0");
 
     /* Reset Tvia5202 - gpio45 output */
     set_GPIO_mode(45 | GPIO_OUT);

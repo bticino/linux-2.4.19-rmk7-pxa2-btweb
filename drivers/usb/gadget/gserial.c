@@ -157,7 +157,7 @@ do {									\
 
 #define GS_CLOSE_TIMEOUT		15
 
-#define GS_DEFAULT_USE_ACM		1
+#define GS_DEFAULT_USE_ACM		0
 
 #define GS_DEFAULT_DTE_RATE		9600
 #define GS_DEFAULT_DATA_BITS		8
@@ -171,7 +171,12 @@ do {									\
 #define GS_SPEED_SELECT(is_hs,hs,fs) (fs)
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
 
+#if 0
 #define GS_DEBUG 1
+#else
+#undef GS_DEBUG
+#endif
+
 
 /* debug settings */
 #ifdef GS_DEBUG
@@ -1396,6 +1401,7 @@ static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 
 	switch(req->status) {
 	case 0:
+		printk("RD:size=%u\n",req->actual);
  		/* normal completion */
 		gs_recv_packet(dev, req->buf, req->actual);
 requeue:
@@ -2135,6 +2141,11 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 		gadget->speed == USB_SPEED_HIGH ? "high" : "full",
 		config == GS_BULK_CONFIG_ID ? "BULK" : "CDC-ACM");
 
+#ifdef CONFIG_MACH_BTWEB
+        btweb_globals.usb_pxa_slave_connected = 1;
+#endif
+
+
 	return 0;
 
 exit_reset_config:
@@ -2188,6 +2199,11 @@ static void gs_reset_config(struct gs_dev *dev)
 		usb_ep_disable(dev->dev_out_ep);
 		dev->dev_out_ep = NULL;
 	}
+
+#ifdef CONFIG_MACH_BTWEB
+        btweb_globals.usb_pxa_slave_connected = 0;
+#endif
+
 }
 
 /*

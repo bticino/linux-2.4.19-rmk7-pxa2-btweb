@@ -16,7 +16,15 @@ Beginning of developing notes
 2.4.19-rmk7-pxa2-btweb-1_0_13:
 
 Kernel has been adapted to the new hw (MASTER B).
-It should even work with to first MASTER.
+It also works with MASTER A.
+
+- Solved take_over_console problem - now it is possible to run QT
+  /drivers/video/tvia5202/*
+
+- Added usb_pxa_slave_connected in proc/sys/dev/btweb to know if
+  pxa slave is recognized by host
+  /drivers/usb/gadget/*
+  arch/arm/mach-pxa/btweb-sysctl.c
 
 - Fixing some problem for i2c communication with pic for reading configurator and setting I/O
                                                                                                                         (Davide Bonfanti)

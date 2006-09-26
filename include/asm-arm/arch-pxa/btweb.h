@@ -34,6 +34,7 @@ struct btweb_features {
 	int abil_fon;
         int cf_irq;
 	int usb_soft_enum_n;
+	int usb_pxa_slave_connected;
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
@@ -42,6 +43,7 @@ struct btweb_globals {
 	char name[BTWEB_NAMELEN]; /* can't be a char * because of sysctl */
 	unsigned long last_touch;
 	int rtc_invalid;
+	int usb_pxa_slave_connected;
 };
 
 extern struct btweb_features btweb_features;
@@ -85,6 +87,6 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_ABIL_FON       18 /* "fork" power */
 #define BTWEB_CF_IRQ         19 /* compact flash interrupt */
 #define BTWEB_USB_SOFT_ENUM_N 20 /* usb soft enumeration control */
-
+#define BTWEB_USB_PXA_SLAVE_CONNECTED 21 /* usb pxa slave is connected and recognized by a master device */
 
 #endif

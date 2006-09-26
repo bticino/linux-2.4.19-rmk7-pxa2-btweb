@@ -29,8 +29,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
+#if 0
 #define	DEBUG
 #define	VERBOSE	DBG_VERBOSE
+#else
+#undef DEBUG
+#undef VERBOSE
+#endif
 
 #include <linux/ioport.h>
 #include <linux/types.h>
@@ -2070,6 +2075,12 @@ pxa2xx_udc_irq(int irq, void *_dev, struct pt_regs *r)
 					&& dev->driver->suspend)
 				dev->driver->suspend(&dev->gadget);
 			ep0_idle (dev);
+
+#ifdef CONFIG_MACH_BTWEB
+		        btweb_globals.usb_pxa_slave_connected = 0;
+#endif
+
+
 		}
 
 		/* RESume Interrupt Request */

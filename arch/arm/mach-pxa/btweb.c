@@ -70,6 +70,7 @@ static int __init is_f452(void) // and MH200
 		.abil_fon = -1,
                 .cf_irq = -1,
                 .usb_soft_enum_n = -1,
+                .usb_pxa_slave_connected = -1,
 	};
 	/* GPIO6 is low */
 	set_GPIO_mode( 6 | GPIO_IN );
@@ -105,6 +106,7 @@ static int __init is_ts(void) // H4684 product
 		.abil_fon = -1,
                 .cf_irq = -1,
 		.usb_soft_enum_n = -1,
+                .usb_pxa_slave_connected = 0,
 	};
 	/* GPIO6 is high (it's already in IN mode)  */
 	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
@@ -146,6 +148,7 @@ static int __init is_fpga(void)   // First master of F453AV/Interf2filitcp/ip
 		.abil_fon = 54,
                 .cf_irq = -1,
                 .usb_soft_enum_n = -1,
+                .usb_pxa_slave_connected = 0,
 	};
 	/* GPIO6 is high (it's already in IN mode)  */
 	if (!(GPLR(6) & GPIO_bit(6))) return -ENODEV;
@@ -186,6 +189,7 @@ static int __init is_f453av(void)
 		.abil_fon = 54,
 		.cf_irq = 11,
                 .usb_soft_enum_n = 27,
+                .usb_pxa_slave_connected = 0,
 	};
 
 	/* GPIO6 is low (it's already in IN mode)  */
@@ -349,8 +353,9 @@ static void __init btweb_map_io(void)
 		set_GPIO_mode(35 | GPIO_OUT);
 		/* GPSR(35) = GPIO_bit(35); */
 		
-		/* Setting usb soft_enum_n direction as output */
-		set_GPIO_mode(27 | GPIO_OUT);
+		/* Setting usb soft_enum_n direction as output and disable it */
+		set_GPIO_mode(btweb_features.usb_soft_enum_n | GPIO_OUT);
+	        GPSR(btweb_features.usb_soft_enum_n) = GPIO_bit(btweb_features.usb_soft_enum_n);
 
 		/* gpio0,1 hifi and video source selection*/
 		set_GPIO_mode(0 | GPIO_OUT);

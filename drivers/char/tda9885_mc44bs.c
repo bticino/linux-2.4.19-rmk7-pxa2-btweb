@@ -284,14 +284,14 @@ static __exit void tdamc_exit(void)
 	
 	printk("tdamc9885_mc44bs.c: Switching off mod/demod power\n");
 
-        if (tda_power) {
+//        if (tda_power) {
                 GPCR(btweb_features.abil_dem_video) =
                         GPIO_bit(btweb_features.abil_dem_video);
-        }
-        if (mc_power) {
+//        }
+//        if (mc_power) {
                 GPCR(btweb_features.abil_mod_video) =
                         GPIO_bit(btweb_features.abil_mod_video);
-        }
+//        }
 
 }
 

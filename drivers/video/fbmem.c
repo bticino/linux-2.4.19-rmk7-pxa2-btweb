@@ -792,8 +792,7 @@ register_framebuffer(struct fb_info *fb_info)
 
 	if (first) {
 		first = 0;
-		printk("take_over_console IS NOT CALLED AS USUAL --- SORRY !!\n");
-		// take_over_console(&fb_con, first_fb_vc, last_fb_vc, fbcon_is_default);
+		take_over_console(&fb_con, first_fb_vc, last_fb_vc, fbcon_is_default);
 	}
 	sprintf (name_buf, "%d", i);
 	fb_info->devfs_handle =
