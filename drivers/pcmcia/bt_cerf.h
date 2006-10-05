@@ -13,25 +13,20 @@
 #include <asm/irq.h>
 #include <asm/arch/pcmcia.h>
 
-// define fatte cosi' un po' a caso...PARM
-#ifdef CONFIG_MACH_BTWEB /* PXA BT */
-//#define CONFIG_PXA_CERF_PDA
-
+#ifdef CONFIG_MACH_BTWEB 
 
 #define PCMCIA_GPCR GPCR0
 #define PCMCIA_GPSR GPSR0
 
-							// originale
-//#define PCMCIA_GPIO_CF_CD    14 
-//#define PCMCIA_GPIO_CF_IRQ   13
-//#define PCMCIA_GPIO_CF_RESET 12
-							// !!!parm modifiche per bt
-#define PCMCIA_GPIO_CF_CD    4
-						// servirebbe per il card detect a caldo
-#define PCMCIA_GPIO_CF_IRQ   8 
-					// per ora non c'è
-#define PCMCIA_GPIO_CF_RESET 3
-					// no BVD
+/*  originale
+#define PCMCIA_GPIO_CF_CD    14 
+#define CONFIG_PXA_CERF_PDA
+#define PCMCIA_GPIO_CF_IRQ   13
+#define PCMCIA_GPIO_CF_RESET 12
+*/
+#define PCMCIA_GPIO_CF_CD    4		/* to be used for hotplug */
+#define PCMCIA_GPIO_CF_IRQ   11         /* FIXED but dependent on HW GPIO used */
+#define PCMCIA_GPIO_CF_RESET 3 		/* no BVD */
 
 /*
 #ifdef CONFIG_PXA_CERF_PDA

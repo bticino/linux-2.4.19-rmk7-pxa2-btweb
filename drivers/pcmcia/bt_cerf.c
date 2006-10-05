@@ -76,9 +76,8 @@ static int cerf_pcmcia_init(struct pcmcia_init *init)
 
 	cerf_pcmcia_set_gpio_direction();
 
-	printk("IRQ pin number = %d \n",btweb_features.cf_irq);
-/*	set_GPIO_IRQ_edge( PCMCIA_GPIO_CF_IRQ_EDGE, GPIO_FALLING_EDGE );*/
-        set_GPIO_IRQ_edge( btweb_features.cf_irq, GPIO_FALLING_EDGE );
+	printk("IRQ pin number = %d \n", PCMCIA_GPIO_CF_IRQ_EDGE);
+	set_GPIO_IRQ_edge( PCMCIA_GPIO_CF_IRQ_EDGE, GPIO_FALLING_EDGE );
 
 /*	printk( "bt_cerf: irq richiesto %d %d \n", i, PCMCIA_GPIO_CF_IRQ_EDGE ); */
 
