@@ -22,6 +22,7 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
+#define BTWEB_FLASH_32M /* */
 
 #define WINDOW_ADDR 	0
 //#define WINDOW_ADDR 	0x04000000
@@ -126,7 +127,20 @@ static struct mtd_partition btweb_partitions[] = {
 		name:		"extra",
 		size:		0x00020000,
 		offset:		0x00fc0000
-	}
+#ifdef BTWEB_FLASH_32M
+        },{
+                name:           "zImage1",
+                size:           0x00120000,
+                offset:         0x01000000
+        },{
+                name:           "btweb_only1",
+                size:           0x008a0000,
+                offset:         0x01120000,
+        }
+#else
+        }
+#endif
+
 };
 
 #else  /* Old small partitions */

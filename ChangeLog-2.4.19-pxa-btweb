@@ -18,6 +18,9 @@ Beginning of developing notes
 Kernel has been adapted to the new hw (MASTER B).
 It also works with MASTER A.
 
+- Mapped two partitions of the second 16MB flash 
+  /drivers/mtd/maps/btweb.c
+
 - Solved take_over_console problem - now it is possible to run QT
   /drivers/video/tvia5202/*
 

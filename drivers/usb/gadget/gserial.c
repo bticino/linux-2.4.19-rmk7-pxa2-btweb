@@ -1401,7 +1401,6 @@ static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 
 	switch(req->status) {
 	case 0:
-		printk("RD:size=%u\n",req->actual);
  		/* normal completion */
 		gs_recv_packet(dev, req->buf, req->actual);
 requeue:
