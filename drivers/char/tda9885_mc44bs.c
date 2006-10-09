@@ -29,8 +29,9 @@
 #include <linux/proc_fs.h>
 #include <asm/hardware.h> /* for btweb_globals when ARCH_BTWEB is set */
 
-static int tda_power;
-static int mc_power;
+/* Disabled default */
+static int tda_power=0;
+static int mc_power=0;
 
 #define DEBUG 3
 
@@ -243,18 +244,22 @@ static __init int tdamc_init(void)
 {
 	int retval=0;
 
-	printk("tdamc9885_mc44bs.c: Switching on mod/demod power\n");
+	printk("tdamc9885_mc44bs.c: Starting\n");
 
-//        if (mc_power) {
+        if (mc_power) {
+	        printk("tdamc9885_mc44bs.c: Switching on mod power\n");
+
                 GPSR(btweb_features.abil_mod_video) =
                         GPIO_bit(btweb_features.abil_mod_video);
                 slave_address = SLAVE_ADDRESS_MC;
-//        }
-//        if (tda_power) {
+        }
+        if (tda_power) {
+	        printk("tdamc9885_mc44bs.c: Switching on dem power\n");
+
                 GPSR(btweb_features.abil_dem_video) =
                         GPIO_bit(btweb_features.abil_dem_video);
                 slave_address = SLAVE_ADDRESS_TDA;
-//        }
+        }
 	
 	normal_addr[0] = slave_address;
 
