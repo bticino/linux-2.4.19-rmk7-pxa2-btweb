@@ -33,6 +33,7 @@
 static int tda_power=0;
 static int mc_power=0;
 
+
 #define DEBUG 3
 
 #if DEBUG
@@ -44,7 +45,7 @@ static unsigned int tdamc_debug = DEBUG;
 #define SLAVE_ADDRESS_TDA 0X43
 #define SLAVE_ADDRESS_MC  0X65
 
-static unsigned short slave_address = SLAVE_ADDRESS_TDA;
+static unsigned short slave_address = 0;
 
 struct i2c_driver tdamc_driver;
 struct i2c_client *tdamc_i2c_client = 0;
@@ -106,7 +107,6 @@ tdamc_attach(struct i2c_adapter *adap, int addr, unsigned short flags,int kind)
 
 	if (ret != 2)
 		printk ("tdamc_attach(): i2c_transfer() returned %d.\n",ret);
-
 	tdamc_i2c_client = c;
 	
 	return i2c_attach_client(c);
@@ -136,6 +136,8 @@ ssize_t tdamc_get_status(struct file *filp, char *ubuff, size_t count, loff_t *o
 	if (off > 0x0) return 0;
 	count=1;
 	exp=1;
+
+        if (slave_address==0) return -ENXIO;
 
  again:
 	/* TDA9885 and MC44BS don't require address like eepromS to read data */
@@ -172,6 +174,8 @@ ssize_t tdamc_set_status(struct file *filp, const char *ubuff,
 	unsigned char data[66]; /* address plus page-size */
 	int ret, exp;
 
+        if (slave_address==0) return -ENXIO;
+
 	if (off > 0x0) return -ENOSPC;
 	count=4;
 	exp=4;
@@ -204,71 +208,82 @@ ssize_t tdamc_set_status(struct file *filp, const char *ubuff,
  return count;
 }
 
+static struct file_operations tdamc_fops = {
+        owner:          THIS_MODULE,
+        ioctl:          tdamc_ioctl,
+        read:           tdamc_get_status,
+        write:          tdamc_set_status,
+                                                                                                                 
+};
+static struct miscdevice tdamc_miscdev = {
+        TDAMC_MINOR,
+        "tdamc",
+        &tdamc_fops
+};
+
 static int
 tdamc_ioctl( struct inode *inode, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
+
 	switch (cmd) {
 		default:
-		case 5500:
-		  slave_address = SLAVE_ADDRESS_TDA;
-		  printk("tda9885_mc44bs: tda9885 selected\n");
+ 		case 5500:
+			tda_power=1;
+                        GPSR(btweb_features.abil_dem_video) =
+                                GPIO_bit(btweb_features.abil_dem_video);
+                        slave_address = SLAVE_ADDRESS_TDA;
+		        normal_addr[0] = slave_address;
+                        printk("tda9885_mc44bs: tda9885 registered and selected tda \n");
+			tdamc_i2c_client->addr=slave_address;
 		break;
-		case 5501:
-		  slave_address = SLAVE_ADDRESS_MC;
+                case 5501:
+                        mc_power=1;
+                        GPSR(btweb_features.abil_mod_video) =
+                                GPIO_bit(btweb_features.abil_mod_video);
+                        slave_address = SLAVE_ADDRESS_MC;
+                        normal_addr[0] = slave_address;
+                        printk("tda9885_mc44bs: tda9885 registered and selected mc \n");
+                        tdamc_i2c_client->addr=slave_address;
+                break;
+		case 5502:
+			printk("tdamc9885_mc44bs.c: Switching off mod/demod power\n");
+//			if (tda_power) {
+				GPCR(btweb_features.abil_dem_video) =
+					GPIO_bit(btweb_features.abil_dem_video);
+//			}
+//			if (mc_power) {
+				GPCR(btweb_features.abil_mod_video) =
+					GPIO_bit(btweb_features.abil_mod_video);
+//			}
 
-		  printk("tda9885_mc44bs: mc44bs selected\n");
+			slave_address=0;
+		        mc_power=0; tda_power=0;
+                        normal_addr[0] = slave_address;
 		break;
 	}
 
-	printk("tdamc_i2c_client: %p\n",tdamc_i2c_client);
-	tdamc_i2c_client->addr=slave_address;
-	printk("tdamc_ioctl exiting\n");
 	return 0;
 }
 
-static struct file_operations tdamc_fops = {
-	owner:		THIS_MODULE,
-	ioctl:		tdamc_ioctl,
-	read:		tdamc_get_status,
-	write:		tdamc_set_status,
-
-};
-static struct miscdevice tdamc_miscdev = {
-	TDAMC_MINOR,
-	"tdamc",
-	&tdamc_fops
-};
 
 static __init int tdamc_init(void)
 {
 	int retval=0;
 
-	printk("tdamc9885_mc44bs.c: Starting\n");
+	/* Switching on demodulator only for i2c attach */
+	GPSR(btweb_features.abil_dem_video) =
+		GPIO_bit(btweb_features.abil_dem_video);
 
-        if (mc_power) {
-	        printk("tdamc9885_mc44bs.c: Switching on mod power\n");
+        slave_address = SLAVE_ADDRESS_TDA;
+        normal_addr[0] = slave_address;
 
-                GPSR(btweb_features.abil_mod_video) =
-                        GPIO_bit(btweb_features.abil_mod_video);
-                slave_address = SLAVE_ADDRESS_MC;
+        if(normal_addr[0] >= 0x80)
+        {
+                printk(KERN_ERR"I2C: Invalid slave address for TDA (0x%x)\n",
+                        normal_addr[0]);
+                return -EINVAL;
         }
-        if (tda_power) {
-	        printk("tdamc9885_mc44bs.c: Switching on dem power\n");
-
-                GPSR(btweb_features.abil_dem_video) =
-                        GPIO_bit(btweb_features.abil_dem_video);
-                slave_address = SLAVE_ADDRESS_TDA;
-        }
-	
-	normal_addr[0] = slave_address;
-
-	if(normal_addr[0] >= 0x80)
-	{
-		printk(KERN_ERR"I2C: Invalid slave address for TDA (0x%x)\n",
-			normal_addr[0]);
-		return -EINVAL;
-	}
 
 	retval = i2c_add_driver(&tdamc_driver);
 	if (retval) return retval;
@@ -277,8 +292,14 @@ static __init int tdamc_init(void)
 		i2c_del_driver(&tdamc_driver);
 		return retval;
 	}
-
 	printk("I2C: TDA9885-MC44BS driver successfully loaded\n");
+
+        /* Switching off demodulator */
+	GPCR(btweb_features.abil_dem_video) =
+                GPIO_bit(btweb_features.abil_dem_video);
+	slave_address=0;
+	normal_addr[0] = 0;
+
 	return 0;
 }
 
@@ -289,6 +310,7 @@ static __exit void tdamc_exit(void)
 	
 	printk("tdamc9885_mc44bs.c: Switching off mod/demod power\n");
 
+	/* Switching off mod and demod*/
 //        if (tda_power) {
                 GPCR(btweb_features.abil_dem_video) =
                         GPIO_bit(btweb_features.abil_dem_video);
