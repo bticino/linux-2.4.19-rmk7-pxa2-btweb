@@ -16,6 +16,8 @@ Beginning of developing notes
 2.4.19-rmk7-pxa2-btweb-2_2_0:
 Kernel numeration is now is bigger than H4684,MH200,F452X products (2_0_X)
 
+- config-F453AV-346890 is the new file for the two products
+
 - Multi-Hardware inizialization: the goal si to inizialize only minimum gpios in u-boot
 and during kernel init fix the other depending on the product.
   Supported: F453AV,346890.
