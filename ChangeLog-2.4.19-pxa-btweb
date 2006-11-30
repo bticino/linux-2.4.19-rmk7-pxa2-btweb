@@ -5,7 +5,7 @@ Changes from Rubini cvs module named bt-kernels/linux-2.4.19-rmk7-pxa2-btweb
 to developing (stable) version btweb-X_Y_Z (CVS TAG):
 
 STABLE VERSION
-TAG=btweb-1_0_13
+TAG=btweb-2_2_0
 
 The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 
@@ -13,13 +13,46 @@ The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 Beginning of developing notes
 -----------------------------
 
+2.4.19-rmk7-pxa2-btweb-2_2_0:
+Kernel numeration is now is bigger than H4684,MH200,F452X products (2_0_X)
+
+- Multi-Hardware inizialization: the goal si to inizialize only minimum gpios in u-boot
+and during kernel init fix the other depending on the product.
+  Supported: F453AV,346890.
+Also RAM dimension and PXA FREQUENCY is set by the kernel (at the moment u-boot will
+already set 64MB,400Mhz):
+  arch/arm/mach-pxa/*.c *.h
+  drivers/video/tvia5202/tviafb_core.c
+
+- I2C problem workaround:
+  The controller goes in wrong state if writing only control byte.
+  Fixed avoiding write/read of 0 length to eeprom and introducing check inside
+  core,algo and adap levels:
+  drivers/char/24256.c
+  drivers/i2c/*.c
+
+- RTC invalid problem:
+  When starting up with rtc_invalid was possible that fixing from user-space to
+  "old millennium midnight" the rearming watch dog didn't work.
+  The driver now fix itself to "old millennium midnight".
+
+- Reading AUX botton for F453AV,346890 devices
+  Set CONFIG_BTIO in the config: 
+  added the file "drivers/char/btIoDebounce.c"
+  include/linux/miscdevice.h
+
+- Less verbosity somwhere:
+  drivers/video/tvia5202/tvia5202-capture.c
+  drivers/video/tvia5202/tviafb_core.c
+
+  
+
+
+
 2.4.19-rmk7-pxa2-btweb-1_0_13:
 
 Kernel has been adapted to the new hw (MASTER B).
 It also works with MASTER A.
-
-- Mapped two partitions of the second 16MB flash 
-  /drivers/mtd/maps/btweb.c
 
 - Solved take_over_console problem - now it is possible to run QT
   /drivers/video/tvia5202/*

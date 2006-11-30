@@ -55,11 +55,16 @@ extern void btweb_backlight(int onoff);
 
 #endif /* __KERNEL__ */
 
-#define BTWEB_UNKNOWN 0
-#define BTWEB_F452    1
-#define BTWEB_TS      2
-#define BTWEB_FPGA    3
-#define BTWEB_F453AV  4
+#define BTWEB_UNKNOWN -2
+#define BTWEB_ANY     -1
+#define BTWEB_F453    0
+#define BTWEB_F453AV  1
+#define BTWEB_F453AVA 1 /* master type "A", prototypes */
+#define BTWEB_2F      2
+#define BTWEB_PBX     3
+#define BTWEB_F452    4
+#define BTWEB_H4684   8
+#define BTWEB_PE_M    4
 /* more flavors to come */
 
 

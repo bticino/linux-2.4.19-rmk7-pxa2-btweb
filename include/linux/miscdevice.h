@@ -22,6 +22,7 @@
 #define NVRAM_MINOR 144
 #define TDAMC_MINOR 145
 #define BTCFG_MINOR 152
+#define BTIODEBOUNCE_MINOR 153
 #define I2O_MINOR 166
 #define MICROCODE_MINOR		184
 #define MWAVE_MINOR	219		/* ACP/Mwave Modem */

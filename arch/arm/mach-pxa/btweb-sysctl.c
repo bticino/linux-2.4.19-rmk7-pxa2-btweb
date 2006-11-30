@@ -331,6 +331,8 @@ static int btsys_sysctl(ctl_table *table, int *name, int nlen,
 	/* first update the touch-ago value */
 	btsys_tago = (jiffies - btweb_globals.last_touch) / HZ;
 
+	//trace("btsys_sysctl name %s\n",name);
+
 	retval = sysctl_intvec(table, name, nlen, oldval, oldlenp,
 			       newval, newlen, context);
 	if (!newval || retval < 0) return retval;
@@ -605,53 +607,15 @@ static struct ctl_table_header *btsys_header;
 
 int btsys_init(void)
 {
-	if (btweb_features.led >= 0) {
-		set_GPIO_mode(btweb_features.led | GPIO_OUT);
-		btsys_apply(BTWEB_LED);
-	}
-        if (btweb_features.backlight >= 0) {
-                set_GPIO_mode(btweb_features.backlight | GPIO_OUT);
-		btsys_apply(BTWEB_LCD);
-		//btsys_apply(BTWEB_CNTR); -- can't do this with no process
-        }
+	trace("sysctl MUST be aligned to real values set before: FIXME\n");
 
-	if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_FPGA)) {
-		trace("btsys_init: Mapping F453AV or FPGA I/O");
+	if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_F453AVA)|| \
+		(btweb_globals.flavor==BTWEB_2F	)) {
+		trace("Mapping gpio virtualization for btweb pxa kernel version 2_2_X");
 		dev_table[0].child=btsys_table_F453AV;
-		trace("btsys_init1: modifying devtable named: %s",dev_table[0].procname);
-		
-		if (btweb_features.abil_mod_video >= 0) {
-			set_GPIO_mode(btweb_features.abil_mod_video | GPIO_OUT);
-			btsys_apply(BTWEB_ABIL_MOD_VIDEO);
-		}
-                if (btweb_features.abil_dem_video >= 0) {
-                        set_GPIO_mode(btweb_features.abil_dem_video | GPIO_OUT);
-                        btsys_apply(BTWEB_ABIL_DEM_VIDEO);
-                }
-		if (btweb_features.ctrl_hifi >= 0) {
-			set_GPIO_mode(btweb_features.ctrl_hifi | GPIO_OUT);
-			btsys_apply(BTWEB_CTRL_HIFI);
-		}
-		if (btweb_features.ctrl_video >= 0) {
-			set_GPIO_mode(btweb_features.ctrl_video | GPIO_OUT);
-			btsys_apply(BTWEB_CTRL_VIDEO);
-		}
-		if (btweb_features.abil_mod_hifi >= 0) {
-			set_GPIO_mode(btweb_features.abil_mod_hifi | GPIO_OUT);
-			btsys_apply(BTWEB_ABIL_MOD_HIFI);
-		}
-                if (btweb_features.abil_dem_hifi >= 0) {
-                        set_GPIO_mode(btweb_features.abil_dem_hifi | GPIO_OUT);
-                        btsys_apply(BTWEB_ABIL_DEM_HIFI);
-                }
-		if (btweb_features.abil_fon >= 0) {
-			set_GPIO_mode(btweb_features.abil_fon | GPIO_OUT);
-			btsys_apply(BTWEB_ABIL_FON);
-		}
 	}
 
 	btsys_header = register_sysctl_table(root_table, 0);
-
 
 	if (btsys_header) return 0;
 		

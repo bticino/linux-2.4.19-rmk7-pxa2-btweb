@@ -119,6 +119,8 @@ ssize_t eeprom_read(struct file *filp, char *ubuff, size_t count, loff_t *offp)
 	int ret, exp;
 
 	if (off >= 0x8000) return 0;
+        if (count == 0x0) return 0;
+
 
 	if (count > 64) count = 64;
 	if (off + count > 0x8000) count = 0x8000 - off;
@@ -153,6 +155,8 @@ ssize_t eeprom_write(struct file *filp, const char *ubuff,
 	int ret, exp;
 
 	if (off >= 0x8000) return -ENOSPC;
+        if (count == 0x0) return 0;
+
 
 	del_timer(&eeprom_timer);
 	/*  unprotect, and wait a while */

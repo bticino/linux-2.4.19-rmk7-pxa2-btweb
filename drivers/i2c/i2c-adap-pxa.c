@@ -36,7 +36,7 @@
 /*
  * Set this to zero to remove all debug statements via dead code elimination.
  */
-//#define DEBUG       1
+/* #define DEBUG       1 */
 
 #if DEBUG
 static unsigned int i2c_debug = DEBUG;

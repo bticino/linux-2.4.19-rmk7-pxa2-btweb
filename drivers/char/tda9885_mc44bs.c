@@ -284,6 +284,7 @@ static __init int tdamc_init(void)
                         normal_addr[0]);
                 return -EINVAL;
         }
+	udelay(1000);
 
 	retval = i2c_add_driver(&tdamc_driver);
 	if (retval) return retval;

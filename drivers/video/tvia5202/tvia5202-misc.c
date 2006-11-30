@@ -223,17 +223,12 @@ void Out_CRT_Reg_M(u8 bIndex, u8 bValue, u8 bMask)
 {            
     u8 bTemp;
 
-    printk("Out_CRT_Reg_M 0\n");
     *((volatile unsigned char *)(CyberRegs + 0x3d4)) = bIndex;
-    printk("Out_CRT_Reg_M 1\n");
 //    bTemp = (*((volatile unsigned char *)(CyberRegs + 0x3d5))) & bMask; ORIG
     bTemp=tvia_inb(0x3d5) & bMask;
 
-     printk("Out_CRT_Reg_M 4\n");
    bTemp |= (bValue & ~bMask);
-    printk("Out_CRT_Reg_M 4\n");
     *((volatile unsigned char *)(CyberRegs + 0x3d5)) = bTemp;
-    printk("Out_CRT_Reg_M 4\n");
 
 }
 

@@ -259,14 +259,14 @@ void Tvia_InitCapture(u16 wCCIR656)
     Out_Capture_Reg(VFAC_CTL_MODE_II, 0x10);
 
     if(wCCIR656 == CCIR601) {
-        printk("InitCapture: CCIR601\n");
+//        printk("InitCapture: CCIR601\n");
         Out_Capture_Reg(CAPTURE_MODE_I, 0x10);
         Out_Capture_Reg(CAPTURE_MODE_II, 0x10);
         /*Turn on odd/even signal self-generator*/
         Out_SEQ_Reg_M(0xA4, 0x11, 0xEE);
     }
     else {
-        printk("InitCapture: CCIR565\n");
+//        printk("InitCapture: CCIR565\n");
 
         Out_Capture_Reg(CAPTURE_MODE_I, 0x13);
         Out_Capture_Reg(CAPTURE_MODE_II, 0x12);
