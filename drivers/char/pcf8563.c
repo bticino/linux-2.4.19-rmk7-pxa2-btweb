@@ -186,6 +186,8 @@ pcf_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 #ifdef CONFIG_MACH_BTWEB
 	btweb_globals.rtc_invalid = ret;
 #endif
+
+#if 0 
 	if (rtc_debug > 0 && ret)
 		printk(KERN_WARNING "rtc: date is invalid: setting to old millennium midnight\n");
 	if (ret) {
@@ -196,6 +198,8 @@ pcf_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 		dt->tm_mon = 0; /* tm_mon is 0-based */
 		dt->tm_year = 100; /* tm_year is 1900-based */
 	}
+#endif 
+
 	return 0;
 }
 
