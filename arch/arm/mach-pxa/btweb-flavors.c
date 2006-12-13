@@ -97,9 +97,9 @@ struct btweb_gpio gpios[] __initdata = {
 		.id = BTWEB_F453AV,
 		/* The following values has been verified with gpio_command_rimaster_B */
 
-		.gpdr = { 0xDF93F62B /* 0xD389BE0B */ ,/* 0x7840BBEA no cf */ 0x78FFBBEB /* orig 0xFCFFBB83 */ , 0x000BFFDE /* 0x000BFFFF */},
-		.gpsr = { 0x0800040A, 0x00000000, 0x00000000},
-		.gpcr = { 0x07937221, 0x78403168, 0x000A3FDE},
+		.gpdr = { 0xDF93F62B ,0x78FFBBEB, 0x000BFFDE},
+		.gpsr = { 0x0800040A, 0x00000100, 0x00000000},
+		.gpcr = { 0x07937221, 0x78403068, 0x000A3FDE},
 		.gafr = { 0x80400000,
 			  0x591A8010, 
 			  0x00908019,
@@ -112,9 +112,9 @@ struct btweb_gpio gpios[] __initdata = {
                 .id = BTWEB_2F,
                 /* The following values has been verified with gpio_command_rimaster_B */
 
-                .gpdr = { 0xDF93F62B /* 0xD389BE0B */ ,/* 0x7840BBEA no cf */ 0x78FFBBEB /* orig 0xFCFFBB83 */ , 0x000BFFDE /* 0x000BFFFF */},
-                .gpsr = { 0x0800040A, 0x00000000, 0x00000000},
-                .gpcr = { 0x07937221, 0x78403168, 0x000A3FDE},
+		.gpdr = { 0xDF93F62B ,0x78FFBBEB ,0x000BFFDE},
+                .gpsr = { 0x0800040A, 0x00000100, 0x00000000},
+                .gpcr = { 0x07937221, 0x78403068, 0x000A3FDE},
                 .gafr = { 0x80400000,
                           0x591A8010,
                           0x00908019,
