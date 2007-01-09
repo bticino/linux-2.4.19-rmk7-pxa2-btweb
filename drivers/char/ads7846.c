@@ -35,9 +35,14 @@
 #define PEN_IGNORE		0
 #define PEN_DOWN		1
 #define PEN_UP			2
-#define MAX_ERROR		100 /* 20 original */
+#define MAX_ERROR		100 
+/*               H4684      H4684_IP   H4684_IP_8
+   MAX_ERROR =    100         30           8
+*/
 
 #define INCBUF(x,mod) (((x)+1) & ((mod) - 1))
+
+u_int max_error=MAX_ERROR;
 
 struct ts_info {
 	unsigned short pressure;
@@ -76,16 +81,33 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 	int i, diff0, diff1, diff2;
 
 	for(i=0; i<5; i++) {
+#if 0
 		SSDR = 0x00d3;
+#else
+                SSDR = 0x0093;
+#endif
 		udelay(250);
 		ssdr = SSDR;
 		x[i] = ssdr & 0x0FFF;
+#if 0
+		printk("x[%d]=%X\n",i,x[i]);
+#endif
 	}
 	for(i=0; i<5; i++) {
-		SSDR = 0x0093;
+#if 0
+                SSDR = 0x0093;
+#else
+                SSDR = 0x00d3;
+#endif
 		udelay(250);
 		ssdr = SSDR;
 		y[i] = ssdr & 0x0FFF;
+
+#if 0
+                printk("y[%d]=%X\n",i,y[i]);
+#endif
+
+
 	}
 
 	if((x[2]<4095) && (x[3]<4095) && (x[4]<4095) && (x[2]>0) && (x[3]>0) && (x[4]>0)) {
@@ -96,7 +118,7 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 		diff1 = diff1 > 0  ? diff1 : -diff1;
 		diff2 = diff2 > 0  ? diff2 : -diff2;
 
-		if((diff0 > MAX_ERROR) || (diff1 > MAX_ERROR) || (diff2 > MAX_ERROR)) {
+		if((diff0 > max_error/*MAX_ERROR*/) || (diff1 > max_error/*MAX_ERROR*/) || (diff2 > max_error/*MAX_ERROR*/)) {
 			return 1;
 		}
 		else {
@@ -120,7 +142,7 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 		diff1 = diff1 > 0  ? diff1 : -diff1;
 		diff2 = diff2 > 0  ? diff2 : -diff2;
 
-		if((diff0 > MAX_ERROR) || (diff1 > MAX_ERROR) || (diff2 > MAX_ERROR)) {
+		if((diff0 > max_error/*MAX_ERROR*/) || (diff1 > max_error/*MAX_ERROR*/) || (diff2 > max_error/*MAX_ERROR*/)) {
 			return 1;
 		}
 		else {
@@ -135,7 +157,7 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 	else {
 		return 2;
 	}
-	if((abs(last_x - *px) <= MAX_ERROR) && (abs(last_y - *py) <= MAX_ERROR)) {
+	if((abs(last_x - *px) <= max_error/*MAX_ERROR*/) && (abs(last_y - *py) <= max_error/*MAX_ERROR*/)) {
 		*px = last_x; *py = last_y;
 	}
 	else {
@@ -319,6 +341,9 @@ void __exit ads7846_exit(void)
 
 module_init(ads7846_init);
 module_exit(ads7846_exit);
+
+MODULE_PARM (max_error, "i");
+MODULE_PARM_DESC(max_error, "max_error");
 
 MODULE_AUTHOR("EdwardKuo");
 MODULE_DESCRIPTION("ADS7846 Touchscreen Driver");

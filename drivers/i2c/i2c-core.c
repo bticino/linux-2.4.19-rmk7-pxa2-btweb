@@ -20,7 +20,7 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
    All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c-core.c,v 1.1 2006/12/04 10:08:02 cvs Exp $ */
+/* $Id: i2c-core.c,v 1.2 2007/01/09 08:47:12 cvs Exp $ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -913,7 +913,8 @@ int i2c_probe(struct i2c_adapter *adapter,
 		   at all */
 		found = 0;
 
-		for (i = 0; !found && (address_data->force[i] != I2C_CLIENT_END); i += 3) {
+		/* Modified from  i+=3 to i+=2 to avoid problem in force mode */
+		for (i = 0; !found && (address_data->force[i] != I2C_CLIENT_END); i += 2) {
 			if (((adap_id == address_data->force[i]) || 
 			     (address_data->force[i] == ANY_I2C_BUS)) &&
 			     (addr == address_data->force[i+1])) {

@@ -60,6 +60,7 @@ void OutWord(u16 wReg, u16 wIndex)
 {
 	*((volatile unsigned short *)(CyberRegs + wReg)) = wIndex;
 }
+
 void WriteReg(u16 wReg, u8 bIndex, u8 bData)
 {
     *((volatile unsigned char *)(CyberRegs + wReg)) = bIndex;

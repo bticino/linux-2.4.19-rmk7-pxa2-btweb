@@ -13,6 +13,48 @@ The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 Beginning of developing notes
 -----------------------------
 
+2.4.19-rmk7-pxa2-btweb-2_3_0:
+
+NOTE
+Quite complete management of the following new products:
+PE MONO
+PI 
+H4684_IP
+H4684_IP_8
+INTMM
+It should continue to work with:
+F453AV
+346890
+
+- lcd portable: parameters for different than old lcd (H4684) are now configurable:		
+  drivers/video/pxafb*
+  	Raffaele Recalcati & Davide Bonfanti
+
+- Tvia is not configured for some products
+  drivers/video/tviafb_core.c
+	Raffaele Recalcati
+
+- touchscreen: max_error parameter has been added for different touchscreens
+  drivers/char/ads7846.c
+        Raffaele Recalcati & Davide Bonfanti
+
+- Oled frame buffer: i2c frame buffer for STV8102 lcd via i2c 
+  drivers/video/oledfb.c
+	Bernardo Innocenti (Develer)
+
+- Hal Customizing: HAL for Gpio and i2c devices and pwm
+  Now a reading process from /proc/sys/dev/btweb goes really to hardware.
+  arch/arm/mach-pxa/*
+        Raffaele Recalcati & Davide Bonfanti
+  
+- Mtd for P30 flash: allow only CFI basic even if P30 could accept extended commands
+  driver/mtd/chip/*001*
+        Raffaele Recalcati
+
+- i2c: correction for scanning in force mode (not actually used)
+  drivers/i2c/i2c-core.c
+	Bernardo Innocenti (Develer)
+
 2.4.19-rmk7-pxa2-btweb-2_2_0:
 Kernel numeration is now is bigger than H4684,MH200,F452X products (2_0_X)
 

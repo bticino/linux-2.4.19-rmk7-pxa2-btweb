@@ -271,11 +271,22 @@ static __init int tdamc_init(void)
 {
 	int retval=0;
 
-	/* Switching on demodulator only for i2c attach */
-	GPSR(btweb_features.abil_dem_video) =
-		GPIO_bit(btweb_features.abil_dem_video);
+	printk(KERN_ERR"tdamc_init mc_power=%d (otherwise power up tda for attach only)\n",mc_power);
+	printk(KERN_ERR"btweb_features.abil_dem_video=%d,btweb_features.abil_mod_video=%d\n",btweb_features.abil_dem_video,btweb_features.abil_mod_video);
 
-        slave_address = SLAVE_ADDRESS_TDA;
+	if ( (!mc_power) ){
+	        /* Switching on demodulator only for i2c attach */
+        	GPSR(btweb_features.abil_dem_video) =
+                	GPIO_bit(btweb_features.abil_dem_video);
+	        slave_address = SLAVE_ADDRESS_TDA;
+	}
+	else{
+		/* Switching on modulator only for i2c attach */
+		GPSR(btweb_features.abil_mod_video) =
+			GPIO_bit(btweb_features.abil_mod_video);
+		slave_address = SLAVE_ADDRESS_MC;
+	}
+
         normal_addr[0] = slave_address;
 
         if(normal_addr[0] >= 0x80)
@@ -295,9 +306,19 @@ static __init int tdamc_init(void)
 	}
 	printk("I2C: TDA9885-MC44BS driver successfully loaded\n");
 
-        /* Switching off demodulator */
-	GPCR(btweb_features.abil_dem_video) =
-                GPIO_bit(btweb_features.abil_dem_video);
+        if ( (!mc_power) ){
+                /* Switching on demodulator only for i2c attach */
+                GPCR(btweb_features.abil_dem_video) =
+                        GPIO_bit(btweb_features.abil_dem_video);
+                slave_address = SLAVE_ADDRESS_TDA;
+        }
+        else{
+                /* Switching on modulator only for i2c attach */
+                GPCR(btweb_features.abil_mod_video) =
+                        GPIO_bit(btweb_features.abil_mod_video);
+                slave_address = SLAVE_ADDRESS_MC;
+        }
+
 	slave_address=0;
 	normal_addr[0] = 0;
 

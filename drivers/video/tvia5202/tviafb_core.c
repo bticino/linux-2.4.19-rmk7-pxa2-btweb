@@ -3156,7 +3156,37 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 				return 0;				
 			}
 		}				
-// END CARLOS DMA		
+// END CARLOS DMA	
+
+//CARLOS FLICKER FILTER
+	case FBIO_TVIA5202_FLICKERFree: {
+			u16 bOnOff;
+			copy_from_user(&bOnOff, (void *)arg, sizeof(u16));
+			FlickFree(bOnOff);
+			return 0;
+		}	
+
+	case FBIO_TVIA5202_FLICKERWinInside: {
+			u16 bOnOff;
+			copy_from_user(&bOnOff, (void *)arg, sizeof(u16));
+			FlickerWinInside(bOnOff);
+			return 0;
+		}	
+
+	case FBIO_TVIA5202_FLICKERWin: {
+			TVIA5202_FLICKERWIN FlickerWin;
+			copy_from_user(&FlickerWin, (void *)arg, sizeof(TVIA5202_FLICKERWIN));
+			SetTVFlickFreeWin(FlickerWin.wLeft, FlickerWin.wTop, FlickerWin.wRight, FlickerWin.wBottom);
+			return 0;
+		}		
+
+	case FBIO_TVIA5202_FLICKERCtrlCoeffs: {
+			TVIA5202_FLICKERCOEFFS FlickerCoeffs;
+			copy_from_user(&FlickerCoeffs, (void *)arg, sizeof(TVIA5202_FLICKERCOEFFS));
+			FlickerCtrlCoefficient(FlickerCoeffs.alpha,FlickerCoeffs.beta, FlickerCoeffs.gama);
+			return 0;
+		}				
+//END CARLOS FLICKER FILTER		
 
     }
     return -EINVAL;
@@ -3533,13 +3563,25 @@ static int __init tvia5202fb_init(void)
     current_par.memtype = 1;
     current_par.palette_size = 256;
 
-    trace("Tvia5202 INIT 1.7.3");
+    trace("Tvia5202 INIT 1.7.5");
 
-    /* Reset Tvia5202 - gpio45 output */
-    set_GPIO_mode(45 | GPIO_OUT);
-    GPCR(45) = GPIO_bit(45); /* tvia5202 HW reset */
+    if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
+       /* Reset Tvia5202 */
+       set_GPIO_mode(btweb_features.tvia_reset | GPIO_OUT);
+       GPSR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset);
+    }
+    else if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_2F)|| \
+                (btweb_globals.flavor==BTWEB_INTERFMM) ){
+       /* Reset Tvia5202 */
+       set_GPIO_mode(btweb_features.tvia_reset | GPIO_OUT);
+       GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); 
+    }
+    else
+	return -ENODEV;
+
     trace("Resetting .1 sec");
     udelay(100000);
+
 
 #if 1
   trace("MDREFR=%X",MDREFR);
@@ -3553,10 +3595,15 @@ static int __init tvia5202fb_init(void)
   trace("MSC2=%X\n",MSC2);
   trace("MDREFR=%X\n",MDREFR);
 
+    if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
+      GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
+    }
+    else if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_2F)|| \
+                (btweb_globals.flavor==BTWEB_INTERFMM) ){
+      GPSR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
+    }
 
-    GPSR(45) = GPIO_bit(45); /* tvia5202 HW reset end */
-
-    trace("GO!!!");
+    trace("GO tvia!");
 
     CyberRegs = (volatile unsigned char *)ioremap(VMEM_BASEADDR + 0x00800000, 0x100000);
     current_par.currcon = -1;

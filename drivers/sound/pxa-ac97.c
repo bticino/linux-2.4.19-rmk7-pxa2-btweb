@@ -144,7 +144,7 @@ static void pxa_ac97_write(struct ac97_codec *codec, u8 reg, u16 val)
 	down(&CAR_mutex);
 	if (!(CAR & CAR_CAIP)) {
 		addr = addr_cod_base + (reg << 1 );
-//printk ("pxa_ac97_write addr %X val %X \n", addr, val);
+printk ("pxa_ac97_write addr %X val %X \n", addr, val);
 		ioaddr = (volatile u32 *)ioremap( addr , 4);
 		GSR |= GSR_CDONE;
 		CAR |= CAR_CAIP;
@@ -159,7 +159,7 @@ static void pxa_ac97_write(struct ac97_codec *codec, u8 reg, u16 val)
 		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
 	}
 	up(&CAR_mutex);
-	//printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
+	printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
 }
 #endif
 
@@ -355,12 +355,15 @@ printk ("pxa ac97 get, refcount %d \n", pxa_ac97_refcount);
 		set_GPIO_mode(GPIO29_SDATA_IN_AC97_MD);
 //		set_GPIO_mode(GPIO32_SDATA_IN1_AC97_MD);	// toccherebbe il secondary
 
+printk ("pxa ac97 get 1\n");
 		GCR = 0;
 		udelay(10);
 		GCR = GCR_COLD_RST;
 		while (!(GSR & GSR_PCR)) {
 			schedule();
 		}
+
+printk ("pxa ac97 get 2\n");
 
 		ret = ac97_probe_codec(&pxa_ac97_codec);
 		if (ret != 1) {
@@ -369,6 +372,8 @@ printk ("pxa ac97 get, refcount %d \n", pxa_ac97_refcount);
 			return ret;
 		}
 
+printk ("pxa ac97 get 3\n");
+
 	// need little hack for UCB1400 (should be moved elsewhere)
 //		pxa_ac97_write(&pxa_ac97_codec,AC97_EXTENDED_STATUS,1);
 //pxa_ac97_write(&pxa_ac97_codec, 0x6a, 0x1ff7);
@@ -376,12 +381,16 @@ printk ("pxa ac97 get, refcount %d \n", pxa_ac97_refcount);
 //		pxa_ac97_write(&pxa_ac97_codec, 0x6c, 0x0030);
 		pxa_ac97_write(&pxa_ac97_codec, 0x1A, 0x0404 ); // CARLOS.... ORIG last parameter 0x0505
 
+printk ("pxa ac97 get 4\n");
+
 	}
 
 	pxa_ac97_refcount++;
 	up(&pxa_ac97_mutex);
 
 	*codec = &pxa_ac97_codec;
+
+printk ("pxa ac97 get, end\n");
 
 
 	return 0;
@@ -880,7 +889,7 @@ printk("primary codec pxa ac97 init \n");
 #endif
 
 #ifdef CODEC_SECONDARY
-//printk("secondo codec pxa ac97 init \n");
+printk("secondo codec pxa ac97 init \n");
 	ret = pxa_ac97_get1(&dummy);
 	if (ret)
 		return ret;

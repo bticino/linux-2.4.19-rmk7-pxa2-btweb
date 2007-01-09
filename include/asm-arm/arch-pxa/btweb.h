@@ -14,6 +14,7 @@
 
 #ifdef __KERNEL__
 struct btweb_features {
+	int tvia_reset;
 	int eth_reset;
 	int eth_irq;
 	int e2_wp;
@@ -35,6 +36,54 @@ struct btweb_features {
         int cf_irq;
 	int usb_soft_enum_n;
 	int usb_pxa_slave_connected;
+	int bright_i2c_addr;
+	int bright_port;
+	int contr_i2c_addr;
+	int contr_port;
+	int color_i2c_addr;
+	int color_port;
+	int amp_vol_i2c_addr;
+	int amp_vol_port;
+        int mic_vol_i2c_addr;
+        int mic_vol_port;
+        int speaker_vol_i2c_addr;
+        int speaker_vol_port;
+	int abil_amp;
+        int amp_left;
+        int amp_right;
+        int abil_fon_ip;
+        int mute_speaker;
+        int abil_mic;
+	int abil_tlk_i2c_addr;
+	int abil_tlk_reg;
+	int lighting_level_i2c_addr;
+	int lighting_level_reg;
+
+	int led_serr;
+	int led_escl;
+	int led_mute;
+	int led_conn;
+	int led_alarm;
+	int led_tlc;
+
+	int low_voltage;
+	int power_sense;
+
+	int fc_tilt;
+        int fc_pan;
+        int fc2_tilt;
+        int fc2_pan;
+        int abil_motor_ctrl;
+        int MIN1A;
+        int MIN1B;
+        int MIN2A;
+        int MIN2B;
+        int MIN3A;
+        int MIN3B;
+        int MIN4A;
+        int MIN4B;
+
+	int rx_tx_485;
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
@@ -55,18 +104,23 @@ extern void btweb_backlight(int onoff);
 
 #endif /* __KERNEL__ */
 
-#define BTWEB_UNKNOWN -2
-#define BTWEB_ANY     -1
-#define BTWEB_F453    0
-#define BTWEB_F453AV  1
-#define BTWEB_F453AVA 1 /* master type "A", prototypes */
-#define BTWEB_2F      2
-#define BTWEB_PBX     3
-#define BTWEB_F452    4
-#define BTWEB_H4684   8
-#define BTWEB_PE_M    4
-/* more flavors to come */
-
+/* All different */
+#define BTWEB_UNKNOWN	-2
+#define BTWEB_ANY	-1
+#define BTWEB_F453	0x0
+#define BTWEB_F453AV  	0x1
+#define BTWEB_F453AVA   0x1 /* master type "A", prototypes */
+#define BTWEB_2F	0x2
+#define BTWEB_PBX288exp	0x3
+#define BTWEB_PBX288	0x4
+#define BTWEB_PE	0x5
+#define BTWEB_PI	0x6
+#define BTWEB_H4684_IP	0x7
+#define BTWEB_H4684_IP_8	0x8
+#define BTWEB_CDP_HW	0x9
+#define BTWEB_INTERFMM	0xa
+#define BTWEB_MH500	0xb
+#define BTWEB_MEGATICKER	0xc
 
 /*
  * Sysctl numbers (under /proc/sys/dev/)
@@ -93,5 +147,28 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_CF_IRQ         19 /* compact flash interrupt */
 #define BTWEB_USB_SOFT_ENUM_N 20 /* usb soft enumeration control */
 #define BTWEB_USB_PXA_SLAVE_CONNECTED 21 /* usb pxa slave is connected and recognized by a master device */
-
+#define BTWEB_BRIGHTNESS	22 /* */
+#define BTWEB_COLOR		23 /* */
+#define BTWEB_VOL		24 /* */
+#define BTWEB_ABIL_AMP		25 /* */
+/* #define FREEEEE      	26 /* */
+#define BTWEB_AMP_LEFT		27 /* */
+#define BTWEB_AMP_RIGHT		28 /* */
+#define BTWEB_ABIL_FON_IP	29 /* */
+#define BTWEB_MUTE_SPEAKER	30 /* */
+#define BTWEB_ABIL_MIC		31 /* */
+#define BTWEB_LED_SERR		32 /* */
+#define BTWEB_LED_ESCL		33 /* */
+#define BTWEB_LED_MUTE		34 /* */
+#define BTWEB_LED_CONN		35 /* */
+#define BTWEB_LED_ALARM		36 /* */
+#define BTWEB_LED_TLC		37 /* */
+#define BTWEB_POWER_SENSE	38 /* */
+#define BTWEB_MIC_VOL		39 /* */
+#define BTWEB_SPEAKER_VOL       40 /* */
+#define BTWEB_ABIL_TLK          41 /* */
+#define BTWEB_LIGHTING_LEVEL    42 /* */
+#ifdef  USE_RX_TX_485_BTSYS
+#define BTWEB_RX_TX_485         43 /* */
+#endif
 #endif

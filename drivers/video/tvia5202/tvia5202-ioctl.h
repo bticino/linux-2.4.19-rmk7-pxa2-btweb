@@ -14,6 +14,7 @@
 #include "tvia5202-dvideo.h"
 #include "tvia5202-overlay.h"
 #include "tvia5202-synclock.h"
+#include "tvia5202-flicker.h"
 
 
 /*
@@ -521,5 +522,31 @@ typedef struct _dmareadconf {
 #define FBIO_TVIA5202_DMAWriteFrame _IOR('t', 0x75, TVIA5202_DMACONF)
 #define FBIO_TVIA5202_DMAReadPolling _IO('t', 0x76)
 //END CARLOS DMA
+
+
+//CARLOS FLICKER FILTER
+/* Initialization Flicker coefficient:
+   Central line = alpha * L0 + beta * L1 + gama * L2 (Hardware operation)
+   Recommand to obey the regular below to get the better video image quality.
+          255 >= alpha + beta + gama
+*/
+typedef struct _FlickerWin {
+	u16 wLeft;
+	u16 wTop;
+	u16 wRight;
+	u16 wBottom;
+} TVIA5202_FLICKERWIN;
+
+typedef struct _FlickerCtrlCoeffs {
+	u8 alpha;
+	u8 beta;
+	u8 gama;
+} TVIA5202_FLICKERCOEFFS;
+
+#define FBIO_TVIA5202_FLICKERFree _IOR('t', 0x77, u16)
+#define FBIO_TVIA5202_FLICKERWinInside _IOR('t', 0x78, u16)
+#define FBIO_TVIA5202_FLICKERWin _IOR('t', 0x79, TVIA5202_FLICKERWIN)
+#define FBIO_TVIA5202_FLICKERCtrlCoeffs _IOR('t', 0x80, TVIA5202_FLICKERCOEFFS)
+//END CARLOS FLICKER FILTER
 
 #endif

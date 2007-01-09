@@ -235,19 +235,41 @@ struct pxafb_info {
 #define LCD_LCCR0			(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM | LCCR0_QDM | LCCR0_BM  | LCCR0_OUM)
 #define LCD_LCCR3 			(LCCR3_PCP | LCCR3_PixClkDiv(0x12) | LCCR3_Bpp(PXAFB_BPP_BITS) | LCCR3_Acb(0x18))
 
-#elif defined CONFIG_MACH_BTWEB
+#elif defined CONFIG_MACH_BTWEB /* from kernel_2_3_0 */
 #define LCD_PIXCLOCK			220264
 #define LCD_BPP				16
 #define LCD_XRES			240
 #define LCD_YRES			320
-#define LCD_HORIZONTAL_SYNC_PULSE_WIDTH	 0
-#define LCD_VERTICAL_SYNC_PULSE_WIDTH	1
-#define LCD_BEGIN_OF_LINE_WAIT_COUNT	1
-#define LCD_BEGIN_FRAME_WAIT_COUNT 	6
-#define LCD_END_OF_LINE_WAIT_COUNT	1
-#define LCD_END_OF_FRAME_WAIT_COUNT	1
+#define LCD_HORIZONTAL_SYNC_PULSE_WIDTH	6 /* 5 */ 
+#define LCD_VERTICAL_SYNC_PULSE_WIDTH	4 /* 3 */
+#define LCD_BEGIN_OF_LINE_WAIT_COUNT	6 /*5*/
+#define LCD_BEGIN_FRAME_WAIT_COUNT 	4
+#define LCD_END_OF_LINE_WAIT_COUNT	18
+#define LCD_END_OF_FRAME_WAIT_COUNT	20
 #define LCD_SYNC			(FB_SYNC_HOR_HIGH_ACT )
 #define LCD_LCCR0			(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_PAS | LCCR0_EFM | LCCR0_QDM | LCCR0_BM  | LCCR0_OUM)
-#define LCD_LCCR3 			(LCCR3_PixClkDiv(0xA) | LCCR3_Bpp(PXAFB_BPP_BITS) | LCCR3_Acb(0x18))
+//#define LCD_LCCR3 			(LCCR3_PixClkDiv(0xA) | LCCR3_Bpp(PXAFB_BPP_BITS) | LCCR3_Acb(0x18))
+#define LCD_DPC				0
+#define LCD_OEP				0
+#define LCD_PCP				0				
+#define LCD_HSP				1
+#define LCD_VSP				1	
+#define LCD_PCD                         8
+
+#elif defined CONFIG_MACH_BTWEB_OLD /* F452X,MH200,H4684 */
+#define LCD_PIXCLOCK                    220264
+#define LCD_BPP                         16
+#define LCD_XRES                        240
+#define LCD_YRES                        320
+#define LCD_HORIZONTAL_SYNC_PULSE_WIDTH  0
+#define LCD_VERTICAL_SYNC_PULSE_WIDTH   1
+#define LCD_BEGIN_OF_LINE_WAIT_COUNT    1
+#define LCD_BEGIN_FRAME_WAIT_COUNT      6
+#define LCD_END_OF_LINE_WAIT_COUNT      1
+#define LCD_END_OF_FRAME_WAIT_COUNT     1
+#define LCD_SYNC                        (FB_SYNC_HOR_HIGH_ACT )
+#define LCD_LCCR0                       (LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_PAS | LCCR0_EFM | LCCR0_QDM | LCCR0_BM  | LCCR0_OUM)
+#define LCD_LCCR3                       (LCCR3_PixClkDiv(0xA) | LCCR3_Bpp(PXAFB_BPP_BITS) | LCCR3_Acb(0x18))
+
 
 #endif

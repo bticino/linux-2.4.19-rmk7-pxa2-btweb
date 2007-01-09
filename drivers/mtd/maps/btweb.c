@@ -22,7 +22,8 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
-#define BTWEB_FLASH_32M /* */
+#define BTWEB_FLASH_32M  /* */
+#define BTWEB_PARTITIONS /* For all BTWEB Livin Luce products*/
 
 #define WINDOW_ADDR 	0
 //#define WINDOW_ADDR 	0x04000000
@@ -82,7 +83,7 @@ static struct map_info btweb_map = {
 };
 
 
-#if 1 /* F453AV fix flash partitions */
+#ifdef BTWEB_PARTITIONS /* F453AV fix flash partitions */
 
 /* In a redboot point of view
 fis create -b 0x880000 -l 0x060000 -f 0x40000 "conf"
@@ -123,10 +124,6 @@ static struct mtd_partition btweb_partitions[] = {
 		name:		"btweb_app_copy",
 		size:		0x00280000,
 		offset:		0x00d40000
-	},{
-		name:		"extra",
-		size:		0x00020000,
-		offset:		0x00fc0000
 #ifdef BTWEB_FLASH_32M
         },{
                 name:           "zImage1",
@@ -136,8 +133,18 @@ static struct mtd_partition btweb_partitions[] = {
                 name:           "btweb_only1",
                 size:           0x008a0000,
                 offset:         0x01120000,
+        },{
+                name:           "extra",
+                size:           0x00640000,
+                offset:         0x019c0000
+
         }
 #else
+        },{
+                name:           "extra",
+                size:           0x00020000,
+                offset:         0x00fc0000
+
         }
 #endif
 
@@ -206,7 +213,7 @@ static int __init init_btweb(void)
 		parts = parsed_parts;
 		nb_parts = parsed_nr_parts;
 	} else {
-		printk(KERN_NOTICE "Mtd F453AV partitions\n");
+		printk(KERN_NOTICE "Mtd BTWEB partitions\n");
 		parts = btweb_partitions;
 		nb_parts = NB_OF(btweb_partitions);
 	}

@@ -227,6 +227,7 @@ if [ "$CONFIG_FB" = "y" ]; then
    if [ "$CONFIG_NINO" = "y" ]; then
       bool '  TMPTX3912/PR31700 frame buffer support' CONFIG_FB_TX3912
    fi
+   tristate '  STV8102 OLED frame buffer support' CONFIG_FB_OLED
    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
       tristate '  Virtual Frame Buffer support (ONLY FOR TESTING!)' CONFIG_FB_VIRTUAL
    fi

@@ -114,13 +114,27 @@ static void __init btweb_map_io(void)
         printk("btweb_map_io: calling iotable_init\n");
 	iotable_init(btweb_io_desc);
 
-	if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_2F)){
-		set_GPIO_mode(45 | GPIO_OUT);
-		GPCR(45) = GPIO_bit(45); /* tvia5202 HW reset */
+	if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_2F)|| \
+		(btweb_globals.flavor==BTWEB_INTERFMM) ){
+		set_GPIO_mode(btweb_features.tvia_reset | GPIO_OUT);
+		GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset */
 
 		printk("Setting MSC2 (%p) to 0x92347FF1\n",&MSC2);
 		MSC2=0x92347FF1;    /* BUS veloce su chip select Tvia5202 */
+	} else {
+		if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
+	                set_GPIO_mode(btweb_features.tvia_reset | GPIO_OUT);
+        		GPSR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset */
+			printk("Setting MSC2 (%p) to 0x92347FF1\n",&MSC2);
+			MSC2=0x92347FF1;    /* BUS veloce su chip select Tvia5202 */
+
+                        set_GPIO_mode(btweb_features.eth_reset | GPIO_OUT);
+                        GPSR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset); /* eth soft reset */
+                        printk("Not resetting eth soft reset\n");
+                        printk("GPLR0=%08X\n",GPLR0);
+		}
 	}
+	
 
 	printk("btweb_map_io: verifying some registers\n");
         printk("MSC0=%X\n",MSC0);
