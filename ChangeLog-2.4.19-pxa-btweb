@@ -7,13 +7,17 @@ to developing (stable) version btweb-X_Y_Z (CVS TAG):
 STABLE VERSION
 TAG=btweb-2_2_0
 
+UNSTABLE VERSION (shuold work anyway)
+TAG=btweb-2_3_0_1
+
+
 The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 
 
 Beginning of developing notes
 -----------------------------
 
-2.4.19-rmk7-pxa2-btweb-2_3_0:
+2.4.19-rmk7-pxa2-btweb-2_3_0_1:
 
 NOTE
 Quite complete management of the following new products:
