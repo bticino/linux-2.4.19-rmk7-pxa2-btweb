@@ -401,8 +401,8 @@ static struct btweb_features feat __initdata = {
 	.abil_fon_ip = -1,
 	.mute_speaker = -1,
 	.abil_mic = -1,
-	.mic_vol_i2c_addr = -1,
-        .mic_vol_port = -1,
+	.mic_volume_i2c_addr = -1,
+        .mic_volume_port = -1,
         .speaker_vol_i2c_addr = -1,
         .speaker_vol_port = -1,
 
@@ -596,6 +596,11 @@ static int init_megaticker(struct btweb_flavor *fla, int rev) {
         /* Enabling buzzer clock */
         CKEN |= CKEN0_PWM0;
 
+        /* This enables the STUART for Monitoring */
+        CKEN |= CKEN5_STUART;
+        set_GPIO_mode(GPIO46_STRXD_MD);
+        set_GPIO_mode(GPIO47_STTXD_MD);
+
         return 0;
 }
 
@@ -617,10 +622,10 @@ static int init_pe(struct btweb_flavor *fla, int rev) {
         btweb_features.usb_soft_enum_n = 27;
         btweb_features.usb_pxa_slave_connected = 0;
 
-	btweb_features.mic_vol_i2c_addr = 0x29; /* verify */
-        btweb_features.mic_vol_port =  0xaa;/* verify */
-        btweb_features.speaker_vol_i2c_addr = 0x29; /* verify */ 
-        btweb_features.speaker_vol_port = 0xa9; /* verify */
+	btweb_features.mic_volume_i2c_addr = 0x29; /* verify */
+        btweb_features.mic_volume_port =  0xaa; /* verify */
+        btweb_features.speaker_vol_i2c_addr = 0x29;  
+        btweb_features.speaker_vol_port = 0xa9; 
 
         btweb_features.bright_i2c_addr = 0x28;
         btweb_features.bright_port = 0xaa;
@@ -655,6 +660,10 @@ static int init_pe(struct btweb_flavor *fla, int rev) {
 	 /* Enabling buzzer clock */
         CKEN |= CKEN0_PWM0;
 
+        /* This enables the STUART for Pic */
+        CKEN |= CKEN5_STUART;
+        set_GPIO_mode(GPIO46_STRXD_MD);
+        set_GPIO_mode(GPIO47_STTXD_MD);
 
         return 0;
 }
@@ -710,6 +719,11 @@ static int init_pi(struct btweb_flavor *fla, int rev) {
 
 	 /* Enabling buzzer clock */
         CKEN |= CKEN0_PWM0;
+
+        /* This enables the STUART for Pic */
+        CKEN |= CKEN5_STUART;
+        set_GPIO_mode(GPIO46_STRXD_MD);
+        set_GPIO_mode(GPIO47_STTXD_MD);
 
 
         return 0;

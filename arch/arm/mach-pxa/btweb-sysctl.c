@@ -12,7 +12,11 @@
 #include <linux/i2c-dev.h>
 #include <asm/hardware.h>
 
+#define MY_REAL_READ
+
+
 #define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
+
 
 /*
  * The buzzer is always there; the pointer is set in btweb.c::btweb_init.
@@ -109,12 +113,10 @@ static int btsys_led_tlc = 0;
 static int btsys_power_sense = 0;
 static int btsys_lcd = 0;
 static int btsys_speaker_vol = 0;
-static int btsys_mic_vol = 0;
+static int btsys_mic_volume = 0;
 static int btsys_abil_tlk = 0;
 static int btsys_lighting_level = 0;
-#ifdef USE_RX_TX_485_BTSYS
 static int btsys_rx_tx_485 = 0;
-#endif
 
 static int bool_min[] = {0};
 static int bool_max[] = {1};
@@ -185,7 +187,9 @@ static int btsys_i2c_do(int addr, int reg, int val)
 	}
 	btsys_client.addr = addr;
 	if (i2c_master_send(&btsys_client, data, 2) == 2)
+	{
 		return 0;
+	}
 	return -EIO;
 }
 
@@ -210,13 +214,52 @@ static int btsys_i2c_read(int addr, int reg, char * val)
                 registered++;
         }
 
+
         btsys_client.addr = addr;
         if (i2c_master_send(&btsys_client, (char *)&reg, 1) == 1){
 		ret = i2c_master_recv(&btsys_client, val, 1);
-		if (ret==1) 
+		if (ret==1)
+		{
 			return 0;
+		}
 	}
-        
+        return -EIO;
+}
+
+/* reading from ds1803 */
+static int btsys_i2cpot_read(int addr, int reg, char * val)
+{
+        static int registered;
+        unsigned char ret;
+	char data [2];
+
+        if ((addr<0)||(reg<0))
+                return -EOPNOTSUPP;
+
+        if (!registered) {
+                /*
+                 * We would like to add this driver at init time, but we
+                 * need a process context as it sleeps on a semaphore.
+                 */
+                int res;
+                if ((res = i2c_add_driver(&btsys_driver))) {
+                        printk("btsys: can't register i2c driver\n");
+                        return res;
+                }
+                registered++;
+        }
+
+
+        btsys_client.addr = addr;
+                ret = i2c_master_recv(&btsys_client, &data[0], 2);
+                if (ret==2)
+                {
+			if (reg==0xa9)
+			    *val=data[0];
+			else
+			    *val=data[1];
+                        return 0;
+                }
         return -EIO;
 }
 
@@ -255,6 +298,7 @@ static int btsys_apply(int name)
 		case BTWEB_CNTR:
                         if (btweb_features.backlight < 0)
                                 return -EOPNOTSUPP;
+
 			return btsys_i2c_do(btweb_features.contr_i2c_addr, btweb_features.contr_port, btsys_cntr);
 			break;
 		case BTWEB_BUZZER:
@@ -382,9 +426,9 @@ static int btsys_apply(int name)
                         return btsys_i2c_do(btweb_features.amp_vol_i2c_addr, btweb_features.amp_vol_port, btsys_vol);
                 break;
                 case BTWEB_MIC_VOL:
-                        if (btweb_features.mic_vol_i2c_addr < 0)
+                        if (btweb_features.mic_volume_i2c_addr < 0)
                                 return -EOPNOTSUPP;
-                        return btsys_i2c_do(btweb_features.mic_vol_i2c_addr, btweb_features.mic_vol_port, btsys_mic_vol);
+                        return btsys_i2c_do(btweb_features.mic_volume_i2c_addr, btweb_features.mic_volume_port, btsys_mic_volume);
                 break;
                 case BTWEB_SPEAKER_VOL:
                         if (btweb_features.speaker_vol_i2c_addr < 0)
@@ -547,7 +591,6 @@ static int btsys_apply(int name)
 		break;
 		case BTWEB_LIGHTING_LEVEL:
                 break;
-#ifdef USE_RX_TX_485_BTSYS
 		case BTWEB_RX_TX_485:
                         if (btweb_features.rx_tx_485< 0)
                                return -EOPNOTSUPP;
@@ -560,7 +603,6 @@ static int btsys_apply(int name)
                                         GPIO_bit(btweb_features.rx_tx_485);
                         }
                 break;
-#endif
 		}
 	return 0;
 }
@@ -572,21 +614,31 @@ static int btsys_read(int name)
 	switch(name) {
 		case BTWEB_LED:
 			if (btweb_features.led < 0)
+			{
+				btsys_led = -1;
 				return -EOPNOTSUPP;
+			}
                         btsys_led=((GPLR(btweb_features.led)&GPIO_bit(btweb_features.led))!=0);
 			return 0;
 			break;
  		case BTWEB_LCD:
 			if (btweb_features.backlight < 0)
+			{
+				btsys_lcd = -1;
 				return -EOPNOTSUPP;
+			}
 			btsys_lcd=((GPLR(btweb_features.backlight)&GPIO_bit(btweb_features.backlight))!=0);
 			return 0;
 			break;
 		case BTWEB_CNTR:
                         if (btweb_features.backlight < 0)
+			{
+				btsys_cntr = -1;	
                                 return -EOPNOTSUPP;
-			btsys_i2c_read(btweb_features.contr_i2c_addr, btweb_features.contr_port,&ret);
+			}
+			btsys_i2cpot_read(btweb_features.contr_i2c_addr, btweb_features.contr_port,&ret);
 			btsys_cntr=(int)ret;
+
 			return 0;
 			break;
 		case BTWEB_BUZZER:
@@ -608,13 +660,19 @@ static int btsys_read(int name)
 			break;
 		case BTWEB_CTRL_HIFI:
 			if (btweb_features.ctrl_hifi < 0)
+			{
+				btsys_ctrl_hifi = -1;
 				return -EOPNOTSUPP;
+			}
 			btsys_ctrl_hifi=((GPLR(btweb_features.ctrl_hifi)&GPIO_bit(btweb_features.ctrl_hifi))!=0);
 			return 0;
 		break;
 		case BTWEB_CTRL_VIDEO:
 			if (btweb_features.ctrl_video < 0)
+			{
+				btsys_ctrl_video = -1;
 				return -EOPNOTSUPP;
+			}
 			btsys_ctrl_video=((GPLR(btweb_features.ctrl_video)&GPIO_bit(btweb_features.ctrl_video))!=0);
 			return 0;
 		break;
@@ -623,151 +681,227 @@ static int btsys_read(int name)
 		break;
 		case BTWEB_ABIL_MOD_VIDEO:
 			if (btweb_features.abil_mod_video < 0)
+			{
+				btsys_abil_mod_video = -1;
 				return -EOPNOTSUPP;
+			}
 			btsys_abil_mod_video=((GPLR(btweb_features.abil_mod_video)&GPIO_bit(btweb_features.abil_mod_video))!=0);
 			return 0;
 		break;
                case BTWEB_ABIL_DEM_VIDEO:
                         if (btweb_features.abil_dem_video < 0)
+			{
+				btsys_abil_dem_video = -1;
                                 return -EOPNOTSUPP;
+			}
 			btsys_abil_dem_video=((GPLR(btweb_features.abil_dem_video)&GPIO_bit(btweb_features.abil_dem_video))!=0);
                         return 0;
                 break;
 		case BTWEB_ABIL_MOD_HIFI:
 			if (btweb_features.abil_mod_hifi < 0)
+			{
+				btsys_abil_mod_hifi = -1;
 				return -EOPNOTSUPP;
+			}
 			btsys_abil_mod_hifi=((GPLR(btweb_features.abil_mod_hifi)&GPIO_bit(btweb_features.abil_mod_hifi))!=0);
 			return 0;
 		break;
                 case BTWEB_ABIL_DEM_HIFI:
                         if (btweb_features.abil_dem_hifi < 0)
+			{
+				btsys_abil_dem_hifi = -1;
                                 return -EOPNOTSUPP;
+			}
 			btsys_abil_dem_hifi=((GPLR(btweb_features.abil_dem_hifi)&GPIO_bit(btweb_features.abil_dem_hifi))!=0);
                         return 0;
                 break;
 		case BTWEB_ABIL_FON:
 			if (btweb_features.abil_fon < 0)
+			{
+				btsys_abil_fon = -1;
 				return -EOPNOTSUPP;
+			}
 			btsys_abil_fon=((GPLR(btweb_features.abil_fon)&GPIO_bit(btweb_features.abil_fon))!=0);
 			return 0;
 		break;
 		case BTWEB_BRIGHTNESS:
                         if (btweb_features.bright_i2c_addr < 0)
+			{
+				btsys_bright = -1;
                                 return -EOPNOTSUPP;
-                        btsys_i2c_read(btweb_features.bright_i2c_addr, btweb_features.bright_port, &ret);
+			}
+
+			btsys_i2cpot_read(btweb_features.bright_i2c_addr, btweb_features.bright_port, &ret);
 			btsys_bright=(int)ret;
+
+
 			return 0;	
                 break;
                 case BTWEB_COLOR:
                         if (btweb_features.color_i2c_addr < 0)
+			{
+				btsys_color = -1;
                                 return -EOPNOTSUPP;
-			btsys_i2c_read(btweb_features.color_i2c_addr, btweb_features.color_port, &ret);
+			}
+			btsys_i2cpot_read(btweb_features.color_i2c_addr, btweb_features.color_port, &ret);
 			btsys_color=(int)ret;
 			return 0;
                 break;
                 case BTWEB_VOL:
 			if (btweb_features.amp_vol_i2c_addr < 0)
+			{
+				btsys_vol = -1;
                                 return -EOPNOTSUPP;
-                        btsys_i2c_read(btweb_features.amp_vol_i2c_addr, btweb_features.amp_vol_port,&ret); 
-			btsys_cntr=(int)ret;
+			}
+                        btsys_i2cpot_read(btweb_features.amp_vol_i2c_addr, btweb_features.amp_vol_port,&ret); 
+			btsys_vol=(int)ret;
 			return 0;
                 break;
 
                 case BTWEB_MIC_VOL:
-                        if (btweb_features.mic_vol_i2c_addr < 0)
+                        if (btweb_features.mic_volume_i2c_addr < 0)
+			{
+				btsys_mic_volume = -1;
                                 return -EOPNOTSUPP;
-                        btsys_i2c_read(btweb_features.mic_vol_i2c_addr, btweb_features.mic_vol_port, &ret);
-			btsys_mic_vol=(int)ret;	
+			}
+                        btsys_i2cpot_read(btweb_features.mic_volume_i2c_addr, btweb_features.mic_volume_port, &ret);
+			btsys_mic_volume=(int)ret;
 			return 0;
                 break;
+
                 case BTWEB_SPEAKER_VOL:
                         if (btweb_features.speaker_vol_i2c_addr < 0)
+			{
+				btsys_speaker_vol = -1;
                                 return -EOPNOTSUPP;
-                        btsys_i2c_read(btweb_features.speaker_vol_i2c_addr, btweb_features.speaker_vol_port, &ret);
+			}
+                        btsys_i2cpot_read(btweb_features.speaker_vol_i2c_addr, btweb_features.speaker_vol_port, &ret);
 			btsys_speaker_vol=(int)ret;
 			return 0;
                 break;
 		case BTWEB_ABIL_AMP:
 			if (btweb_features.abil_amp< 0)
+			{
+				btsys_abil_amp = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_abil_amp=((GPLR(btweb_features.abil_amp)&GPIO_bit(btweb_features.abil_amp))!=0);	
                         return 0;
                 break;
 		case BTWEB_AMP_LEFT:
                         if (btweb_features.amp_left< 0)
+			{
+				btsys_amp_left = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_amp_left	=((GPLR(btweb_features.amp_left)&GPIO_bit(btweb_features.amp_left))!=0);
                 	return 0;
                 break;
 		case BTWEB_AMP_RIGHT:
                         if (btweb_features.amp_right< 0)
+			{
+				btsys_amp_right = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_amp_right=((GPLR(btweb_features.amp_right)&GPIO_bit(btweb_features.amp_right))!=0);
                 	return 0;
                 break;
 		case BTWEB_ABIL_FON_IP:
                         if (btweb_features.abil_fon_ip< 0)
+			 {
+				btsys_abil_fon_ip = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_abil_fon_ip = ((GPLR(btweb_features.abil_fon_ip)&GPIO_bit(btweb_features.abil_fon_ip))!=0);
         	       	return 0;
                 break;
 		case BTWEB_MUTE_SPEAKER:
                         if (btweb_features.mute_speaker< 0)
+			{
+				btsys_mute_speaker = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_mute_speaker = ((GPLR(btweb_features.mute_speaker)&GPIO_bit(btweb_features.mute_speaker))!=0);
                 	return 0;
                 break;
 		case BTWEB_ABIL_MIC:
                         if (btweb_features.abil_mic< 0)
+			{
+				btsys_abil_mic = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_abil_mic = ((GPLR(btweb_features.abil_mic)&GPIO_bit(btweb_features.abil_mic))!=0);
                 	return 0;
                 break;
 		case BTWEB_LED_SERR:
                         if (btweb_features.led_serr< 0)
+			{
+				btsys_led_serr = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_led_serr = ((GPLR(btweb_features.led_serr)&GPIO_bit(btweb_features.led_serr))!=0);
                 	return 0;
                 break;
 		case BTWEB_LED_ESCL:
                         if (btweb_features.led_escl< 0)
+			{
+				btsys_led_escl = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_led_escl = ((GPLR(btweb_features.led_escl)&GPIO_bit(btweb_features.led_escl))!=0);
                 	return 0;  
                 break;
 		case BTWEB_LED_MUTE:
                         if (btweb_features.led_mute< 0)
+			{
+				btsys_led_mute = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_led_mute = ((GPLR(btweb_features.led_mute)&GPIO_bit(btweb_features.led_mute))!=0);
                 	return 0;
 	        break;
 		case BTWEB_LED_CONN:
                         if (btweb_features.led_conn< 0)
+			{
+				btsys_led_conn = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_led_conn = ((GPLR(btweb_features.led_conn)&GPIO_bit(btweb_features.led_conn))!=0);
                 	return 0;
                 break;
 		case BTWEB_LED_ALARM:
                         if (btweb_features.led_alarm< 0)
+			{
+				btsys_led_alarm = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_led_alarm = ((GPLR(btweb_features.led_alarm)&GPIO_bit(btweb_features.led_alarm))!=0);
                 	return 0;
                 break;
 		case BTWEB_LED_TLC:
                         if (btweb_features.led_tlc< 0)
+			{
+				btsys_led_tlc = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_led_tlc = ((GPLR(btweb_features.led_tlc)&GPIO_bit(btweb_features.led_tlc))!=0);
                 	return 0;
                 break;
 		case BTWEB_POWER_SENSE:
                         if (btweb_features.power_sense< 0)
+			{
+				btsys_power_sense = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_power_sense = ((GPLR(btweb_features.power_sense)&GPIO_bit(btweb_features.power_sense))!=0);
                         return 0;
                 break;
 		case BTWEB_ABIL_TLK:
                         if (btweb_features.abil_tlk_i2c_addr< 0)
+			{
+				btsys_abil_tlk = -1;
                               return -EOPNOTSUPP;
+			}
 			btsys_i2c_read(btweb_features.abil_tlk_i2c_addr, btweb_features.abil_tlk_reg,&ret);
                         if (ret==0x0F)
 				return btsys_abil_tlk=0;
@@ -776,18 +910,22 @@ static int btsys_read(int name)
                 break;
                 case BTWEB_LIGHTING_LEVEL:
 			if (btweb_features.lighting_level_i2c_addr< 0)
+			{
+				btsys_lighting_level = -1;
                               return -EOPNOTSUPP;
+			}
 			btsys_i2c_read(btweb_features.lighting_level_i2c_addr, btweb_features.lighting_level_reg,&ret);
 			return btsys_lighting_level=(int)(255-ret);
                 break;
-#ifdef USE_RX_TX_485_BTSYS
                 case BTWEB_RX_TX_485:
                         if (btweb_features.rx_tx_485< 0)
+			{
+				btsys_rx_tx_485 = -1;
                                return -EOPNOTSUPP;
+			}
 			btsys_rx_tx_485 = ((GPLR(btweb_features.rx_tx_485)&GPIO_bit(btweb_features.rx_tx_485))!=0);
                         return 0;
                 break;
-#endif
 		}
 	return 1;
 }
@@ -798,7 +936,7 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 {
 	int retval;
 
-#if 1
+#ifdef MY_REAL_READ
 	if (!write)
 	{
 		btsys_read(table->ctl_name);
@@ -1181,7 +1319,7 @@ ctl_table btsys_table[] = {
         {
                 .ctl_name =      BTWEB_MIC_VOL,
                 .procname =      "mic_volume",
-                .data =          &btsys_mic_vol,
+                .data =          &btsys_mic_volume,
                 .maxlen =        sizeof(int),
                 .mode =          0644,
                 .proc_handler =  btsys_proc,
@@ -1362,7 +1500,6 @@ ctl_table btsys_table[] = {
                 .proc_handler =  btsys_proc,
                 .strategy =      btsys_sysctl,
         },
-#ifdef USE_RX_TX_485_BTSYS
 	{
                 .ctl_name =      BTWEB_RX_TX_485,
                 .procname =      "rx_tx_485",
@@ -1374,7 +1511,6 @@ ctl_table btsys_table[] = {
                 .extra1 =        bool_min,
                 .extra2 =        bool_max,
         },
-#endif
 	{0,}
 };
 

@@ -44,10 +44,10 @@ struct btweb_features {
 	int color_port;
 	int amp_vol_i2c_addr;
 	int amp_vol_port;
-        int mic_vol_i2c_addr;
-        int mic_vol_port;
         int speaker_vol_i2c_addr;
         int speaker_vol_port;
+        int mic_volume_i2c_addr;
+        int mic_volume_port;
 	int abil_amp;
         int amp_left;
         int amp_right;
@@ -151,7 +151,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_COLOR		23 /* */
 #define BTWEB_VOL		24 /* */
 #define BTWEB_ABIL_AMP		25 /* */
-/* #define FREEEEE      	26 /* */
+/* #define FREEEEE      	26  */
 #define BTWEB_AMP_LEFT		27 /* */
 #define BTWEB_AMP_RIGHT		28 /* */
 #define BTWEB_ABIL_FON_IP	29 /* */
@@ -164,11 +164,10 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_LED_ALARM		36 /* */
 #define BTWEB_LED_TLC		37 /* */
 #define BTWEB_POWER_SENSE	38 /* */
-#define BTWEB_MIC_VOL		39 /* */
-#define BTWEB_SPEAKER_VOL       40 /* */
+#define BTWEB_SPEAKER_VOL       39 /* */
+#define BTWEB_MIC_VOL		40 /* */
 #define BTWEB_ABIL_TLK          41 /* */
 #define BTWEB_LIGHTING_LEVEL    42 /* */
-#ifdef  USE_RX_TX_485_BTSYS
 #define BTWEB_RX_TX_485         43 /* */
-#endif
+
 #endif
