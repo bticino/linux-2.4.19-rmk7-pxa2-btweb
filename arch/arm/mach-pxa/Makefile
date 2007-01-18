@@ -28,7 +28,7 @@ obj-$(CONFIG_ARCH_LUBBOCK) += lubbock.o
 obj-$(CONFIG_ARCH_PXA_CERF) += cerf.o
 obj-$(CONFIG_ARCH_PXA_IDP) += idp.o
 obj-$(CONFIG_ARCH_TRIZEPS2) += trizeps2.o
-obj-$(CONFIG_MACH_BTWEB) += btweb.o btweb-sysctl.o btweb-flavors.o
+obj-$(CONFIG_MACH_BTWEB) += btweb.o btweb-sysctl.o btweb-flavors.o btweb-cammotors.o
 
 # Support for blinky lights
 leds-y := leds.o

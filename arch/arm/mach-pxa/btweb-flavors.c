@@ -51,6 +51,9 @@ Moreover: GPIO63, GPIO64, GPIO69 (hw revisions)
 
 #include <asm/arch/irq.h>
 
+#include "btweb-cammotors.h"
+
+
 static struct btweb_features feat;
 #if 0
 static struct btweb_features feat_f452;
@@ -664,6 +667,8 @@ static int init_pe(struct btweb_flavor *fla, int rev) {
         CKEN |= CKEN5_STUART;
         set_GPIO_mode(GPIO46_STRXD_MD);
         set_GPIO_mode(GPIO47_STTXD_MD);
+
+	init_cammotors();
 
         return 0;
 }

@@ -84,6 +84,13 @@ struct btweb_features {
         int MIN4B;
 
 	int rx_tx_485;
+
+	int cammotor_pan;
+	int cammotor_tilt;
+	int cammotor_fc1pan;
+	int cammotor_fc2pan;
+	int cammotor_fc1tilt;
+	int cammotor_fc2tilt;
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
@@ -169,5 +176,10 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_ABIL_TLK          41 /* */
 #define BTWEB_LIGHTING_LEVEL    42 /* */
 #define BTWEB_RX_TX_485         43 /* */
-
+#define BTWEB_CAMMOTOR_PAN      44 /* Camera pan motor, activation and direction */
+#define BTWEB_CAMMOTOR_TILT     45 /* Camera tilt motor, activation and direction */
+#define BTWEB_CAMMOTOR_FC1PAN   46 /* Camera fc1 pan sensor */
+#define BTWEB_CAMMOTOR_FC2PAN   47 /* Camera fc2 pan sensor */
+#define BTWEB_CAMMOTOR_FC1TILT  48 /* Camera fc1 tilt sensor */
+#define BTWEB_CAMMOTOR_FC2TILT  49 /* Camera fc2 tilt sensor */
 #endif

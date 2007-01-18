@@ -12,6 +12,8 @@
 #include <linux/i2c-dev.h>
 #include <asm/hardware.h>
 
+#include "btweb-cammotors.h"
+
 #define MY_REAL_READ
 
 
@@ -117,6 +119,13 @@ static int btsys_mic_volume = 0;
 static int btsys_abil_tlk = 0;
 static int btsys_lighting_level = 0;
 static int btsys_rx_tx_485 = 0;
+static int btsys_cammotor_pan = 0;
+static int btsys_cammotor_tilt = 0;
+static int btsys_cammotor_fc1pan = 0;
+static int btsys_cammotor_fc2pan = 0;
+static int btsys_cammotor_fc1tilt = 0;
+static int btsys_cammotor_fc2tilt = 0;
+
 
 static int bool_min[] = {0};
 static int bool_max[] = {1};
@@ -603,6 +612,26 @@ static int btsys_apply(int name)
                                         GPIO_bit(btweb_features.rx_tx_485);
                         }
                 break;
+		case BTWEB_CAMMOTOR_PAN:
+			if (btweb_features.cammotor_pan < 0)
+                               return -EOPNOTSUPP;
+			if (btsys_cammotor_pan == 0)
+				cam_panstop();
+			else if (btsys_cammotor_pan == 1)
+				cam_panfwd();
+			else if (btsys_cammotor_pan == 2)
+				cam_panback();
+		break;
+		case BTWEB_CAMMOTOR_TILT:
+			if (btweb_features.cammotor_tilt < 0)
+                               return -EOPNOTSUPP;
+			if (btsys_cammotor_tilt == 0)
+				cam_tiltstop();
+			else if (btsys_cammotor_tilt == 1)
+				cam_tiltfwd();
+			else if (btsys_cammotor_tilt == 2)
+				cam_tiltback();
+		break;
 		}
 	return 0;
 }
@@ -926,6 +955,30 @@ static int btsys_read(int name)
 			btsys_rx_tx_485 = ((GPLR(btweb_features.rx_tx_485)&GPIO_bit(btweb_features.rx_tx_485))!=0);
                         return 0;
                 break;
+		case BTWEB_CAMMOTOR_FC1PAN:
+			if (btweb_features.cammotor_fc1pan < 0)
+                               return -EOPNOTSUPP;
+			btsys_cammotor_fc1pan = (CAMPAN_FC1 != 0);
+			return 0;
+		break;
+		case BTWEB_CAMMOTOR_FC2PAN:
+			if (btweb_features.cammotor_fc2pan < 0)
+                               return -EOPNOTSUPP;
+			btsys_cammotor_fc2pan = (CAMPAN_FC2 != 0);
+			return 0;
+		break;
+		case BTWEB_CAMMOTOR_FC1TILT:
+			if (btweb_features.cammotor_fc1tilt < 0)
+                               return -EOPNOTSUPP;
+			btsys_cammotor_fc1tilt = (CAMTILT_FC1 != 0);
+			return 0;
+		break;
+		case BTWEB_CAMMOTOR_FC2TILT:
+			if (btweb_features.cammotor_fc2tilt < 0)
+                               return -EOPNOTSUPP;
+			btsys_cammotor_fc2tilt = (CAMTILT_FC2 != 0);
+			return 0;
+		break;
 		}
 	return 1;
 }
@@ -1504,6 +1557,72 @@ ctl_table btsys_table[] = {
                 .ctl_name =      BTWEB_RX_TX_485,
                 .procname =      "rx_tx_485",
                 .data =          &btsys_rx_tx_485,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_PAN,
+                .procname =      "cammotor_pan",
+                .data =          &btsys_cammotor_pan,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        byte_min,
+                .extra2 =        byte_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_TILT,
+                .procname =      "cammotor_tilt",
+                .data =          &btsys_cammotor_tilt,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        byte_min,
+                .extra2 =        byte_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_FC1PAN,
+                .procname =      "cammotor_fc1pan",
+                .data =          &btsys_cammotor_fc1pan,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_FC2PAN,
+                .procname =      "cammotor_fc2pan",
+                .data =          &btsys_cammotor_fc2pan,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_FC1TILT,
+                .procname =      "cammotor_fc1tilt",
+                .data =          &btsys_cammotor_fc1tilt,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_FC2TILT,
+                .procname =      "cammotor_fc2tilt",
+                .data =          &btsys_cammotor_fc2tilt,
                 .maxlen =        sizeof(int),
                 .mode =          0644,
                 .proc_handler =  btsys_proc,
