@@ -93,8 +93,11 @@
 
 #if OLED_DEBUG == 1
 	#define OLED_TRACE printk(KERN_DEBUG "%s:%s()\n", OLED_NAME, __FUNCTION__)
+	#define OLED_TRACEMSG(msg,...) printk(KERN_DEBUG "%s:%s(): " msg "\n", \
+			OLED_NAME, __FUNCTION__, ## __VA_ARGS__)
 #elif OLED_DEBUG == 0
 	#define OLED_TRACE do {} while (0)
+	#define OLED_TRACEMSG(msg,...)
 #else
 	#error Define OLED_DEBUG to either 0 or 1
 #endif
@@ -163,20 +166,35 @@ static struct i2c_driver oled_i2c_driver; /* fwd decl */
 inline void
 oledhw_write_cmd(struct oledfb_info *info, uint8_t val)
 {
-	i2c_smbus_write_byte(&info->i2c_cmd, val);
+	//i2c_smbus_write_byte(&info->i2c_cmd, val);
+	i2c_master_send(&info->i2c_cmd, &val, 1);
+}
+
+inline void
+oledhw_write_cmd16(struct oledfb_info *info, uint8_t cmd, uint8_t data)
+{
+	uint8_t buf[] = { cmd, data };
+	i2c_master_send(&info->i2c_cmd, buf, sizeof(buf));
 }
 
 inline void
 oledhw_write_data(struct oledfb_info *info, uint8_t val)
 {
-	i2c_smbus_write_byte(&info->i2c_data, val);
+	//i2c_smbus_write_byte(&info->i2c_data, val);
+	i2c_master_send(&info->i2c_data, &val, 1);
+}
+
+inline void
+oledhw_write_data_multi(struct oledfb_info *info, uint8_t *data, size_t len)
+{
+	i2c_master_send(&info->i2c_data, data, len);
 }
 
 static void
 oledhw_gotoxy(struct oledfb_info *info, int x, int y)
 {
 	oledhw_write_cmd(info, (uint8_t)(OLED_CMD_XSTART | (x & 0x0F)));
-	oledhw_write_cmd(info, (uint8_t)(OLED_CMD_YSTART | (y & 0x0F)));
+	oledhw_write_cmd(info, (uint8_t)(OLED_CMD_YSTART | (y & 0x3F)));
 }
 
 /* Send initialization sequence to display */
@@ -209,7 +227,6 @@ oledhw_cleanup(struct oledfb_info *info)
 	oledhw_write_cmd(info, OLED_CMD_DISPOFF);
 }
 
-/* FIXME */
 #include "logo_bticino.c"
 
 static void
@@ -256,10 +273,12 @@ oledhw_screensaver_start(struct oledfb_info *info)
 	oledhw_write_cmd(info, OLED_CMD_HSPEED | 1);
 	oledhw_write_cmd(info, OLED_CMD_VSPEED | 1);
 	oledhw_write_cmd(info, OLED_CMD_MOVE   | 0x04 | 0x03); /* horiz. bounce only, vert. bounce and wrap */
-	oledhw_write_cmd(info, OLED_CMD_VMIN); oledhw_write_cmd(info, 0x62);
-	oledhw_write_cmd(info, OLED_CMD_VMAX); oledhw_write_cmd(info, 0x1F);
-	oledhw_write_cmd(info, OLED_CMD_HMIN); oledhw_write_cmd(info, 0xC0);
-	oledhw_write_cmd(info, OLED_CMD_HMAX); oledhw_write_cmd(info, 0x40);
+//	oledhw_write_cmd16(info, OLED_CMD_VMIN, 0x62);
+//	oledhw_write_cmd16(info, OLED_CMD_VMAX, 0x1F);
+	oledhw_write_cmd16(info, OLED_CMD_VMIN, 0x00);
+	oledhw_write_cmd16(info, OLED_CMD_VMAX, 0x00);
+	oledhw_write_cmd16(info, OLED_CMD_HMIN, 0xC0);
+	oledhw_write_cmd16(info, OLED_CMD_HMAX, 0x40);
 }
 
 static void
@@ -274,20 +293,12 @@ static void
 oledhw_refresh(struct oledfb_info *info)
 {
 	//OLED_TRACE; (too verbose)
+	//printk("shadow=%p, shadow_phys=%lx\n", info->shadow, info->shadow_phys);
 
 	oledhw_gotoxy(info, 0, 0);
 
-	//printk("shadow=%p, shadow_phys=%lx\n", info->shadow, info->shadow_phys);
-
-	//uint8_t *bitmap = (uint8_t *)info->shadow_phys;
 	uint8_t *bitmap = info->shadow;
-
-	int i;
-	for (i = 0; i < OLED_MEMSIZE; ++i) {
-		//info->shadow[i] = i;
-		//TODO: optimize to a block transfer
-		oledhw_write_data(info, bitmap[i]);
-	}
+	oledhw_write_data_multi(info, bitmap, OLED_MEMSIZE);
 }
 
 #if CONFIG_OLED_REFRESH_THREAD
@@ -313,7 +324,6 @@ oledhw_thread(void *arg)
 	current->nice = 5;
 	current->flags |= PF_NOIO;
 
-	int i = 0;
 	while (!info->quitting) {
 		if (atomic_read(&info->open_cnt) == 0) {
 			/* draw waking checkboard pattern when idle */
@@ -328,6 +338,11 @@ oledhw_thread(void *arg)
 			oledhw_screensaver_stop(info);
 			info->screensaver_running = false;
 		}
+
+		if (((unsigned char *)info->shadow)[0] == 0xAA)
+			printk("FOO\n");
+		if (((unsigned char *)info->shadow)[0] == 0x55)
+			printk("BAR\n");
 
 		/* Optimize refresh: transfer image only when it has changed */
 		if (memcmp(info->shadow, info->shadow2, OLED_MEMSIZE)) {
@@ -589,11 +604,49 @@ oledfb_release(struct fb_info *_info, int user)
 	return 0;
 }
 
+static int oledfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+{
+	unsigned long start,off,len;
+	OLED_TRACE;
+
+    if(vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
+		return -EINVAL;
+	off = vma->vm_pgoff << PAGE_SHIFT;
+
+	/* frame buffer memory */
+	start = (unsigned long)fb_info.shadow_phys;
+	len   = (unsigned long)PAGE_ALIGN(OLED_MEMSIZE);
+	OLED_TRACEMSG("start=%lx",start);
+	OLED_TRACEMSG("len=%lx",len);
+
+	start &= PAGE_MASK;
+	if ((vma->vm_end - vma->vm_start + off) > len)
+		return -EINVAL;
+
+	off += start;
+	//bernie: why?
+	//vma->vm_pgoff = off >> PAGE_SHIFT;
+
+	vma->vm_page_prot = PAGE_READONLY;
+
+	OLED_TRACEMSG("vm_start=%lx",vma->vm_start);
+	OLED_TRACEMSG("vm_end=%lx",vma->vm_end);
+	OLED_TRACEMSG("off=%lx",off);
+	OLED_TRACEMSG("len=%lx",len);
+
+	if (io_remap_page_range(vma->vm_start, off,
+				vma->vm_end - vma->vm_start, vma->vm_page_prot))
+		return -EAGAIN;
+
+	OLED_TRACEMSG("OK");
+
+	return 0;
+}
+
 /*
  *  In most cases the `generic' routines (fbgen_*) should be satisfactory.
  *  However, you're free to fill in your own replacements.
  */
-
 static struct fb_ops oledfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = oledfb_open,	/* only if you need it to do something */
@@ -606,6 +659,7 @@ static struct fb_ops oledfb_ops = {
 	.fb_set_cmap = fbgen_set_cmap,
 	.fb_pan_display = fbgen_pan_display,
 	/* .fb_ioctl = oledfb_ioctl,*/ /* optional */
+    .fb_mmap = oledfb_mmap,
 };
 
 /* ------------- I2C Driver interface --------------*/
@@ -679,7 +733,6 @@ static struct i2c_driver oled_i2c_driver =
 	.detach_client =   oled_detach,
 };
 
-
 /* ------------ Frame Buffer interface ------------ */
 
 static int
@@ -713,13 +766,13 @@ oledfb_init(void)
 	fb_info.gen.fbhw->detect();
 	strcpy(fb_info.gen.info.modename, OLED_FRIENDLY_NAME);
 	fb_info.gen.info.node = -1;
+	fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
 	fb_info.gen.info.fbops = &oledfb_ops;
 	fb_info.gen.info.disp = &disp;
 	fb_info.gen.info.changevar = NULL;
 	fb_info.gen.info.switch_con = NULL; /* optional */
 	fb_info.gen.info.updatevar = &oledfb_update_var;
 	fb_info.gen.info.blank = &oledfb_blank;
-	fb_info.gen.info.flags = FBINFO_FLAG_DEFAULT;
 
 	/*
 	 * Prepare a shadow buffer for userland to mmap().
@@ -740,7 +793,7 @@ oledfb_init(void)
 		result = -1;
 		goto out;
 	}
-	fb_info.shadow_phys = __virt_to_phys((unsigned long)fb_info.shadow);
+	fb_info.shadow_phys = virt_to_phys(fb_info.shadow);
 
 	/* This should give a reasonable default video mode */
 	fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
