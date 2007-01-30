@@ -91,6 +91,9 @@ struct btweb_features {
 	int cammotor_fc2pan;
 	int cammotor_fc1tilt;
 	int cammotor_fc2tilt;
+
+        int penirq;
+
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
