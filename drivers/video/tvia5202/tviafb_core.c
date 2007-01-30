@@ -59,7 +59,7 @@
 #include <asm/siginfo.h>
 
 /* DEBUG */
-#undef DEBUG
+#define DEBUG 1
 
 #ifdef DEBUG
 	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
@@ -126,6 +126,39 @@ static void debug_printf(char *fmt, ...)
 #define DEFAULT_YRES	576     //600
 
 #define DEFAULT_BPP	16
+
+
+/*-------------------------------------------------------
+ *    Tvia mode selection
+ *-------------------------------------------------------*/
+#define TVIA_MODE 1 /* PAL 710x576 */
+
+static int reg_tv_size_5202=REG_TV_SIZE_5202;
+static int init_mode=INIT_MODE;
+static int tvia_mode=TVIA_MODE;
+MODULE_PARM(video,"i");
+MODULE_PARM_DESC(tvia_mode,"Set Tvia mode output: 1=PAL-720x576,2=NTSC-M-640x480,default=PAL-720x576");
+
+
+int selected_xres = DEFAULT_XRES;
+int selected_yres = DEFAULT_YRES;
+
+#ifndef MODULE
+/* kernel command-line management */
+static int __init tvia_mode_set(char *str)
+{
+        int par;
+        if (get_option(&str,&par))
+          {
+          tvia_mode = par;
+          }
+
+        return 1;
+}
+__setup("tvia_mode=", tvia_mode_set);
+
+#endif
+
 
 /*------------------------------------------------------
 *	Global variable
@@ -564,7 +597,7 @@ static void InitChip(void)
     u16 i;
     u8 tmp;
 
-    bpTVIAModeReg = TVIAModeReg_5202[INIT_MODE];
+    bpTVIAModeReg = TVIAModeReg_5202[init_mode]; 
 
     deb("InitChip");
     /*CYBER5000SG */
@@ -1065,6 +1098,7 @@ static void BypassMode(u16 iOnOff)
     tvia_outb(bTmp & ~0x04, 0x3cf);
 }
 
+#if 0
 static void EnableTV(u16 iOnOff)
 {
     u8 iTmp;
@@ -1079,7 +1113,34 @@ static void EnableTV(u16 iOnOff)
         if (ReadTVReg(0xE438) & 0x1000) /*1: NTSC; 0: PAL */
             tvia_outb(iTmp | 0x04, 0x3cf);
         else
-		{
+            tvia_outb(iTmp | 0x05, 0x3cf);
+    } else {
+        tvia_outb(0x4E, 0x3ce);
+        tvia_outb(tvia_inb(0x3cf) & ~0x04, 0x3cf);
+        WriteTVReg(0xE430, ReadTVReg(0xE430) & ~0x0102);
+    }
+}
+
+#endif
+static void EnableTV(u16 iOnOff)
+{
+    u8 iTmp;
+
+    tvia_outb(0xFA, 0x3ce);     /*Banking I/O control */
+    tvia_outb(0x05, 0x3cf);
+
+    if (iOnOff == ON) {
+        tvia_outb(0x4E, 0x3ce);
+        iTmp = tvia_inb(0x3cf) & ~0x05; /*bit <2,0> */
+
+        if (ReadTVReg(0xE438) & 0x1000) { /*1: NTSC; 0: PAL */
+	    trace ("EnableTV: NTSC\n");
+            tvia_outb(iTmp | 0x04, 0x3cf);
+	}
+        else
+	{
+            trace ("EnableTV: PAL\n");
+
 //		  trace("EnableTV PAL but Disable RGB DAC and SCART");
 //          tvia_outb((iTmp|0x25)&0x2f, 0x3cf);   // Disable RGB DAC and SCART
 //		  trace("EnableTV PAL");
@@ -1315,18 +1376,29 @@ static void ProgramTV(void)
   /*-------------------------------------
   |*  TV Out Programming  
   -------------------------------------*/
-    //if (init_var.xres==640 && init_var.yres==480) { // !!!raf
-    if (init_var.xres==720 && init_var.yres==576) {
-    bpTVReg = TVModeReg_5202_SDRAM[INIT_MODE];
+    if ( (init_var.xres==640 && init_var.yres==480) \ 
+         || (init_var.xres==720 && init_var.yres==576)  \
+         || (init_var.xres==640 && init_var.yres==440) ) {
+
+	trace("ProgramTv: init_mode=%d\n",init_mode);
+    bpTVReg = TVModeReg_5202_SDRAM[init_mode];
 //        reg_tv_size = REG_TV_SIZE_5202; //Wei  sizeof(bpTVReg->TVRegs);
 //        reg_tv_size = sizeof(TVModeReg_5202_SDRAM[INIT_MODE].TVRegs);
-        reg_tv_size = REG_TV_SIZE_5202; //Wei  sizeof(bpTVReg->TVRegs);
+        reg_tv_size = reg_tv_size_5202; //REG_TV_SIZE_5202; //Wei  sizeof(bpTVReg->TVRegs);
 
         if(bpTVReg==NULL) {
             EnableTV(OFF);
             return;
         }
         SetTVReg(bpTVReg->TVRegs, reg_tv_size);
+
+	/* From SDK1/SETMODE/SRC/settv.c */
+        if (init_var.xres==640 && init_var.yres==440) {
+            /* 640x440 screen needs a little centering adjustment
+            WriteTVReg(0xE468, ReadTVReg(0xE468) + 2);
+            WriteTVReg(0xE46C, ReadTVReg(0xE46C) + 2);    Don't need this in 5300SDK1 */
+        }
+
         EnableTV(ON);
         TVOn(ON);
         SetScartTV(OFF);
@@ -1902,7 +1974,12 @@ void Tvia_TestVideo(u8 type){
 
 }
 
-void DumpTotalTest(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
+/*  */
+void  Fb_line_copy(u8 val){
+}
+
+/* Entry point for user defined ioctl */
+void My_Tvia_ioctl(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
    int idx;
    u8 tmp;
    u8 iTmpFA,iTmpF7,iTmp; 
@@ -2091,6 +2168,11 @@ void DumpTotalTest(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
  {
 	 Tvia_EnableDoubleBuffer(ON);
  }
+ else if (type==15) // Graphic frame buffer: copying 2nd line to first, 4th to 3rd and so on ..
+ {
+  	Fb_line_copy(val);
+ }
+
 
 /* else if (type==8) // read normal
  {
@@ -2102,8 +2184,7 @@ void DumpTotalTest(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
    Out_CRT_Reg(index,val));
    trace("Written 3d5/%x=%x",index,In_CRT_Reg(index));
  }
-
- else if (type==8) // read Tv reg 0xB0000
+/bin/bash: nv: command not found
  {
 //   u16 InTVReg(u32 dwReg)
 //{
@@ -3030,7 +3111,7 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 	case FBIO_TVIA5202_DumpTotalTest: {
       TESTTVIA tsttvia;
 			copy_from_user(&tsttvia, (void *)arg, sizeof(TESTTVIA));
-			DumpTotalTest(tsttvia.type,tsttvia.index,tsttvia.val,tsttvia.indexword,tsttvia.valword);
+			My_Tvia_ioctl(tsttvia.type,tsttvia.index,tsttvia.val,tsttvia.indexword,tsttvia.valword);
 			return 0;
 		}
 
@@ -3418,8 +3499,8 @@ static void __init tviafb_init_fbinfo(void)
 
     /* setup initial parameters */
     memset(&init_var, 0, sizeof(init_var));
-    init_var.xres_virtual = init_var.xres = DEFAULT_XRES;
-    init_var.yres_virtual = init_var.yres = DEFAULT_YRES;
+    init_var.xres_virtual = init_var.xres = selected_xres;
+    init_var.yres_virtual = init_var.yres = selected_yres;
     init_var.bits_per_pixel = DEFAULT_BPP;
 
     init_var.red.msb_right = 0;
@@ -3563,7 +3644,7 @@ static int __init tvia5202fb_init(void)
     current_par.memtype = 1;
     current_par.palette_size = 256;
 
-    trace("Tvia5202 INIT 1.7.5");
+    trace("Tvia5202 INIT 1.7.6");
 
     if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
        /* Reset Tvia5202 */
@@ -3613,7 +3694,7 @@ static int __init tvia5202fb_init(void)
     current_par.regs_base_p = VMEM_BASEADDR + 0x00800000;
 
     fb_mem_addr = current_par.screen_base;
-    x_res = DEFAULT_XRES;
+    x_res = selected_xres;
 
 // ------------
 
@@ -3670,7 +3751,51 @@ static int __init tvia5202fb_init(void)
 	tvia_outb(0x00, 0x3cf);  /* clear the banking */
 	dbg("OK NO_BE_MODE");
 
+    /* Verifying paramter from cmdline */
+    trace ("tvia_mode=%d\n",tvia_mode);
+
+
     dbg("tviafb_init_fbinfo");
+    switch (tvia_mode) {
+    case 1:
+	selected_xres = 720;
+        selected_yres = 576;
+	init_mode = 1;
+	reg_tv_size_5202 = 141*2;
+	trace ("Tvia mode PAL 720x576\n");
+	break;
+    case 2:
+        selected_xres = 640;
+        selected_yres = 480;
+        init_mode = 2;
+        reg_tv_size_5202 = 133*2;
+        trace ("Tvia mode NTSC 640x480-16-50\n");
+        break;
+   case 3:
+        selected_xres = 640;
+        selected_yres = 480;
+        init_mode = 3;
+        reg_tv_size_5202 = 133*2;
+        trace ("Tvia mode NTSC 640x480-16-60\n");
+        break;
+   case 4:
+        selected_xres = 640;
+        selected_yres = 440;
+        init_mode = 4;
+        reg_tv_size_5202 = 133*2;
+	
+        trace ("Tvia mode NTSC 640x440-16-60 : \n");
+        break;
+   case 5:
+        selected_xres = 800;
+        selected_yres = 600;
+        init_mode = 0;
+        reg_tv_size_5202 = 133*2; /* ? */
+        trace ("Tvia mode NTSC 800x600-?-? : \n");
+        break;
+
+    }
+
     tviafb_init_fbinfo();
 
     dbg("tvia_init_hw");

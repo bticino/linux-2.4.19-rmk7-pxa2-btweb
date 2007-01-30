@@ -111,8 +111,11 @@ typedef struct {
 
 mode_table Cyberpro_5202[] = {
     {800, 600, 16, 60, 0},
-/*    {640, 480, 16, 60, 0}  ORIG */
-    {720, 576, 16, 50, 0} /* Compliant to PAL frame buffer - To be adapted to work either NTSC or PAL*/
+    {640, 480, 16, 60, 0}, /* NTSC ORIG  Advantech*/
+    {720, 576, 16, 50, 0},  /* Compliant to PAL frame buffer - To be adapted to work either NTSC or PAL*/
+    {640, 440, 16, 60, 0}  /* ? */
+
+
 
 };
 

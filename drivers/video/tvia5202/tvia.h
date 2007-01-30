@@ -11,7 +11,7 @@
 typedef unsigned char u8;
 typedef unsigned short u16;
 */
-#define TOTAL_MODES_5202 3
+#define TOTAL_MODES_5202 4
 
 /* this part are the same in 5202*/
 #define   SEQCOUNT  0x05

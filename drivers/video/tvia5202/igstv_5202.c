@@ -39,10 +39,11 @@ static TVRegisters TV640x480x60_SDRAM;
 static TVRegisters TV640x480x50_SDRAM;
 
 TVRegisters *TVModeReg_5202_SDRAM[TOTAL_MODES_5202] = {
-    NULL,                 // 0
-    &TV720x576x50,        // INIT_MODE 
-    &TV640x480x50_SDRAM,  // 2
-//    &TV640x480x60_SDRAM
+    NULL,                 /* 0 */
+    &TV720x576x50,        /* 1: PAL */ 
+    &TV640x480x50_SDRAM,  /* 2: doesn't work */
+    &TV640x480x60_SDRAM,  /* 3: Advantech */
+    &TV640x480x60_SDRAM   /* 4: ? */
 };
 
 /* This table is for PAL 720x576 */
