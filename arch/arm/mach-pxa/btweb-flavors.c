@@ -212,7 +212,7 @@ struct btweb_gpio gpios[] __initdata = {
         },
         {
                 .id = BTWEB_PE,
-                .gpdr = { 0xCB93973F ,0x03FFBBCA ,0x0001C000},
+                .gpdr = { 0xCB93973F ,0x03FFBBCA ,0x0011C000},
                 .gpsr = { 0x0A038C29, 0x00FEA882, 0x0001C000},
                 .gpcr = { 0xC1901316, 0x03FD1348, 0x00000000},
                 .gafr = { 0x80400000,
@@ -391,6 +391,9 @@ static struct btweb_features feat __initdata = {
 	.color_i2c_addr = -1,
 	.color_port = -1,
 
+	/* touchscreen */
+	.penirq = -1,
+
 	/* audio */
         .ctrl_hifi = -1,
         .abil_mod_hifi = -1,
@@ -543,6 +546,9 @@ static int init_h4684ip(struct btweb_flavor *fla, int rev) {
         btweb_features.usb_soft_enum_n = 27;
         btweb_features.usb_pxa_slave_connected = 0;
 
+        /* touchscreen */
+        btweb_features.penirq = 37;
+
 	btweb_features.bright_i2c_addr = 0x28;
         btweb_features.bright_port = 0xaa;
         btweb_features.contr_i2c_addr = 0x28;
@@ -568,6 +574,9 @@ static int init_h4684ip_8(struct btweb_flavor *fla, int rev) {
         btweb_features.usb_soft_enum_n = 27;
         btweb_features.usb_pxa_slave_connected = 0;
 
+        /* touchscreen */
+        btweb_features.penirq = 37;
+
         btweb_features.bright_i2c_addr = 0x28;
         btweb_features.bright_port = 0xaa;
         btweb_features.amp_vol_i2c_addr = 0x28;
@@ -589,6 +598,9 @@ static int init_megaticker(struct btweb_flavor *fla, int rev) {
         btweb_features.backlight = 12;
         btweb_features.buzzer = 1;
         btweb_features.mdcnfg = 0x19C9;
+
+        /* touchscreen */
+        btweb_features.penirq = 37;
 
         btweb_features.bright_i2c_addr = 0x28;
         btweb_features.bright_port = 0xa9;
@@ -721,6 +733,9 @@ static int init_pi(struct btweb_flavor *fla, int rev) {
         /* power management */
         btweb_features.low_voltage = 55;
         btweb_features.power_sense = 14;
+
+	/* touchscreen */
+	btweb_features.penirq = 37;
 
 	 /* Enabling buzzer clock */
         CKEN |= CKEN0_PWM0;
