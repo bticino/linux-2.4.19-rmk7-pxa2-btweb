@@ -1,6 +1,6 @@
 
 /*
- *  ADS7846 touchscreen driver
+ *  ADS7843 touchscreen driver  
  */
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -43,6 +43,7 @@
 #define INCBUF(x,mod) (((x)+1) & ((mod) - 1))
 
 u_int max_error=MAX_ERROR;
+u_int mode=0x3; /* power down and penirq disabled, see datasheet ads7843 pag.9 */
 
 struct ts_info {
 	unsigned short pressure;
@@ -84,7 +85,7 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 #if 0
 		SSDR = 0x00d3;
 #else
-                SSDR = 0x0093;
+                SSDR = 0x0090|mode;
 #endif
 		udelay(250);
 		ssdr = SSDR;
@@ -97,7 +98,7 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 #if 0
                 SSDR = 0x0093;
 #else
-                SSDR = 0x00d3;
+                SSDR = 0x00d0|mode;
 #endif
 		udelay(250);
 		ssdr = SSDR;
@@ -108,6 +109,11 @@ static unsigned int get_sample(unsigned int *px,unsigned int *py)
 #endif
 
 
+	}
+
+	/* If enabled penirq and not pressed return: should be filtered */
+	if (!(mode&0x3) && ((GPLR(btweb_features.penirq)&GPIO_bit(btweb_features.penirq)))){
+		return 4;
 	}
 
 	if((x[2]<4095) && (x[3]<4095) && (x[4]<4095) && (x[2]>0) && (x[3]>0) && (x[4]>0)) {
@@ -259,6 +265,9 @@ static unsigned int poll_ad(struct file *filp, poll_table *wait)
 
 static int open_ad(struct inode *inode, struct file *filp)
 {
+	mode=mode&0xf;
+        printk(KERN_INFO "ADS7846 using: max_error=%d,mode=%x\n",max_error,mode);
+
 	if(ad_active)
 		return -EBUSY;
 	ad_active++;
@@ -323,7 +332,7 @@ int __init ads7846_init(void)
 	queue->fasync = NULL;
 
 	misc_register(&ads7846_tpanel);
-	printk(KERN_INFO "ADS7846 Touchscreen Driver\n");
+	printk(KERN_INFO "ADS7843 Touchscreen Driver\n");
 	return 0;
 }
  
@@ -345,7 +354,12 @@ module_exit(ads7846_exit);
 MODULE_PARM (max_error, "i");
 MODULE_PARM_DESC(max_error, "max_error");
 
+/* Low nibble of ads7843: MODE SER/DFR PD1 PD0  */
+MODULE_PARM (mode, "i");
+MODULE_PARM_DESC(mode, "mode");
+
+
 MODULE_AUTHOR("EdwardKuo");
-MODULE_DESCRIPTION("ADS7846 Touchscreen Driver");
+MODULE_DESCRIPTION("ADS7843 Touchscreen Driver");
 
 EXPORT_NO_SYMBOLS;
