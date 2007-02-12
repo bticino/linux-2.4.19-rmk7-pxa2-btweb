@@ -125,12 +125,15 @@ static int btsys_cammotor_fc1pan = 0;
 static int btsys_cammotor_fc2pan = 0;
 static int btsys_cammotor_fc1tilt = 0;
 static int btsys_cammotor_fc2tilt = 0;
+static int btsys_cammotor_hz = 0;
 
 
 static int bool_min[] = {0};
 static int bool_max[] = {1};
 static int byte_min[] = {0};
 static int byte_max[] = {255};
+static int short_min[] = {0};
+static int short_max[] = {65535};
 
 #ifdef CONFIG_I2C
 /* This part copied by i2c-dev.c (Simon G. Vogl, Frodo Looijaard) */
@@ -614,7 +617,7 @@ static int btsys_apply(int name)
                 break;
 		case BTWEB_CAMMOTOR_PAN:
 			if (btweb_features.cammotor_pan < 0)
-                               return -EOPNOTSUPP;
+				return -EOPNOTSUPP;
 			if (btsys_cammotor_pan == 0)
 				cam_panstop();
 			else if (btsys_cammotor_pan == 1)
@@ -624,13 +627,19 @@ static int btsys_apply(int name)
 		break;
 		case BTWEB_CAMMOTOR_TILT:
 			if (btweb_features.cammotor_tilt < 0)
-                               return -EOPNOTSUPP;
+				return -EOPNOTSUPP;
 			if (btsys_cammotor_tilt == 0)
 				cam_tiltstop();
 			else if (btsys_cammotor_tilt == 1)
 				cam_tiltfwd();
 			else if (btsys_cammotor_tilt == 2)
 				cam_tiltback();
+		break;
+		case BTWEB_CAMMOTOR_HZ:
+			if (btsys_cammotor_hz < CAM_HZ_MIN
+				|| btsys_cammotor_hz > CAM_HZ_MAX)
+				return -EINVAL;
+			cam_sethz(btsys_cammotor_hz);
 		break;
 		}
 	return 0;
@@ -977,6 +986,10 @@ static int btsys_read(int name)
 			if (btweb_features.cammotor_fc2tilt < 0)
                                return -EOPNOTSUPP;
 			btsys_cammotor_fc2tilt = (CAMTILT_FC2 != 0);
+			return 0;
+		break;
+		case BTWEB_CAMMOTOR_HZ:
+			btsys_cammotor_hz = cam_gethz();
 			return 0;
 		break;
 		}
@@ -1629,6 +1642,17 @@ ctl_table btsys_table[] = {
                 .strategy =      btsys_sysctl,
                 .extra1 =        bool_min,
                 .extra2 =        bool_max,
+        },
+	{
+                .ctl_name =      BTWEB_CAMMOTOR_HZ,
+                .procname =      "cammotor_hz",
+                .data =          &btsys_cammotor_hz,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        short_min,
+                .extra2 =        short_max,
         },
 	{0,}
 };

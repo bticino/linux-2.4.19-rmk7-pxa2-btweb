@@ -5,7 +5,16 @@
 #define CAMTILT_FC1 (GPLR(btweb_features.fc_tilt) & GPIO_bit(btweb_features.fc_tilt))
 #define CAMTILT_FC2 (GPLR(btweb_features.fc2_tilt) & GPIO_bit(btweb_features.fc2_tilt))
 
+/* Default Step frequency in Hz */
+#define CAM_HZ 500
+
+/* Max and min allowed stepping frequency */
+#define CAM_HZ_MAX 2000
+#define CAM_HZ_MIN   50
+
 void init_cammotors(void);
+void cam_sethz(int);
+int cam_gethz(void);
 void cam_panfwd(void);
 void cam_panback(void);
 void cam_panstop(void);

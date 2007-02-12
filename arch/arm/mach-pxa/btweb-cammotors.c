@@ -4,10 +4,10 @@
 #include <asm/irq.h>
 #include "btweb-cammotors.h"
 
-/* 1.3 ms period */
-#define PULSE_TICKS 4791 // FIXME: compute from CLOCK_TICK_RATE
-
-#define TESTIO 54
+/*
+ * Define this for a more "soft" mode for driving motors
+ */
+//#define CAM_HALFSTEP 1
 
 /* Motor states */
 #define ST_IDLE 0
@@ -21,12 +21,27 @@ struct motor_state {
 	int coil2b;
 };
 
-static struct motor_state motor_steps[4] = {
-	{ 1, 0, 1, 0 },
-	{ 1, 0, 0, 1 },
-	{ 0, 1, 0, 1 },
-	{ 0, 1, 1, 0 }
-};
+#ifdef CAM_HALFSTEP
+	#define CAM_NSTEPS 8  // Note: irq handler assumes this is a power of 2!
+	static struct motor_state motor_steps[CAM_NSTEPS] = {
+		{ 1, 0, 1, 0 },
+		{ 1, 0, 0, 0 },
+		{ 1, 0, 0, 1 },
+		{ 0, 0, 0, 1 },
+		{ 0, 1, 0, 1 },
+		{ 0, 1, 0, 0 },
+		{ 0, 1, 1, 0 },
+		{ 0, 0, 1, 0 }
+	};
+#else
+	#define CAM_NSTEPS 4  // Note: irq handler assumes this is a power of 2!
+	static struct motor_state motor_steps[CAM_NSTEPS] = {
+		{ 1, 0, 1, 0 },
+		{ 1, 0, 0, 1 },
+		{ 0, 1, 0, 1 },
+		{ 0, 1, 1, 0 }
+	};
+#endif
 
 static struct motor_state motor_standby = { 0, 0, 0, 0 };
 static struct motor_state motor_brake   = { 1, 1, 1, 1 };
@@ -35,6 +50,8 @@ static int pan_status = ST_IDLE;
 static int tilt_status = ST_IDLE;
 static int pan_step;
 static int tilt_step;
+
+static int pulse_ticks = CLOCK_TICK_RATE / CAM_HZ;
 
 inline static void set_panmotor_state(const struct motor_state *st)
 {
@@ -91,7 +108,7 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* Loop until we get ahead of the free running timer. */
 	do {
 		OSSR = OSSR_M2;  /* Clear match on timer 2 */
-		next_match = (OSMR2 += PULSE_TICKS);
+		next_match = (OSMR2 += pulse_ticks);
 	} while ( (signed long)(next_match - OSCR) <= 0 );
 
 	if (pan_status != ST_IDLE)
@@ -101,7 +118,7 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			pan_step++;
 		else
 			pan_step--;
-		pan_step &= 3;
+		pan_step &= CAM_NSTEPS-1;
 	}
 
 	if (tilt_status != ST_IDLE)
@@ -111,7 +128,7 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			tilt_step++;
 		else
 			tilt_step--;
-		tilt_step &= 3;
+		tilt_step &= CAM_NSTEPS-1;
 	}
 
 	/* Check end sensors */
@@ -134,7 +151,7 @@ static void start_intr(void)
 {
 	if (!(OIER & OIER_E2))
 	{
-		OSMR2 = OSCR + PULSE_TICKS;	/* set initial match */
+		OSMR2 = OSCR + pulse_ticks;	/* set initial match */
 		OSSR = OSSR_M2;			/* clear status on timer 2 */
 		request_irq(IRQ_OST2, cammotors_interrupt, SA_INTERRUPT, "cammotors", NULL);
 		OIER |= OIER_E2;		/* enable match on timer 2 to cause interrupts */
@@ -175,7 +192,19 @@ void init_cammotors(void)
 	GPDR(btweb_features.fc_tilt) &= ~GPIO_bit(btweb_features.fc_tilt);
 	GPDR(btweb_features.fc2_tilt) &= ~GPIO_bit(btweb_features.fc2_tilt);
 
-	printk(KERN_ERR "Camera motors GPIO initialized\n");
+	printk(KERN_INFO "Camera motors GPIO initialized\n");
+}
+
+/* Set the motor stepping speed in Hz */
+void cam_sethz(int hz)
+{
+	pulse_ticks = CLOCK_TICK_RATE / hz;
+	printk(KERN_DEBUG "Camera motors pulse_ticks changed: %d\n", pulse_ticks);
+}
+
+int cam_gethz(void)
+{
+	return (CLOCK_TICK_RATE / pulse_ticks);
 }
 
 void cam_panfwd(void)
