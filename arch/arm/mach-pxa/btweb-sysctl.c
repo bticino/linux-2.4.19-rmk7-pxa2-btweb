@@ -29,6 +29,12 @@ static int btsys_benable = 1; /* enabled by default */
 static int btsys_upsidedown;
 static int btsys_tago;
 
+/*
+ * Entry point for i2c manage - similar to i2c-dev but working
+ */
+static int btsys_i2c_generic[4];
+
+
 static void
 btweb_kd_nosound(unsigned long ignored)
 {
@@ -275,6 +281,8 @@ static int btsys_i2cpot_read(int addr, int reg, char * val)
         return -EIO;
 }
 
+
+
 #else /* !I2C */
 static int btsys_i2c_do(int addr, int reg, int val)
 {
@@ -325,6 +333,16 @@ static int btsys_apply(int name)
 			if (!btsys_benable)
 				btweb_kd_nosound(0);
 			break;
+                case BTWEB_I2C_GENERIC:
+
+			printk("i2c_generic apply: %x,%x,%x\n",btsys_i2c_generic[0],btsys_i2c_generic[1],btsys_i2c_generic[2],btsys_i2c_generic[3]);
+                        if (btsys_i2c_generic[0] < 0)
+                                return -EOPNOTSUPP;
+
+			/* 4th parameter 0 means only setting device address and register to be read afterwards */
+			if (btsys_i2c_generic[3] != 0)
+				return btsys_i2c_do(btsys_i2c_generic[0],btsys_i2c_generic[1],btsys_i2c_generic[2]);
+                        break;
 		case BTWEB_UPSIDEDOWN:
 			if (!btweb_features.backlight)
 				return -EOPNOTSUPP;
@@ -762,6 +780,14 @@ static int btsys_read(int name)
 			btsys_abil_fon=((GPLR(btweb_features.abil_fon)&GPIO_bit(btweb_features.abil_fon))!=0);
 			return 0;
 		break;
+                case BTWEB_I2C_GENERIC:
+                        if (btsys_i2c_generic[0] < 0)
+                                return -EOPNOTSUPP;
+
+                        btsys_i2c_read(btsys_i2c_generic[0], btsys_i2c_generic[1], &ret);
+                        btsys_i2c_generic[2]=(int)ret;
+                        return 0;
+                break;
 		case BTWEB_BRIGHTNESS:
                         if (btweb_features.bright_i2c_addr < 0)
 			{
@@ -1206,6 +1232,15 @@ ctl_table btsys_table[] = {
                 .strategy =      btsys_sysctl,
                 .extra1 =        bool_min,
                 .extra2 =        bool_max,
+        },
+        {
+                .ctl_name =      BTWEB_I2C_GENERIC,
+                .procname =      "i2c_generic",
+                .data =          &btsys_i2c_generic,
+                .maxlen =        4*sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
         },
         {
                 .ctl_name =      BTWEB_UPSIDEDOWN,

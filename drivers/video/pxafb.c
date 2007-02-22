@@ -1205,6 +1205,9 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 {
 	u_int old_state;
 
+	/* Investigating crazy lcd effects */
+        DPRINTK("pxafb: set_ctrlr_state with state=%d (old_state=%d)\n",state,fbi->state);
+
 	down(&fbi->ctrlr_sem);
 
 	old_state = fbi->state;

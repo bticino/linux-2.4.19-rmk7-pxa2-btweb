@@ -186,5 +186,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_CAMMOTOR_FC1TILT  48 /* Camera fc1 tilt sensor */
 #define BTWEB_CAMMOTOR_FC2TILT  49 /* Camera fc2 tilt sensor */
 #define BTWEB_CAMMOTOR_HZ       50 /* Camera motor stepping frequency */
+#define BTWEB_I2C_GENERIC	51 /* I2C generic entry point */
+
 
 #endif

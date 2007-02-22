@@ -603,9 +603,9 @@ static int init_megaticker(struct btweb_flavor *fla, int rev) {
         btweb_features.penirq = 37;
 
         btweb_features.bright_i2c_addr = 0x28;
-        btweb_features.bright_port = 0xa9;
+        btweb_features.bright_port = 0xaa;
         btweb_features.contr_i2c_addr = 0x28;
-        btweb_features.contr_port = 0xaa;
+        btweb_features.contr_port = 0xa9;
 
 	btweb_features.rx_tx_485 = 9;
         /* Enabling buzzer clock */
