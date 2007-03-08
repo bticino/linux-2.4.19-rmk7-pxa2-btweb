@@ -177,6 +177,8 @@ do {									\
 #undef GS_DEBUG
 #endif
 
+#undef DEBUG
+
 
 /* debug settings */
 #ifdef GS_DEBUG
@@ -1317,6 +1319,7 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	struct gs_port *port;
 	int ret;
 	struct tty_struct *tty;
+	int idx;
 
 	/* TEMPORARY -- only port 0 is supported right now */
 	port = dev->dev_port[0];
@@ -1367,8 +1370,23 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 #else
 
         len = (unsigned int)(TTY_FLIPBUF_SIZE - port->port_tty->flip.count);
+#if DEBUG
+	printk("mylen%ds%d\n",len,size);
+        /* 496 versus 512 */
+        for (idx=0;idx<size;idx++)
+                printk("%c",packet[idx]);
+        printk("\n");
+#endif
+
         if( len < size )
                 size = len;
+#if DEBUG
+        printk("copypack\n");
+	/* 496 versus 512 */
+	for (idx=0;idx<size;idx++)
+		printk("%c",packet[idx]);
+        printk("\n");
+#endif
 
         if( size > 0 ) {
                 memcpy( port->port_tty->flip.char_buf_ptr, packet, size );
