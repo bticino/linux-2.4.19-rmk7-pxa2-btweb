@@ -269,13 +269,14 @@ oledhw_backfill(struct oledfb_info *info, int frame)
 static void
 oledhw_screensaver_start(struct oledfb_info *info)
 {
-	oledhw_write_cmd(info, OLED_CMD_HSPEED | 1);
-	oledhw_write_cmd(info, OLED_CMD_VSPEED | 1);
-	oledhw_write_cmd(info, OLED_CMD_MOVE   | 0x04 | 0x03); /* horiz. bounce only, vert. bounce and wrap */
 	oledhw_write_cmd16(info, OLED_CMD_VMIN, 0x62);
 	oledhw_write_cmd16(info, OLED_CMD_VMAX, 0x1F);
 	oledhw_write_cmd16(info, OLED_CMD_HMIN, 0xC0);
 	oledhw_write_cmd16(info, OLED_CMD_HMAX, 0x40);
+	mdelay(10);
+	oledhw_write_cmd(info, OLED_CMD_MOVE   | 0x04 | 0x03); /* horiz. bounce only, vert. bounce and wrap */
+	oledhw_write_cmd(info, OLED_CMD_HSPEED | 1);
+	oledhw_write_cmd(info, OLED_CMD_VSPEED | 1);
 }
 
 static void

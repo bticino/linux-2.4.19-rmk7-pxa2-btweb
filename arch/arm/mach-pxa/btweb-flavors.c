@@ -92,7 +92,7 @@ static int init_h4684ip_8(struct btweb_flavor *fla, int rev);
 static int init_pe(struct btweb_flavor *fla, int rev); 
 static int init_pi(struct btweb_flavor *fla, int rev); 
 static int init_megaticker(struct btweb_flavor *fla, int rev);
-
+static int init_pbx288exp(struct btweb_flavor *fla, int rev);
 
 
 struct btweb_gpio {
@@ -108,7 +108,7 @@ static struct btweb_flavor fltab[] __initdata = {
 	{0x0,0x0, BTWEB_F453,      "F453",      64, 400, NULL,  NULL},
 	{0x1,0x1, BTWEB_F453AV,    "F453AV",    64, 400, &feat, &init_f453av_346890},
 	{0x2,0x2, BTWEB_2F,	   "2F",        64, 400, &feat, &init_f453av_346890},
-	{0x3,0x3, BTWEB_PBX288exp, "PBX288EXP", 64, 400, NULL,  NULL},
+	{0x3,0x3, BTWEB_PBX288exp, "PBX288EXP", 64, 400, &feat, &init_pbx288exp},
 	{0x4,0x4, BTWEB_PBX288,    "PBX288",    64, 400, NULL,  NULL},
 	{0x5,0x5, BTWEB_PE,    	   "PE",        64, 400, &feat, &init_pe},
 	{0x6,0x6, BTWEB_PI,        "PI",        64, 400, &feat, &init_pi},
@@ -236,6 +236,35 @@ struct btweb_gpio gpios[] __initdata = {
                           0x00000002
                 }
         },
+        {
+                .id = BTWEB_PBX288exp,
+                .gpdr = { 0xFB9FFC0B,0x63FFFBEB,0x0015EEDC},
+                .gpsr = { 0x0B038C08,0x00402BAA,0x0001C85C},
+                .gpcr = { 0xF09C7003,0x63BFD041,0x00142680},
+                .gafr = { 0x80000000,
+			  0x00188008,
+			  0x00908018,
+			  0x00000000,
+			  0xA0000000,
+			  0x00000196
+                }
+        },
+#if BTEB_MINIMALI
+        {
+                .id = BTWEB_PBX288exp, /* TEST MINIMALI */
+                .gpdr = { 0x00008000,0x00000082,0x0001C000},
+                .gpsr = { 0x00008000,0x00000082,0x0001C000},
+                .gpcr = { 0x00000000,0x00000000,0x00000000},
+                .gafr = { 0x80000000,
+			  0x00000000,
+			  0x00008018,
+			  0x00000000,
+			  0xA0000000,
+			  0x00000002
+
+                }
+        },
+#endif
 	/* Last table is BTWEB_ANY, a catch-all default */
 	{
 		.id = BTWEB_ANY, /* This is currently the same as 453AV */
@@ -440,6 +469,30 @@ static struct btweb_features feat __initdata = {
 	.MIN4B = -1,
 
 	.rx_tx_485 = -1,
+
+	/* pbx */
+	.pbx_rst_ext_d = -1,
+	.pbx_line_off_d = -1,
+	.pbx_batt_sens_d = -1,
+	.pbx_int_ext_d = -1,
+	.pbx_cs4_d = -1,
+	.pbx_batt_charge = -1,
+	.pbx_cs5_d = -1,
+	.pbx_cs1_d = -1,
+	.pbx_fs_res = -1,
+	.pbx_cs2_d = -1,
+	.pbx_h_suspend = -1,
+	.pbx_cs3_d = -1,
+	.pbx_rst_d = -1,
+	.pbx_int3_d = -1,
+	.pbx_cssa_d = -1,
+	.pbx_cssb_d = -1,
+	.pbx_cs_clid1_d = -1,
+	.pbx_cs_clid2_d = -1,
+	.pbx_rst1_d = -1,
+	.pbx_batt_state = -1,
+	.pbx_batt_low = -1,
+	
 };
 
 /* finally the init procedures */
@@ -708,14 +761,14 @@ static int init_pi(struct btweb_flavor *fla, int rev) {
         btweb_features.bright_port = 0xa9;
         btweb_features.contr_i2c_addr = 0x29;
         btweb_features.contr_port = 0xaa;
-        btweb_features.color_i2c_addr = 0x28,
-        btweb_features.color_port = 0xaa,
+        btweb_features.color_i2c_addr = 0x28;
+        btweb_features.color_port = 0xaa;
 
         /* audio */
-        btweb_features.abil_dem_hifi = 20,/*<-*/
-        btweb_features.abil_fon = 41,
-        btweb_features.amp_vol_i2c_addr = 0x29,
-        btweb_features.amp_vol_port = 0xa9,
+        btweb_features.abil_dem_hifi = 20;/*<-*/
+        btweb_features.abil_fon = 41;
+        btweb_features.amp_vol_i2c_addr = 0x29;
+        btweb_features.amp_vol_port = 0xa9;
         btweb_features.abil_amp = 9;
         btweb_features.amp_left = 11;
         btweb_features.amp_right = 13;
@@ -745,6 +798,90 @@ static int init_pi(struct btweb_flavor *fla, int rev) {
         set_GPIO_mode(GPIO46_STRXD_MD);
         set_GPIO_mode(GPIO47_STTXD_MD);
 
+
+        return 0;
+}
+
+
+static int init_pbx288exp(struct btweb_flavor *fla, int rev) {
+
+        printk("Customizing %s, revision is %d\n",fla->name,rev);
+
+        btweb_features.tvia_reset = -1;
+        btweb_features.eth_reset = 3;
+        btweb_features.eth_irq = 22;
+        btweb_features.e2_wp = 10;
+        btweb_features.rtc_irq = 8;
+        btweb_features.backlight = -1;
+        btweb_features.pic_reset = -1; // TODO via Codec
+        btweb_features.buzzer = -1;
+        btweb_features.mdcnfg = 0x19C9;
+        btweb_features.ctrl_video = -1;
+        btweb_features.abil_dem_video = -1;
+        btweb_features.usb_soft_enum_n = 27;
+        btweb_features.usb_pxa_slave_connected = 0;
+
+        /* lcd */
+        btweb_features.bright_i2c_addr = -1;
+        btweb_features.bright_port = -1;
+        btweb_features.contr_i2c_addr = -1;
+        btweb_features.contr_port = -1;
+        btweb_features.color_i2c_addr = -1;
+        btweb_features.color_port = -1;
+
+        /* audio */
+        btweb_features.abil_dem_hifi = -1;/*<-*/
+        btweb_features.abil_fon = -1;
+        btweb_features.amp_vol_i2c_addr = -1;
+        btweb_features.amp_vol_port = -1;
+        btweb_features.abil_amp = -1;
+        btweb_features.amp_left = -1;
+        btweb_features.amp_right = -1;
+        btweb_features.abil_fon_ip = -1;
+        btweb_features.mute_speaker = -1;
+        btweb_features.abil_mic = -1;
+
+        /* status led */
+        btweb_features.led_serr = -1;
+        btweb_features.led_escl = -1;
+        btweb_features.led_mute = -1;
+        btweb_features.led_conn = -1;
+        btweb_features.led_alarm = -1;
+
+        /* power management */
+        btweb_features.low_voltage = -1;
+        btweb_features.power_sense = -1;
+
+        /* touchscreen */
+        btweb_features.penirq = -1;
+
+        /* This enables the STUART for Pic */
+        CKEN |= CKEN5_STUART;
+        set_GPIO_mode(GPIO46_STRXD_MD);
+        set_GPIO_mode(GPIO47_STTXD_MD);
+
+	/* pbx */
+	btweb_features.pbx_rst_ext_d = 1;
+	btweb_features.pbx_line_off_d = 4;
+	btweb_features.pbx_batt_sens_d = 5;
+	btweb_features.pbx_int_ext_d = 9;
+	btweb_features.pbx_cs4_d = 11;
+	btweb_features.pbx_batt_charge = 16;
+	btweb_features.pbx_cs5_d = 24;
+	btweb_features.pbx_cs1_d = 35;
+	btweb_features.pbx_fs_res = 37;
+	btweb_features.pbx_cs2_d = 41;
+	btweb_features.pbx_h_suspend = 45;
+	btweb_features.pbx_cs3_d = 54;
+	btweb_features.pbx_rst_d = 61;
+	btweb_features.pbx_int3_d = 65;
+	btweb_features.pbx_cssa_d = 66;
+	btweb_features.pbx_cssb_d = 67;
+	btweb_features.pbx_cs_clid1_d = 68;
+	btweb_features.pbx_cs_clid2_d = 70;
+	btweb_features.pbx_rst1_d = 74;
+	btweb_features.pbx_batt_state = 75;
+	btweb_features.pbx_batt_low = 76;
 
         return 0;
 }

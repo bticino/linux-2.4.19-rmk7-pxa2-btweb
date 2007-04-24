@@ -94,6 +94,30 @@ struct btweb_features {
 
         int penirq;
 
+	int pbx_rst_ext_d;
+	int pbx_line_off_d;
+	int pbx_batt_sens_d;
+	int pbx_int_ext_d;
+	int pbx_cs4_d;
+	int pbx_batt_charge;
+	int pbx_cs5_d;
+	int pbx_cs1_d;
+	int pbx_fs_res;
+	int pbx_cs2_d;
+	int pbx_h_suspend;
+	int pbx_cs3_d;
+	int pbx_rst_d;
+	int pbx_int3_d;
+	int pbx_cssa_d;
+	int pbx_cssb_d;
+	int pbx_cs_clid1_d;
+	int pbx_cs_clid2_d;
+	int pbx_rst1_d;
+	int pbx_batt_state;
+	int pbx_batt_low;
+
+	int tx_infrared_addr;
+
 };
 #define BTWEB_NAMELEN 32
 struct btweb_globals {
@@ -187,6 +211,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_CAMMOTOR_FC2TILT  49 /* Camera fc2 tilt sensor */
 #define BTWEB_CAMMOTOR_HZ       50 /* Camera motor stepping frequency */
 #define BTWEB_I2C_GENERIC	51 /* I2C generic entry point */
+#define BTWEB_TX_INFRARED	52 /* Remote control infrared transmitter */
 
 
 #endif

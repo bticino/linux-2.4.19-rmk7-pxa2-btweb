@@ -132,6 +132,7 @@ static int btsys_cammotor_fc2pan = 0;
 static int btsys_cammotor_fc1tilt = 0;
 static int btsys_cammotor_fc2tilt = 0;
 static int btsys_cammotor_hz = 0;
+static int btsys_tx_infrared_data[4];
 
 
 static int bool_min[] = {0};
@@ -183,12 +184,15 @@ static struct i2c_client btsys_client = {
         driver:         &btsys_driver,
 };
 
-static int btsys_i2c_do(int addr, int reg, int val)
+/*
+* Send 'len' bytes from the buffer 'data' on the i2c bus,
+* to the slave at the given address 'addr'.
+*/
+static int btsys_i2c_send(int addr, const char *data, size_t len)
 {
 	static int registered;
-	char data[2] = {reg, val};
 
-	if ((addr<0)||(reg<0))
+     if (addr < 0)
 		return -EOPNOTSUPP;
 
 	if (!registered) {
@@ -204,11 +208,24 @@ static int btsys_i2c_do(int addr, int reg, int val)
 		registered++;
 	}
 	btsys_client.addr = addr;
-	if (i2c_master_send(&btsys_client, data, 2) == 2)
-	{
+     if (i2c_master_send(&btsys_client, data, len) == len)
 		return 0;
-	}
+     else
 	return -EIO;
+}
+
+/*
+* Write the 1 byte value 'val' in the 'reg' register (1 byte address)
+* of the slave i2c device at address 'addr'.
+*/
+static int btsys_i2c_do(int addr, int reg, int val)
+{
+     char data[2] = {reg, val};
+
+     if (reg < 0)
+          return -EOPNOTSUPP;
+
+     return btsys_i2c_send(addr, data, 2);
 }
 
 static int btsys_i2c_read(int addr, int reg, char * val)
@@ -288,6 +305,11 @@ static int btsys_i2c_do(int addr, int reg, int val)
 {
 	return 0;
 } 
+
+static int btsys_i2c_send(int addr, const char *data, size_t len)
+{
+     return 0;
+}
 #endif /* I2C */
 
 static int btsys_apply(int name)
@@ -335,7 +357,7 @@ static int btsys_apply(int name)
 			break;
                 case BTWEB_I2C_GENERIC:
 
-			printk("i2c_generic apply: %x,%x,%x\n",btsys_i2c_generic[0],btsys_i2c_generic[1],btsys_i2c_generic[2],btsys_i2c_generic[3]);
+               printk("i2c_generic apply: %x,%x,%x,%x\n",btsys_i2c_generic[0],btsys_i2c_generic[1],btsys_i2c_generic[2],btsys_i2c_generic[3]);
                         if (btsys_i2c_generic[0] < 0)
                                 return -EOPNOTSUPP;
 
@@ -659,6 +681,15 @@ static int btsys_apply(int name)
 				return -EINVAL;
 			cam_sethz(btsys_cammotor_hz);
 		break;
+          case BTWEB_TX_INFRARED:
+          {
+               char data[4];
+               int i;
+               for (i=0; i < 4; i++)
+                    data[i] = btsys_tx_infrared_data[i];
+               return btsys_i2c_send(btweb_features.tx_infrared_addr, data, sizeof(data));
+          }
+          break;
 		}
 	return 0;
 }
@@ -1689,6 +1720,17 @@ ctl_table btsys_table[] = {
                 .extra1 =        short_min,
                 .extra2 =        short_max,
         },
+     {
+               .ctl_name =      BTWEB_TX_INFRARED,
+               .procname =      "tx_infrared",
+               .data =          btsys_tx_infrared_data,
+               .maxlen =        sizeof(btsys_tx_infrared_data),
+               .mode =          0644,
+               .proc_handler =  btsys_proc,
+               .strategy =      btsys_sysctl,
+               .extra1 =        byte_min,
+               .extra2 =        byte_max,
+       },
 	{0,}
 };
 
