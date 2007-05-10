@@ -134,7 +134,7 @@ dep_tristate '  ADS7846 touchscreen support' CONFIG_ADS7846_TOUCHSCREEN $CONFIG_
 dep_tristate '  BIGBUF memory allocation (max 256kb cached and good for dma)' CONFIG_BIGBUF $CONFIG_ARCH_PXA
 dep_tristate '  BIGBUF1 memory allocation (max 256kb cached and good for dma)' CONFIG_BIGBUF1 $CONFIG_ARCH_PXA
 dep_tristate '  BTIO - Io debounce reader (BtPXA based)' CONFIG_BTIO $CONFIG_ARCH_PXA
-
+dep_tristate '  PXA_SSP_LEGERITY - PXA SPI communication channel to Legerity Codec' CONFIG_PXA_SSP_LEGERITY $CONFIG_ARCH_PXA
 
 source drivers/i2c/Config.in
 

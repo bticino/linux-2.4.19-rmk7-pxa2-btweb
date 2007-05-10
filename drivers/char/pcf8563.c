@@ -180,6 +180,9 @@ pcf_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 
 	if (ret != 2) {
                 printk("pcf_get_datetime(), i2c_transfer() returned %d\n",ret);
+		#ifdef CONFIG_MACH_BTWEB
+			btweb_globals.rtc_invalid = 1;
+		#endif
 		return ret;
 	}
 	ret = pcf_convert_to_time( dt, buf);

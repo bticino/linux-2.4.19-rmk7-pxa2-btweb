@@ -297,6 +297,7 @@ obj-$(CONFIG_SOFT_WATCHDOG) += softdog.o
 obj-$(CONFIG_BIGBUF) += bigbuf.o
 obj-$(CONFIG_BIGBUF1) += bigbuf1.o
 obj-$(CONFIG_BTIO) += btIoDebounce.o
+obj-$(CONFIG_PXA_SSP_LEGERITY) += pxa-ssp-legerity.o
 
 # I2C char devices
 obj-$(CONFIG_I2C_DS1307) += ds1307.o
