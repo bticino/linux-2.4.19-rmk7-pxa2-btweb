@@ -112,6 +112,7 @@ static int btsys_amp_right = 0;
 static int btsys_abil_fon_ip = 0;
 static int btsys_mute_speaker = 0;
 static int btsys_abil_mic = 0;
+static int btsys_abil_i2s = 0;
 static int btsys_led_serr = 0;
 static int btsys_led_escl = 0;
 static int btsys_led_mute = 0;
@@ -462,6 +463,18 @@ static int btsys_apply(int name)
 					GPIO_bit(btweb_features.abil_fon);
 			}
 		break;
+                case BTWEB_ABIL_I2S:
+                        if (btweb_features.abil_i2s < 0)
+                                return -EOPNOTSUPP;
+                        if (btsys_abil_i2s){
+                                GPSR(btweb_features.abil_i2s) =
+                                        GPIO_bit(btweb_features.abil_i2s);
+                        }
+                        else{
+                                GPCR(btweb_features.abil_i2s) =
+                                        GPIO_bit(btweb_features.abil_i2s);
+                        }
+                break;
 		case BTWEB_BRIGHTNESS:
                         if (btweb_features.bright_i2c_addr < 0)
                                 return -EOPNOTSUPP;
@@ -811,6 +824,15 @@ static int btsys_read(int name)
 			btsys_abil_fon=((GPLR(btweb_features.abil_fon)&GPIO_bit(btweb_features.abil_fon))!=0);
 			return 0;
 		break;
+                case BTWEB_ABIL_I2S:
+                        if (btweb_features.abil_i2s < 0)
+                        {
+                                btsys_abil_i2s = -1;
+                                return -EOPNOTSUPP;
+                        }
+                        btsys_abil_i2s=((GPLR(btweb_features.abil_i2s)&GPIO_bit(btweb_features.abil_i2s))!=0);
+                        return 0;
+                break;
                 case BTWEB_I2C_GENERIC:
                         if (btsys_i2c_generic[0] < 0)
                                 return -EOPNOTSUPP;
@@ -1311,6 +1333,15 @@ ctl_table btsys_table[] = {
 		.proc_handler =  proc_dostring,
 		.strategy =      sysctl_string,
 	},
+        {
+                .ctl_name =      BTWEB_SERIAL_NUMBER,
+                .procname =      "serial_number",
+                .data =          btweb_globals.serial_number,
+                .maxlen =        BTWEB_NAMELEN,
+                .mode =          0444,
+                .proc_handler =  proc_dostring,
+                .strategy =      sysctl_string,
+        },
 	{
 		.ctl_name =      BTWEB_HWVERSION,
 		.procname =      "hw_version",
@@ -1406,6 +1437,17 @@ ctl_table btsys_table[] = {
 		.extra1 =        bool_min,
 		.extra2 =        bool_max,
 	},
+        {
+                .ctl_name =      BTWEB_ABIL_I2S,
+                .procname =      "abil_i2s",
+                .data =          &btsys_abil_i2s,
+                .maxlen =        sizeof(int),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+                .extra1 =        bool_min,
+                .extra2 =        bool_max,
+        },
         {
 		.ctl_name =      BTWEB_USB_PXA_SLAVE_CONNECTED,
                 .procname =      "usb_pxa_slave_connected",

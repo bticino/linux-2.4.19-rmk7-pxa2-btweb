@@ -440,6 +440,7 @@ static struct btweb_features feat __initdata = {
         .mic_volume_port = -1,
         .speaker_vol_i2c_addr = -1,
         .speaker_vol_port = -1,
+	.abil_i2s = -1,
 
 	/* status led */
         .led_serr = -1,
@@ -598,6 +599,7 @@ static int init_h4684ip(struct btweb_flavor *fla, int rev) {
         btweb_features.mdcnfg = 0x19C9;
         btweb_features.usb_soft_enum_n = 27;
         btweb_features.usb_pxa_slave_connected = 0;
+        btweb_features.abil_i2s = 4;
 
         /* touchscreen */
         btweb_features.penirq = 37;

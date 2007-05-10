@@ -1042,9 +1042,30 @@ DONE:
 	return result;
 }
 
+static char* MAC_interpr(unsigned char *ptr)
+{
+        static char buff[13];
+        char *ptr1;
+        char *pos;
+        unsigned int i;
+
+        pos = buff;
+	ptr1 = ptr+10;//strlen(ptr)-2;
+        for (i = 0;i < 6; i++) {
+		sprintf(pos, "%c%c",*(ptr1),*(ptr1+1));
+                pos += 2;
+		ptr1 -= 2;
+        }
+        *pos = '\0';
+        return (buff);
+}
+
+
 static int Smsc911x_open(struct net_device *dev)
 {
 	int result=-ENODEV;
+	char MAC_temp[13]="";
+
 	PPRIVATE_DATA privateData=NULL;
 	PPLATFORM_DATA platformData=NULL;
 	BOOLEAN acquired_mem_region=FALSE;
@@ -1143,6 +1164,9 @@ static int Smsc911x_open(struct net_device *dev)
 			} else {
 				SMSC_TRACE("Mac Address is read from LAN911x as 0x%04lX%08lX",
 					dwHigh16,dwLow32);
+				sprintf(MAC_temp,"%04lX%08lX",dwHigh16,dwLow32);
+				strcpy(btweb_globals.serial_number,MAC_interpr(MAC_temp));
+				SMSC_TRACE("Mac Address reversed %s",btweb_globals.serial_number);
 			}
 		} else {
 			//SMSC_ASSERT((mac_addr_hi16&0xFFFF8000UL)==0);

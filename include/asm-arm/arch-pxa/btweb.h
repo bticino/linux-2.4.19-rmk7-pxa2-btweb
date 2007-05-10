@@ -33,6 +33,7 @@ struct btweb_features {
 	int abil_mod_hifi;
         int abil_dem_hifi;
 	int abil_fon;
+	int abil_i2s;
         int cf_irq;
 	int usb_soft_enum_n;
 	int usb_pxa_slave_connected;
@@ -124,6 +125,7 @@ struct btweb_globals {
 	int flavor;
 	int hw_version;
 	char name[BTWEB_NAMELEN]; /* can't be a char * because of sysctl */
+	char serial_number[BTWEB_NAMELEN]; /* can't be a char * because of sysctl */
 	unsigned long last_touch;
 	int rtc_invalid;
 	int usb_pxa_slave_connected;
@@ -212,6 +214,8 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_CAMMOTOR_HZ       50 /* Camera motor stepping frequency */
 #define BTWEB_I2C_GENERIC	51 /* I2C generic entry point */
 #define BTWEB_TX_INFRARED	52 /* Remote control infrared transmitter */
+#define BTWEB_ABIL_I2S		53 /* POWER ON on I2S transmitter */
+#define BTWEB_SERIAL_NUMBER     54 /* SERIAL NUMBER : normally is thew MAC_ADDRESS */
 
 
 #endif
