@@ -1,4 +1,18 @@
+#!/bin/bash
+export CROSS_COMPILE=/opt/snapgear-toolchain/bin/arm-linux-
+export ARCH=arm
+sudo make clean
+sudo rm arch/arm/boot/uImage
+echo "KERNEL MAKE CLEAN DONE"
+read
+sudo make CROSS_COMPILE=$CROSS_COMPILE ARCH=$ARCH dep zImage modules
+echo "KERNEL AND MODULES MAKE DONE"
+
 cd arch/arm/boot
 sudo /opt/sources/u-boot/u-boot-btweb/tools/mkimage -A arm -O linux -T kernel -C none -a a0480000 -n `date +%y%m%d-%H%M` -d ./zImage ./uImage
 sudo cp -a uImage /tftpboot
 cd ../../..
+
+echo "KERNEL uImage created and copied in /tftpboot/"
+
+
