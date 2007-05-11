@@ -43,8 +43,9 @@
 
 #define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
 
-
-
+/* DEFINES */
+#define PXA_SSP_WRITE 5500
+#define PXA_SSP_READ  5501
 #define CSON(x) switch (x) {\
 		case 0:\
 		GPCR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
@@ -133,93 +134,7 @@ static void ctrlssp_set_gpio(void)
 	set_GPIO_mode(GPIO26_SRXD_MD);
 }
 
-#if 0
-static ssize_t read_ssp(struct file *filp, char *buffer,
-                       size_t count, loff_t *ppos)
-{
-	unsigned char ssdr;
-	int len=1;
 
-	if(count != 1)
-		return -EINVAL;
-
-//	GPCR(0)=0x800|0x1000000;
-//	GPCR(32)=0x8|0x200|0x400000;
-	
-//	CSON(filp->private_data);
-	CSON(voicedev);
-	printk("read_ssp: CSON=%d\n",voicedev);
-
-	mdelay(1);
-	SSDR=0xff;
-	printk("read_ssp:reading\n");
-	ssdr=0x00ff&SSDR;	
-        printk("read_ssp:read %x\n",ssdr);
-
-	mdelay(2);
-	CSOFF;
-//	GPSR(0)=0x800|0x1000000;
-//	GPSR(32)=0x8|0x200|0x400000;
-	mdelay(1);
-
-        if(copy_to_user(buffer, &ssdr, len)) {
-                return -EFAULT;
-        }
-
-	return 1;
-}
-
-
-static ssize_t write_ssp(struct file *filp, const char *buffer,size_t count, loff_t *ppos)
-{
-	unsigned char val=0;
-	int len=1;
-
-        if(count != 1)
-                return -EINVAL;
-
-	if (copy_from_user(&val, buffer, len)) {
-                return -EFAULT;
-        }
-
-        printk("write_ssp:writing %x\n",val);
-	printk("write_ssp: CSON=%d\n",voicedev);
-
-        
-//	GPCR(0)=0x800|0x1000000;
-//      GPCR(32)=0x8|0x200|0x400000;
-	CSON(voicedev);//filp->private_data);
-	mdelay(1);
-
-        SSDR = val;
-
-	mdelay(1);
-//	GPSR(0)=0x800|0x1000000;
-//	GPSR(32)=0x8|0x200|0x400000;
-	CSOFF;
-	mdelay(1);
-
-//	GPCR(0)=0x800|0x1000000;
-//	GPCR(32)=0x8|0x200|0x400000;
-//	CSON(voicedev);//filp->private_data);
-//	mdelay(1);
-	val=SSDR;
-//	mdelay(1);
-
-//	printk("write_ssp:trailing read %x\n",val);
-
-//	GPSR(0)=0x800|0x1000000;
-//	GPSR(32)=0x8|0x200|0x400000;
-//	CSOFF;
-//	mdelay(1);
-
-
-	return 1;
-}
-#endif 
-
-#define PXA_SSP_WRITE 5500
-#define PXA_SSP_READ  5501
 
 static int
 ioctl_ssp( struct inode *inode, struct file *file,
@@ -240,9 +155,9 @@ ioctl_ssp( struct inode *inode, struct file *file,
 			udelay(1);
 			deb("ioctl_ssp:wr %x to CSON=%d\n",val,voicedev);
 			SSDR = 0xff&val;
-			mdelay(1);
+			udelay(7);
 			CSOFF;
-			mdelay(1);
+			udelay(7);
 
 			/* trailing read */
 			tmp=SSDR;
@@ -252,12 +167,12 @@ ioctl_ssp( struct inode *inode, struct file *file,
 			CSON(voicedev);
 			udelay(1);
 			SSDR=0xff;
-			mdelay(1);
+			udelay(7);
 			ssdr=0x00ff&SSDR;
 			deb("ioctl_ssp:rd %x from CSON=%d\n",ssdr,voicedev);
-			mdelay(1);
+			udelay(7);
 			CSOFF;
-			mdelay(1);
+			udelay(7);
 			if(copy_to_user((void *)arg, &ssdr, sizeof(ssdr))) {
 				deb("ioctl_ssp: no copytouser\n");
 				return -EFAULT;
@@ -321,22 +236,16 @@ int __init ctrlssp_init(void)
 
 	ctrlssp_set_gpio();
 
-
         GPSR(btweb_features.pbx_rst_d)=GPIO_bit(btweb_features.pbx_rst_d);
-        mdelay(1000);
+        mdelay(100);
 	/* out of reset state TODO*/
 	GPCR(btweb_features.pbx_rst_d)=GPIO_bit(btweb_features.pbx_rst_d);
-        mdelay(1000);
-        /* out of reset state TODO*/
-        GPSR(btweb_features.pbx_rst_d)=GPIO_bit(btweb_features.pbx_rst_d);
-        mdelay(1000);
-        GPCR(btweb_features.pbx_rst_d)=GPIO_bit(btweb_features.pbx_rst_d);
-        mdelay(1000);
-
-
+        mdelay(100);
 
 	SSSR = 0x0080;
-	SSCR0 = 0x1107;  /* 0x11yy=100000 Hz */
+//	SSCR0 = 0x1107;  /* 0x11yy=100000 Hz */
+	SSCR0 = 0x0007;  /* 0x00yy=1228800 Hz */
+
 	SSCR1 = 0x0018;  /* 0x8=sclk idle is hi */
 	CKEN |= CKEN3_SSP;
 	sscr = SSCR0;
