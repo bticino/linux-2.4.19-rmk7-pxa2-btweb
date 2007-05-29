@@ -47,6 +47,7 @@
 #define PXA_SSP_WRITE 5500
 #define PXA_SSP_READ  5501
 #define CSON(x) switch (x) {\
+		/* FXS Codec number 1 from the rigth : minor 0 */ \
 		case 0:\
 		GPCR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPCR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -54,6 +55,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXS Codec number 2 from the rigth : minor 1 */ \
 		case 1:\
 		GPSR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPCR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -61,6 +63,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXS Codec number 3 from the rigth : minor 2 */ \
 		case 2:\
 		GPCR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPSR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -68,6 +71,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXS Codec number 4 from the rigth : minor 3 */ \
 		case 3:\
 		GPSR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPSR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -75,6 +79,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXO Codec number 1 from the rigth : minor 4 */ \
 		case 4:\
 		GPCR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPCR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -82,6 +87,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXO Codec number 2 from the rigth : minor 5 */ \
 		case 5:\
 		GPSR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPCR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -89,6 +95,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXO Codec number 3 - SCS          : minor 6 */ \
 		case 6:\
 		GPCR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPSR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -96,6 +103,7 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* FXO Codec number 4 - MUSIC        : minor 7 */ \
 		case 7:\
 		GPSR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPSR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
@@ -103,12 +111,15 @@
 		GPCR(btweb_features.pbx_cs4_d)= GPIO_bit(btweb_features.pbx_cs4_d); \
 		GPCR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		break;\
+		/* LE78D11 Codec number 1 - AUX      : minor 8 */ \
 		case 8:\
 		GPCR(btweb_features.pbx_cssa_d)=GPIO_bit(btweb_features.pbx_cssa_d);\
 		break;\
+		/* LE78D11 Codec number 2 - AUX      : minor 9 */ \
 		case 9:\
 		GPCR(btweb_features.pbx_cssb_d)=GPIO_bit(btweb_features.pbx_cssb_d);\
 		break;\
+		/* DISABLE ALL CHIP-SELECT */ \
 		default:\
 		GPSR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
 		GPSR(btweb_features.pbx_cs2_d)= GPIO_bit(btweb_features.pbx_cs2_d); \
