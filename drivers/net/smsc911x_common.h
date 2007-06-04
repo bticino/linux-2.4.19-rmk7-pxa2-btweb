@@ -26,7 +26,7 @@ typedef struct _PLATFORM_DATA {
 /* DEFAULT PARAMETERS */
 #define LAN_BASE (0x0c000000)
 #define BUS_WIDTH (32)
-#define LINK_MODE (0x02) /* 10 baseT */
+#define LINK_MODE (0x4f) /* 0x4f:all possibilities, 0x02:10 baseT */
 #define PLATFORM_RX_DMA		256 //TRANSFER_REQUEST_DMA
 #define PLATFORM_TX_DMA		256 //TRANSFER_REQUEST_DMA //(256)
 #define	PLATFORM_IRQ		(3)

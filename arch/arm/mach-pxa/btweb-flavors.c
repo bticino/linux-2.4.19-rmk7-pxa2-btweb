@@ -493,6 +493,9 @@ static struct btweb_features feat __initdata = {
 	.pbx_rst1_d = -1,
 	.pbx_batt_state = -1,
 	.pbx_batt_low = -1,
+
+        /* infrared transmitter */
+        .tx_infrared_addr = -1,
 	
 };
 
@@ -576,6 +579,9 @@ static int init_interfmm(struct btweb_flavor *fla, int rev) {
 
 	btweb_features.lighting_level_i2c_addr = 0x39;
         btweb_features.lighting_level_reg = 0x0d;
+
+        /* infrared transmitter */	
+	btweb_features.tx_infrared_addr =  0x2d;
 
         /* This enables the STUART for Pic Antintrusione*/
         CKEN |= CKEN5_STUART;

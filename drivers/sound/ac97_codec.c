@@ -291,7 +291,7 @@ static int ac97_read_mixer(struct ac97_codec *codec, int oss_channel)
 	int scale;
 	struct ac97_mixer_hw *mh = &ac97_hw[oss_channel];
 
-	printk ("ac97_read_mixer \n");
+//	printk ("ac97_read_mixer \n");
 	val = codec->codec_read(codec , mh->offset);
 
 	if (val & AC97_MUTE) {
@@ -698,7 +698,7 @@ int ac97_probe_codec(struct ac97_codec *codec)
 	u16 audio, modem;
 	int i;
 
-printk( "ac97 probe codec\n" );
+// printk( "ac97 probe codec\n" );
 
 	/* probing AC97 codec, AC97 2.0 says that bit 15 of register 0x00 (reset) should 
 	 * be read zero.
@@ -753,7 +753,7 @@ static int ac97_init_mixer(struct ac97_codec *codec)
 	u16 cap;
 	int i;
 
-printk( "ac97 init mixer\n" );
+//printk( "ac97 init mixer\n" );
 
 	cap = codec->codec_read(codec, AC97_RESET);
 

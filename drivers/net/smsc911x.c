@@ -1044,7 +1044,7 @@ DONE:
 
 static char* MAC_interpr(unsigned char *ptr)
 {
-        static char buff[13];
+        static char buff[18];
         char *ptr1;
         char *pos;
         unsigned int i;
@@ -1052,11 +1052,11 @@ static char* MAC_interpr(unsigned char *ptr)
         pos = buff;
 	ptr1 = ptr+10;//strlen(ptr)-2;
         for (i = 0;i < 6; i++) {
-		sprintf(pos, "%c%c",*(ptr1),*(ptr1+1));
-                pos += 2;
+		sprintf(pos, "%c%c:",*(ptr1),*(ptr1+1));
+                pos += 3;
 		ptr1 -= 2;
         }
-        *pos = '\0';
+        *(pos-1) = '\0';
         return (buff);
 }
 
@@ -1094,7 +1094,8 @@ static int Smsc911x_open(struct net_device *dev)
 	request_mem_region(privateData->dwLanBase,LAN_REGISTER_EXTENT,"SMSC_LAN911x");
 	acquired_mem_region=TRUE;
 
-
+	//chip out of reset	
+        GPSR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
 
 	//initialize the LAN911x
 	{
@@ -1345,6 +1346,9 @@ static int Smsc911x_stop(struct net_device *dev)
 		privateData->dev=tempDev;
 		memcpy(privateData->ifName,ifName,SMSC_IF_NAME_SIZE);
 	}
+
+	//chip in reset	
+        GPCR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
 
 DONE:
 	SMSC_TRACE("<--Smsc911x_stop, result=%d",result);

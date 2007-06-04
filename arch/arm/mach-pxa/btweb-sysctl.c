@@ -28,6 +28,8 @@ static int btsys_buz[2];
 static int btsys_benable = 1; /* enabled by default */
 static int btsys_upsidedown;
 static int btsys_tago;
+static size_t size;
+static int idx;
 
 /*
  * Entry point for i2c manage - similar to i2c-dev but working
@@ -133,8 +135,10 @@ static int btsys_cammotor_fc2pan = 0;
 static int btsys_cammotor_fc1tilt = 0;
 static int btsys_cammotor_fc2tilt = 0;
 static int btsys_cammotor_hz = 0;
-static int btsys_tx_infrared_data[4];
 
+#define BTWEB_IRPROG_MAXSIZE  802
+static int btsys_tx_infrared_data[BTWEB_IRPROG_MAXSIZE+2];  /* 2 bytes for size of data in the buffer */
+static char btsys_tx_infrared_data_byte[BTWEB_IRPROG_MAXSIZE];  /* only data */
 
 static int bool_min[] = {0};
 static int bool_max[] = {1};
@@ -209,10 +213,15 @@ static int btsys_i2c_send(int addr, const char *data, size_t len)
 		registered++;
 	}
 	btsys_client.addr = addr;
-     if (i2c_master_send(&btsys_client, data, len) == len)
+
+	printk("data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]);
+
+	if (i2c_master_send(&btsys_client, data, len) == len)
 		return 0;
-     else
-	return -EIO;
+	else {
+		printk("i2c_master_send error\n");
+		return -EIO;
+	}
 }
 
 /*
@@ -694,15 +703,31 @@ static int btsys_apply(int name)
 				return -EINVAL;
 			cam_sethz(btsys_cammotor_hz);
 		break;
-          case BTWEB_TX_INFRARED:
-          {
-               char data[4];
-               int i;
-               for (i=0; i < 4; i++)
-                    data[i] = btsys_tx_infrared_data[i];
-               return btsys_i2c_send(btweb_features.tx_infrared_addr, data, sizeof(data));
-          }
-          break;
+		case BTWEB_TX_INFRARED:
+			printk("btsys_tx_infrar %x,%x,%x,%x,%x\n",btsys_tx_infrared_data[0],btsys_tx_infrared_data[1],btsys_tx_infrared_data[2],btsys_tx_infrared_data[3],btsys_tx_infrared_data[4]);
+
+			size = btsys_tx_infrared_data[0]*0x100 + btsys_tx_infrared_data[1];
+
+			if (size != 0 && size <= BTWEB_IRPROG_MAXSIZE) {
+				printk(KERN_DEBUG "tx_infrared write: size=%d, first byte=%d, last byte=%d\n",
+					size, btsys_tx_infrared_data[2], btsys_tx_infrared_data[2+size-1]);
+
+				for (idx=0;idx<size;idx++){
+					btsys_tx_infrared_data_byte[idx]=(char)btsys_tx_infrared_data[idx+2];
+				} 
+
+				printk(KERN_DEBUG "tx_infrared write byte: size=%d, first byte=%d, last byte=%d\n",
+                                        size, btsys_tx_infrared_data_byte[0], btsys_tx_infrared_data_byte[size-1]);
+
+
+				return btsys_i2c_send(btweb_features.tx_infrared_addr,
+					btsys_tx_infrared_data_byte, size);
+			}
+			else {
+				printk(KERN_DEBUG "tx_infrared write: bad size=%d\n",size);
+				return -EINVAL;
+			}
+		break;
 		}
 	return 0;
 }

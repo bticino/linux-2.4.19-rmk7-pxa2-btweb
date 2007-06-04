@@ -89,43 +89,28 @@ void pxa_ac97_wait1(struct ac97_codec *codec )
 	u16 val=0;
 	u32 addr_cod_base = ADDR_BASE_SEC ;
 
-printk ("pxa_ac97_wait 1 \n");
-
 	down(&CAR_mutex_1);
 	if(!(CAR & CAR_CAIP)) {
-
-	printk ("pxa_ac97_wait 1 - 1 \n");
 
 		ioaddr = (volatile u32 *)ioremap( addr_cod_base + (0x0026 << 1), 4);
 		CAR |= CAR_CAIP;
 		while(i==1) {
 			val = *ioaddr;
-printk ("pxa_ac97_wait 1 - 2\n");
-
 			while(!(GSR & GSR_SDONE)) {
 				udelay(1);	// nn definita ???
 			}
-printk ("pxa_ac97_wait 1 - 3\n");
-
 			GSR |= GSR_SDONE;
 			if(GSR & GSR_RDCS) {
 				GSR |= GSR_RDCS;
 			}
-printk ("pxa_ac97_wait 1 - 4\n");
-
 			val = (u16)(*ioaddr & 0x0000FFFF);
 			while(!(GSR & GSR_SDONE)) {
 				udelay(1);
 			}
-printk ("pxa_ac97_wait 1 - 5\n");
-
 			GSR |= GSR_SDONE;
 			if((val & 0x000F) == 0x000F) {
 				i = 0;
 			}
-
-printk ("pxa_ac97_wait 1 - 6 - val=%X\n",val);
-
 		}
 		CAR &= ~CAR_CAIP;
 		iounmap(ioaddr);
@@ -133,8 +118,6 @@ printk ("pxa_ac97_wait 1 - 6 - val=%X\n",val);
 	else {
 		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
 	}
-printk ("pxa_ac97_wait 1 - end\n");
-
 	up(&CAR_mutex_1);
 }
 
@@ -147,12 +130,10 @@ u16 pxa_ac97_read1(struct ac97_codec *codec, u8 reg )
 	volatile u32 *ioaddr;
 	u32 addr_cod_base = ADDR_BASE_SEC ;
 
-printk("pxa ac97 read 1\n");
-	
 	down(&CAR_mutex_1);
 	if (!(CAR & CAR_CAIP)) {
  		addr = ADDR_BASE_SEC + (reg << 1) ;
-	printk (" read 1 at add %X, val %X \n", addr, val);
+//	printk (" read 1 at add %X, val %X \n", addr, val);
 		ioaddr = (volatile u32 *)ioremap( addr, 4);
 		CAR |= CAR_CAIP;
 		val = *ioaddr;
@@ -187,7 +168,7 @@ void pxa_ac97_write1(struct ac97_codec *codec, u8 reg, u16 val )
 	down(&CAR_mutex_1);
 	if (!(CAR & CAR_CAIP)) {
 		addr = addr_cod_base + (reg << 1 );
-printk ("pxa_ac97_write 1 addr %X val %X \n", addr, val);
+// printk ("pxa_ac97_write 1 addr %X val %X \n", addr, val);
 		ioaddr = (volatile u32 *)ioremap( addr , 4);
 		GSR |= GSR_CDONE;
 		CAR |= CAR_CAIP;

@@ -342,7 +342,7 @@ int pxa_ac97_get(struct ac97_codec **codec)
 {
 	int ret;
 
-printk ("pxa ac97 get, refcount %d \n", pxa_ac97_refcount);
+printk ("pxa_ac97_get, refcount %d \n", pxa_ac97_refcount);
 
 	*codec = NULL;
 	down(&pxa_ac97_mutex);
@@ -355,15 +355,12 @@ printk ("pxa ac97 get, refcount %d \n", pxa_ac97_refcount);
 		set_GPIO_mode(GPIO29_SDATA_IN_AC97_MD);
 //		set_GPIO_mode(GPIO32_SDATA_IN1_AC97_MD);	// toccherebbe il secondary
 
-printk ("pxa ac97 get 1\n");
 		GCR = 0;
 		udelay(10);
 		GCR = GCR_COLD_RST;
 		while (!(GSR & GSR_PCR)) {
 			schedule();
 		}
-
-printk ("pxa ac97 get 2\n");
 
 		ret = ac97_probe_codec(&pxa_ac97_codec);
 		if (ret != 1) {
@@ -372,8 +369,6 @@ printk ("pxa ac97 get 2\n");
 			return ret;
 		}
 
-printk ("pxa ac97 get 3\n");
-
 	// need little hack for UCB1400 (should be moved elsewhere)
 //		pxa_ac97_write(&pxa_ac97_codec,AC97_EXTENDED_STATUS,1);
 //pxa_ac97_write(&pxa_ac97_codec, 0x6a, 0x1ff7);
@@ -381,17 +376,12 @@ printk ("pxa ac97 get 3\n");
 //		pxa_ac97_write(&pxa_ac97_codec, 0x6c, 0x0030);
 		pxa_ac97_write(&pxa_ac97_codec, 0x1A, 0x0404 ); // CARLOS.... ORIG last parameter 0x0505
 
-printk ("pxa ac97 get 4\n");
-
 	}
 
 	pxa_ac97_refcount++;
 	up(&pxa_ac97_mutex);
 
 	*codec = &pxa_ac97_codec;
-
-printk ("pxa ac97 get, end\n");
-
 
 	return 0;
 }
