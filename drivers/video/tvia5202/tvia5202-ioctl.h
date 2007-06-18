@@ -512,6 +512,7 @@ typedef struct _dmareadconf {
 	u32 height;
 	u32 pitch;
 	int pid;
+	u8 bigbuf_index;	
 } TVIA5202_DMACONF;
 
 #define FBIO_TVIA5202_DMAReadRequest _IO('t', 0x70)

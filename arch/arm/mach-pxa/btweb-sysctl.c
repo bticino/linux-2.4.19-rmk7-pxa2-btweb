@@ -196,6 +196,7 @@ static struct i2c_client btsys_client = {
 static int btsys_i2c_send(int addr, const char *data, size_t len)
 {
 	static int registered;
+	int idx;
 
      if (addr < 0)
 		return -EOPNOTSUPP;
@@ -214,7 +215,18 @@ static int btsys_i2c_send(int addr, const char *data, size_t len)
 	}
 	btsys_client.addr = addr;
 
-	printk("data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]);
+#if 0 
+	printk("data_cmd=%x,%x\n",data[0],data[1]);
+	if (len>=8){
+		for (idx=2;idx<len;idx+=8){
+			printk("%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n", \
+			data[idx],data[idx+1],data[idx+2],data[idx+3], \
+			data[idx+4],data[idx+5],data[idx+6],data[idx+7]);
+		}
+        	printk("data_end\n");
+	}
+#endif
+
 
 	if (i2c_master_send(&btsys_client, data, len) == len)
 		return 0;
@@ -1795,8 +1807,6 @@ ctl_table btsys_table[] = {
                .mode =          0644,
                .proc_handler =  btsys_proc,
                .strategy =      btsys_sysctl,
-               .extra1 =        byte_min,
-               .extra2 =        byte_max,
        },
 	{0,}
 };

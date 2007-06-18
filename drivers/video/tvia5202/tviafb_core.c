@@ -126,7 +126,7 @@ static void debug_printf(char *fmt, ...)
 #define DEFAULT_YRES	576     //600
 
 #define DEFAULT_BPP	16
-
+//#define DEFAULT_BPP	24 // C.Perez 02/03/07  // To use this mode Comment take_over_console(xxx); in fbmem.c
 
 /*-------------------------------------------------------
  *    Tvia mode selection
@@ -178,6 +178,8 @@ static struct fb_ops tviafb_ops;
 static int w_dma_ch, r_dma_ch;
 static int w_dma_ch_flag = 0;
 static int r_dma_ch_flag = 0;
+static int w_dma_running = 0;
+static int r_dma_running = 0;
 static TVIA5202_DMACONF WConf;
 static TVIA5202_DMACONF RConf;
 static DECLARE_WAIT_QUEUE_HEAD(r_queue);
@@ -187,7 +189,7 @@ static DECLARE_WAIT_QUEUE_HEAD(w_queue);
 extern unsigned char btweb_bigbuf[];
 extern unsigned char btweb_bigbuf1[];
 //static int dst[(320*240*2)+7];
-static int orga, dsta;
+static int orga[2], dsta[2];
 //END CARLOS DMA
 
 /*-------------------------------------------------------
@@ -2264,6 +2266,9 @@ static void video_rdma_irq(int ch, void *dev_id, struct pt_regs *regs)
 			/* Lanza acceso DMA */
 			DCSR(r_dma_ch) |= DCSR_RUN;
 		} else{
+			// Resets Read DMA Active flag
+			r_dma_running = 0;
+			
 			wake_up_interruptible(&r_queue);
 		}
 	}
@@ -2291,6 +2296,9 @@ static void video_wdma_irq(int ch, void *dev_id, struct pt_regs *regs)
 			/* Lanza acceso DMA */
 			DCSR(w_dma_ch) |= DCSR_RUN;
 		} else{
+			// Resets Write DMA Active flag
+			w_dma_running = 0;
+			
 			wake_up_interruptible(&w_queue);
 		}		
 	}
@@ -2307,14 +2315,17 @@ static int Tvia_DMAReadFrame()
 	
 	//Controla que DMA channel esta parado
 	if ((DCSR(r_dma_ch) & DCSR_STOPSTATE) == 0){
-		trace("Running Previous Video Read DMA Access. DMA CHANNEL=%d", r_dma_ch);	 
+		trace("Still Running Previous Video Read DMA Access. DMA CHANNEL=%d", r_dma_ch);	 
 		return 1;
 	}
 		
+	// Sets Read DMA Active flag
+	r_dma_running = 1;	
+	
 	/* Config sig. acceso DMA */
 	DCSR(r_dma_ch) = DCSR_NODESC;	/* Configure NO DESC MODE */
-	
-	DTADR(r_dma_ch) = virt_to_bus(dsta);
+		
+	DTADR(r_dma_ch) = virt_to_bus(dsta[pconf->bigbuf_index]);
 	//DTADR(r_dma_ch) = 0xa3f00000 + 1*320; // RAFFA PROC BUFFER MEM PXA (DMA)
 	 
 	DSADR(r_dma_ch) = pconf->dsadr; /* Alineada a 8 bytes (2:0 = 000)*/
@@ -2341,14 +2352,17 @@ static int Tvia_DMAWriteFrame()
 	
 	//Controla que DMA channel esta parado
 	if ((DCSR(w_dma_ch) & DCSR_STOPSTATE) == 0){
-		trace("Running Previous Video Write DMA Access. DMA CHANNEL=%d", w_dma_ch);	 
+		trace("Still Running Previous Video Write DMA Access. DMA CHANNEL=%d", w_dma_ch);	 
 		return 1;
 	}	
+	
+	// Sets Write DMA Active flag
+	w_dma_running = 1;
 	
 	/* Config sig. acceso DMA */
 	DCSR(w_dma_ch) = DCSR_NODESC;	/* Configure NO DESC MODE */
 	
-	DSADR(w_dma_ch) = virt_to_bus(orga);
+	DSADR(w_dma_ch) = virt_to_bus(orga[pconf->bigbuf_index]);
 	//DSADR(w_dma_ch) = virt_to_bus(pconf->dsadr);
 	
 	DTADR(w_dma_ch) = pconf->dtadr; /* Alineada a 8 bytes (2:0 = 000)*/
@@ -2362,7 +2376,7 @@ static int Tvia_DMAWriteFrame()
 	if(signal_pending(current)){
 		return(-ERESTARTSYS);
 	}
-		
+	
 	return 0;
 }
 // END CARLOS DMA
@@ -3157,10 +3171,11 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 				else{
 					r_dma_ch_flag = 1;
 					//dsta = (int) ((int)&org[7] & 0xFFFFFFF8);
-					dsta = (int)btweb_bigbuf; //First bigbuf
+					dsta[0] = (int)btweb_bigbuf;  //First bigbuf
+					dsta[1] = (int)btweb_bigbuf1; //Second bigbuf
 				}
 			} else {
-				trace("WARNING: video1 READ DMA Channel Already in Use");
+				trace("WARNING: video1 READ DMA Channel Already Requested Previously");
 			}
 			return r_dma_ch;			
 		}
@@ -3175,39 +3190,59 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 				//DEBUG
 				else {
 					w_dma_ch_flag = 1;
-					//orga = (int) ((int)&org[7] & 0xFFFFFFF8); 		
-					orga = (int)btweb_bigbuf1; //Second bigbuf
+					//orga = (int) ((int)&org[7] & 0xFFFFFFF8); 
+					orga[0] = (int)btweb_bigbuf;  //First bigbuf					
+					orga[1] = (int)btweb_bigbuf1; //Second bigbuf
 				}
 			} else {
-				trace("WARNING: video1 Write DMA Channel Already in Use");
+				trace("WARNING: video1 Write DMA Channel Already Requested Previously");
 			}
 			return w_dma_ch;
 		}		
 		
 	case FBIO_TVIA5202_DMAReadFree: {
 			if (r_dma_ch_flag){
-				pxa_free_dma(r_dma_ch);
-				r_dma_ch_flag = 0;
-			}
-			return 0;
+				if (!r_dma_running){
+					pxa_free_dma(r_dma_ch);
+					r_dma_ch_flag = 0;
+					return 0;
+				} else {
+					trace("WARNING: Last Video Read DMA Access Still Running. Try freeing it again later. DMA CHANNEL=%d", r_dma_ch);
+					return 1;	
+				}						
+			}			
 		}	
 		
 	case FBIO_TVIA5202_DMAWriteFree: {
 			if (w_dma_ch_flag){
-				pxa_free_dma(w_dma_ch);
-				w_dma_ch_flag = 0;
+				if (!w_dma_running){
+					pxa_free_dma(w_dma_ch);
+					w_dma_ch_flag = 0;
+					return 0;
+				} else {
+					trace("WARNING: Last Video Write DMA Access Still Running. Try freeing it again later. DMA CHANNEL=%d", w_dma_ch);
+					return 1;	
+				}					
 			}
-			return 0;
 		}			
 
 	case FBIO_TVIA5202_DMAReadFrame: {	
 			if (r_dma_ch_flag){		
-				copy_from_user(&RConf, (void *)arg, sizeof(TVIA5202_DMACONF));
+				if (!r_dma_running)
+				{	
+					copy_from_user(&RConf, (void *)arg, sizeof(TVIA5202_DMACONF));
+					
+					if (RConf.bigbuf_index > 1)  // For integrity and backward compatibility 
+						RConf.bigbuf_index = 0;
 		
-				//DEBUG
-				//copy_to_user(RConf.dtadr, (void *)dsta, RConf.width*RConf.height);
+					//DEBUG
+					//copy_to_user(RConf.dtadr, (void *)dsta, RConf.width*RConf.height);
 		
-				return(Tvia_DMAReadFrame());		
+					return(Tvia_DMAReadFrame());		
+				} else {
+					trace("Still Running Previous Video Read DMA Access. DMA CHANNEL=%d", r_dma_ch);
+					return 1;	
+				}
 			} else {
 				trace("ERROR: video1 Read DMA Channel Has Not Been yet Requested");
 				return 1;				
@@ -3217,12 +3252,20 @@ static int tviafb_ioctl(struct inode *inode, struct file *file,
 
 	case FBIO_TVIA5202_DMAWriteFrame: {
 			if (w_dma_ch_flag){
-				copy_from_user(&WConf, (void *)arg, sizeof(TVIA5202_DMACONF));
+				if (!w_dma_running)
+				{
+					copy_from_user(&WConf, (void *)arg, sizeof(TVIA5202_DMACONF));
 		
-				//DEBUG
-				//copy_from_user((void *)orga, WConf.dsadr, WConf.width*WConf.height);
+					if (WConf.bigbuf_index > 1)  // For integrity and backward compatibility 
+						WConf.bigbuf_index = 1;
+					//DEBUG
+					//copy_from_user((void *)orga, WConf.dsadr, WConf.width*WConf.height);
 		
-				return (Tvia_DMAWriteFrame());		
+					return (Tvia_DMAWriteFrame());		
+				} else {
+					trace("Still Running Previous Video Write DMA Access. DMA CHANNEL=%d", w_dma_ch);
+					return 1;	
+				}
 			} else {
 				trace("ERROR: video1 Write DMA Channel Has Not Been yet Requested");
 				return 1;

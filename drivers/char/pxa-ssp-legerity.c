@@ -194,6 +194,10 @@ ioctl_ssp( struct inode *inode, struct file *file,
 }
 
 
+#define MINOR_MIN 0
+#define MINOR_MAX 9
+#define MAX_OPENED 10
+
 
 
 static int open_ssp(struct inode *inode, struct file *filp)
@@ -202,17 +206,17 @@ static int open_ssp(struct inode *inode, struct file *filp)
         deb(KERN_INFO "CTRLSSP opening: minor=%d\n",minor);
 	voicedev=minor;
 
-	if(ctrlssp_active>10){
-		printk(KERN_INFO "NO\n");
+	if(ctrlssp_active>MAX_OPENED){
+		printk(KERN_INFO "open_ssp not done - exceeded MAX_OPENED\n");
 		return -EBUSY;
 	}
-	if ((minor<0)||(minor>9)){
-		deb(KERN_INFO "NO1\n");
+	if ((minor<MINOR_MIN)||(minor>MINOR_MAX)){
+		deb(KERN_INFO "open_ssp not done - wrong minor\n");
 		return -EINVAL;
 	}
 	
 	ctrlssp_active++;
-	deb(KERN_INFO "YES\n");
+	deb(KERN_INFO "open_ssp done\n");
 
 	
 	

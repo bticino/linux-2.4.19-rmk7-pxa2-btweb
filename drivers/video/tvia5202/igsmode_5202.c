@@ -35,13 +35,15 @@ static ModeInit Mode_800x600x16_60Hz;
 static ModeInit Mode_640x480x16_50Hz;
 static ModeInit Mode_640x480x16_60Hz;
 static ModeInit Mode_720x576x16_50Hz;
+//static ModeInit Mode_720x576x24_50Hz;		//C. Perez 02/03/07
 static ModeInit Mode_640x440x16_60Hz;
 static ModeInit Mode_640x440x24_60Hz;
 static ModeInit Mode_1024x768x16_60Hz;
 
 ModeInit *TVIAModeReg_5202[TOTAL_MODES_5202] = {
     &Mode_800x600x16_60Hz,
-    &Mode_720x576x16_50Hz, /* PAL */
+    &Mode_720x576x16_50Hz, /* PAL */ 
+	//&Mode_720x576x24_50Hz, /* PAL 24bpp */ 	//C. Perez 02/03/07
     &Mode_640x480x16_50Hz, /* doesn't work */
     &Mode_640x480x16_60Hz, /* NTSC */
     &Mode_640x440x16_60Hz, /* ? */
@@ -115,10 +117,30 @@ static ExtendedRegs E720x576x16x50 = { //Wei
      0x77, 0x02}
 };
 
+static ExtendedRegs E720x576x24x50 = { //Wei
+    {
+     //0xE0,
+	 0x0E,						//C. Perez 02/03/07
+     0xB0, 0x01,
+     0xB1, 0x12,
+     0xBA, 0x53,                /*Pixel clock overflow register */
+     0x11, 0x00,
+     0x14, 0x0F,
+     0x15, 0x11,		
+     0x56, 0x00,
+     0x77, 0x04}
+};
+
 static ModeInit Mode_720x576x16_50Hz = 
 {
     &S720x576x50,
     &E720x576x16x50
+};
+
+static ModeInit Mode_720x576x24_50Hz = //C. Perez 02/03/07
+{
+    &S720x576x50,
+    &E720x576x24x50
 };
 
 static StandardRegs S800x600x16x60 = {
