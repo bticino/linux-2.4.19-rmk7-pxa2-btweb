@@ -819,6 +819,7 @@ static int init_pbx288exp(struct btweb_flavor *fla, int rev) {
         btweb_features.eth_reset = 3;
         btweb_features.eth_irq = 22;
         btweb_features.e2_wp = 10;
+        btweb_features.led = 40;
         btweb_features.rtc_irq = 8;
         btweb_features.backlight = -1;
         btweb_features.pic_reset = -1; // TODO via Codec
@@ -869,27 +870,27 @@ static int init_pbx288exp(struct btweb_flavor *fla, int rev) {
         set_GPIO_mode(GPIO47_STTXD_MD);
 
 	/* pbx */
-	btweb_features.pbx_rst_ext_d = 1;
-	btweb_features.pbx_line_off_d = 4;
-	btweb_features.pbx_batt_sens_d = 5;
-	btweb_features.pbx_int_ext_d = 9;
-	btweb_features.pbx_cs4_d = 11;
-	btweb_features.pbx_batt_charge = 16;
-	btweb_features.pbx_cs5_d = 24;
-	btweb_features.pbx_cs1_d = 35;
-	btweb_features.pbx_fs_res = 37;
-	btweb_features.pbx_cs2_d = 41;
-	btweb_features.pbx_h_suspend = 45;
-	btweb_features.pbx_cs3_d = 54;
-	btweb_features.pbx_rst_d = 61;
-	btweb_features.pbx_int3_d = 65;
-	btweb_features.pbx_cssa_d = 66;
-	btweb_features.pbx_cssb_d = 67;
-	btweb_features.pbx_cs_clid1_d = 68;
-	btweb_features.pbx_cs_clid2_d = 70;
-	btweb_features.pbx_rst1_d = 74;
-	btweb_features.pbx_batt_state = 75;
-	btweb_features.pbx_batt_low = 76;
+	btweb_features.pbx_rst_ext_d = 1;   /* Expansion module reset */
+	btweb_features.pbx_line_off_d = 4;  /* 220V AC power */
+	btweb_features.pbx_batt_sens_d = 5; /* Backup battery */
+	btweb_features.pbx_int_ext_d = 9;   /* Expansion module codec interrupt */
+	btweb_features.pbx_cs4_d = 11;      /* spi mux chip select */
+	btweb_features.pbx_batt_charge = 16; /* Activate voltage dips battery charge */
+	btweb_features.pbx_cs5_d = 24;       /* spi mux chip select */
+	btweb_features.pbx_cs1_d = 35;       /* spi mux chip select */
+	btweb_features.pbx_fs_res = 37;      /* FS generator reset */
+	btweb_features.pbx_cs2_d = 41;       /* spi mux chip select */
+	btweb_features.pbx_h_suspend = 45;   /* usb host suspend */
+	btweb_features.pbx_cs3_d = 54;       /* spi mux chip select */
+	btweb_features.pbx_rst_d = 61;       /* inferior board codec hw reset */
+	btweb_features.pbx_int3_d = 65;      /* le78d11 interrupt */
+	btweb_features.pbx_cssa_d = 66;      /* le78d11 chip select IC3 */ 
+	btweb_features.pbx_cssb_d = 67;      /* le78d11 chip select IC28 */
+	btweb_features.pbx_cs_clid1_d = 68;  /* modem1 chip select */
+	btweb_features.pbx_cs_clid2_d = 70;  /* modem2 chip select */
+	btweb_features.pbx_rst1_d = 74;      /* inferior board codec hw reset */
+	btweb_features.pbx_batt_state = 75;  /* Led voltage dips battery state */
+	btweb_features.pbx_batt_low = 76;    /* Low voltage dips battery state */
 
         return 0;
 }

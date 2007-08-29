@@ -10,6 +10,7 @@
  * for more details.
  */
 
+#include <linux/oledfb.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -56,6 +57,10 @@
 /* OLED refresh delay in milliseconds */
 #define OLED_REFRESH_DELAY 300
 #define OLED_REFRESH_JIFFIES ((OLED_REFRESH_DELAY * HZ)/1000)
+
+/* Auto screen saver timeout in milliseconds */
+#define OLED_SCRSAVER_TIMEOUT 120000
+#define OLED_SCRSAVER_JIFFIES ((OLED_SCRSAVER_TIMEOUT * HZ)/1000)
 
 /* Set to 1 to enable an X11-like backfilling pattern */
 #define OLED_BACKFILL_PATTERN 0
@@ -127,6 +132,13 @@ struct oledfb_info {
 	bool screensaver_running;
 
 	atomic_t open_cnt;
+
+	/* Flag used by syscall callbacks to request screensaver activation
+	 * and deactivation to screensaver thread */
+	atomic_t cmd_scrsaver;
+		#define OLED_SCRSVR_NOP   0
+		#define OLED_SCRSVR_START 1
+		#define OLED_SCRSVR_STOP  2
 
 	#if CONFIG_OLED_REFRESH_THREAD
 		int thread_pid;
@@ -228,17 +240,17 @@ oledhw_cleanup(struct oledfb_info *info)
 	oledhw_write_cmd(info, OLED_CMD_DISPOFF);
 }
 
-#include "logo_bticino.c"
+#include "oledfb_logo.c"
 
 static void
-oledhw_bounce(struct oledfb_info *info)
+oledhw_defaultLogo(struct oledfb_info *info)
 {
 	uint8_t *bitmap = info->shadow;
 	unsigned int y;
 	for (y = 0; y < LOGO_HEIGHT; ++y) {
 		unsigned int x;
 		for (x = 0; x < LOGO_WIDTH / 8; ++x) {
-			bitmap[y * OLED_WIDTH_BYTES + x] = logo_bticino[y * (LOGO_WIDTH / 8) + x];
+			bitmap[y * OLED_WIDTH_BYTES + x] = oledfb_logo[y * (LOGO_WIDTH / 8) + x];
 		}
 	}
 }
@@ -266,9 +278,16 @@ oledhw_backfill(struct oledfb_info *info, int frame)
 #endif
 }
 
+/*
+ * Screensaver start/stop functions: these should be called
+ * only by the thread, to avoid race conditions on
+ * screensaver_running flag.
+ */
 static void
 oledhw_screensaver_start(struct oledfb_info *info)
 {
+	OLED_TRACE;
+
 	oledhw_write_cmd16(info, OLED_CMD_VMIN, 0x62);
 	oledhw_write_cmd16(info, OLED_CMD_VMAX, 0x1F);
 	oledhw_write_cmd16(info, OLED_CMD_HMIN, 0xC0);
@@ -277,13 +296,19 @@ oledhw_screensaver_start(struct oledfb_info *info)
 	oledhw_write_cmd(info, OLED_CMD_MOVE   | 0x04 | 0x03); /* horiz. bounce only, vert. bounce and wrap */
 	oledhw_write_cmd(info, OLED_CMD_HSPEED | 1);
 	oledhw_write_cmd(info, OLED_CMD_VSPEED | 1);
+
+	info->screensaver_running = true;
 }
 
 static void
 oledhw_screensaver_stop(struct oledfb_info *info)
 {
+	OLED_TRACE;
+
 	oledhw_write_cmd(info, OLED_CMD_HSPEED | 0);
 	oledhw_write_cmd(info, OLED_CMD_VSPEED | 0);
+
+	info->screensaver_running = false;
 }
 
 /* Copy the shadow buffer to the physical display */
@@ -305,8 +330,10 @@ oledhw_refresh(struct oledfb_info *info)
 static int
 oledhw_thread(void *arg)
 {
-	OLED_TRACE;
 	struct oledfb_info *info = (struct oledfb_info *)arg;
+	OLED_TRACEMSG("info=%p", info);
+
+	unsigned long scrsaver_time = jiffies;
 
 	/* Do some setup to look like a real daemon */
 	daemonize();
@@ -327,25 +354,37 @@ oledhw_thread(void *arg)
 			/* draw waking checkboard pattern when idle */
 			static int frame = 0;
 			oledhw_backfill(info, frame++);
-			oledhw_bounce(info);
-			if (!info->screensaver_running) {
-				oledhw_screensaver_start(info);
-				info->screensaver_running = true;
-			}
-		} else if (info->screensaver_running) {
-			oledhw_screensaver_stop(info);
-			info->screensaver_running = false;
+			oledhw_defaultLogo(info);
 		}
-
+#if 0
 		if (((unsigned char *)info->shadow)[0] == 0xAA)
 			printk("FOO\n");
 		if (((unsigned char *)info->shadow)[0] == 0x55)
 			printk("BAR\n");
-
+#endif
 		/* Optimize refresh: transfer image only when it has changed */
 		if (memcmp(info->shadow, info->shadow2, OLED_MEMSIZE)) {
+			if (info->screensaver_running)
+				oledhw_screensaver_stop(info);
 			memcpy(info->shadow2, info->shadow, OLED_MEMSIZE);
 			oledhw_refresh(info);
+			scrsaver_time = jiffies;
+		}
+
+		/* Start/stop screen saver if timeout expired or requested by userspace */
+		if (!info->screensaver_running
+			&& ((jiffies - scrsaver_time > OLED_SCRSAVER_JIFFIES)
+				|| (atomic_read(&info->cmd_scrsaver) == OLED_SCRSVR_START)))
+		{
+			oledhw_screensaver_start(info);
+			atomic_set(&info->cmd_scrsaver, OLED_SCRSVR_NOP);
+		}
+		else if (info->screensaver_running
+			&& (atomic_read(&info->cmd_scrsaver) == OLED_SCRSVR_STOP))
+		{
+			oledhw_screensaver_stop(info);
+			atomic_set(&info->cmd_scrsaver, OLED_SCRSVR_NOP);
+			scrsaver_time = jiffies;
 		}
 
 		//msleep(OLED_REFRESH_DELAY);
@@ -392,7 +431,7 @@ oled_encode_fix(struct fb_fix_screeninfo *fix, const void *par,
 	 */
 	strncpy(fix->id, OLED_NAME, sizeof(fix->id));
 	fix->smem_start  = (unsigned long)fb_info.shadow_phys;
-OLED_TRACEMSG("phys=%lx p2v=%p, v=%p\n", fb_info.shadow_phys, phys_to_virt(fb_info.shadow_phys), fb_info.shadow);
+OLED_TRACEMSG("phys=%x p2v=%p, v=%p\n", fb_info.shadow_phys, phys_to_virt(fb_info.shadow_phys), fb_info.shadow);
 	fix->smem_len    = PAGE_ALIGN(OLED_MEMSIZE);
 	fix->type        = FB_TYPE_PLANES;
 	fix->type_aux    = 0;
@@ -569,7 +608,7 @@ struct fbgen_hwswitch oled_switch = {
 	.set_par       = oled_set_par,
 	.getcolreg     = oled_getcolreg,
 	.setcolreg     = oled_setcolreg,
-    .pan_display   = oled_pan_display,
+	.pan_display   = oled_pan_display,
 	.blank         = oled_blank,
 	.set_disp      = oled_set_disp,
 };
@@ -600,13 +639,32 @@ oledfb_release(struct fb_info *_info, int user)
 	return 0;
 }
 
+static int
+oledfb_ioctl(struct inode *inode, struct file *file,
+		u_int cmd, u_long arg, int con, struct fb_info *_info)
+{
+	OLED_TRACEMSG("cmd=%u", cmd);
+
+	struct oledfb_info *info = (struct oledfb_info *)_info;
+
+	switch (cmd) {
+		case OLEDFB_SCREENSAVER_START:
+			atomic_set(&info->cmd_scrsaver, OLED_SCRSVR_START);
+			return 0;
+		case OLEDFB_SCREENSAVER_STOP:
+			atomic_set(&info->cmd_scrsaver, OLED_SCRSVR_STOP);
+			return 0;
+	}
+	return -EINVAL;
+}
+
 #if CONFIG_OLED_CUSTOM_MMAP
 static int oledfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long start,off,len;
 	OLED_TRACE;
 
-    if(vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
+	if(vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
 
@@ -653,7 +711,7 @@ static struct fb_ops oledfb_ops = {
 	.fb_get_cmap = fbgen_get_cmap,
 	.fb_set_cmap = fbgen_set_cmap,
 	.fb_pan_display = fbgen_pan_display,
-	/* .fb_ioctl = oledfb_ioctl,*/ /* optional */
+	.fb_ioctl = oledfb_ioctl,
 	#if CONFIG_OLED_CUSTOM_MMAP
 		.fb_mmap = oledfb_mmap,
 	#endif

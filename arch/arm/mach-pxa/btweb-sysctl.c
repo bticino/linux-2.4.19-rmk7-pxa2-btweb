@@ -28,8 +28,6 @@ static int btsys_buz[2];
 static int btsys_benable = 1; /* enabled by default */
 static int btsys_upsidedown;
 static int btsys_tago;
-static size_t size;
-static int idx;
 
 /*
  * Entry point for i2c manage - similar to i2c-dev but working
@@ -190,15 +188,14 @@ static struct i2c_client btsys_client = {
 };
 
 /*
-* Send 'len' bytes from the buffer 'data' on the i2c bus,
-* to the slave at the given address 'addr'.
-*/
+ * Send 'len' bytes from the buffer 'data' on the i2c bus,
+ * to the slave at the given address 'addr'.
+ */
 static int btsys_i2c_send(int addr, const char *data, size_t len)
 {
 	static int registered;
-	int idx;
 
-     if (addr < 0)
+	if (addr < 0)
 		return -EOPNOTSUPP;
 
 	if (!registered) {
@@ -214,20 +211,6 @@ static int btsys_i2c_send(int addr, const char *data, size_t len)
 		registered++;
 	}
 	btsys_client.addr = addr;
-
-#if 0 
-	printk("data_cmd=%x,%x\n",data[0],data[1]);
-	if (len>=8){
-		for (idx=2;idx<len;idx+=8){
-			printk("%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n", \
-			data[idx],data[idx+1],data[idx+2],data[idx+3], \
-			data[idx+4],data[idx+5],data[idx+6],data[idx+7]);
-		}
-        	printk("data_end\n");
-	}
-#endif
-
-
 	if (i2c_master_send(&btsys_client, data, len) == len)
 		return 0;
 	else {
@@ -237,9 +220,9 @@ static int btsys_i2c_send(int addr, const char *data, size_t len)
 }
 
 /*
-* Write the 1 byte value 'val' in the 'reg' register (1 byte address)
-* of the slave i2c device at address 'addr'.
-*/
+ * Write the 1 byte value 'val' in the 'reg' register (1 byte address)
+ * of the slave i2c device at address 'addr'.
+ */
 static int btsys_i2c_do(int addr, int reg, int val)
 {
      char data[2] = {reg, val};
@@ -250,10 +233,13 @@ static int btsys_i2c_do(int addr, int reg, int val)
      return btsys_i2c_send(addr, data, 2);
 }
 
-static int btsys_i2c_read(int addr, int reg, char * val)
+/*
+ * Send 'reg' buffer with i2c read command, and put the reply in 'buf'.
+ */
+static int btsys_i2c_read(int addr, char *reg, size_t reg_size, char *buf, size_t buf_size)
 {
         static int registered;
-	unsigned char ret;
+        unsigned char ret;
 
         if ((addr<0)||(reg<0))
                 return -EOPNOTSUPP;
@@ -271,16 +257,21 @@ static int btsys_i2c_read(int addr, int reg, char * val)
                 registered++;
         }
 
-
         btsys_client.addr = addr;
-        if (i2c_master_send(&btsys_client, (char *)&reg, 1) == 1){
-		ret = i2c_master_recv(&btsys_client, val, 1);
-		if (ret==1)
-		{
-			return 0;
-		}
-	}
+        if (i2c_master_send(&btsys_client, reg, reg_size) == reg_size) {
+                ret = i2c_master_recv(&btsys_client, buf, buf_size);
+                if (ret == 1)
+                        return 0;
+        }
         return -EIO;
+}
+
+/*
+ * Read byte value at address (one byte) reg.
+ */
+static int btsys_i2c_readByte(int addr, int reg, char *val)
+{
+	return btsys_i2c_read(addr, (char *)&reg, 1, val, 1);
 }
 
 /* reading from ds1803 */
@@ -326,11 +317,11 @@ static int btsys_i2cpot_read(int addr, int reg, char * val)
 static int btsys_i2c_do(int addr, int reg, int val)
 {
 	return 0;
-} 
+}
 
 static int btsys_i2c_send(int addr, const char *data, size_t len)
 {
-     return 0;
+	return 0;
 }
 #endif /* I2C */
 
@@ -716,31 +707,29 @@ static int btsys_apply(int name)
 			cam_sethz(btsys_cammotor_hz);
 		break;
 		case BTWEB_TX_INFRARED:
-			printk("btsys_tx_infrar %x,%x,%x,%x,%x\n",btsys_tx_infrared_data[0],btsys_tx_infrared_data[1],btsys_tx_infrared_data[2],btsys_tx_infrared_data[3],btsys_tx_infrared_data[4]);
+		{
+			if (btweb_features.tx_infrared_addr < 0)
+				return -EOPNOTSUPP;
 
-			size = btsys_tx_infrared_data[0]*0x100 + btsys_tx_infrared_data[1];
-
+			unsigned int size = btsys_tx_infrared_data[0]*0x100 + btsys_tx_infrared_data[1];
 			if (size != 0 && size <= BTWEB_IRPROG_MAXSIZE) {
+				int i;
+				for (i=0; i < size; i++)
+					btsys_tx_infrared_data_byte[i] = (char)btsys_tx_infrared_data[i+2];
+
 				printk(KERN_DEBUG "tx_infrared write: size=%d, first byte=%d, last byte=%d\n",
-					size, btsys_tx_infrared_data[2], btsys_tx_infrared_data[2+size-1]);
-
-				for (idx=0;idx<size;idx++){
-					btsys_tx_infrared_data_byte[idx]=(char)btsys_tx_infrared_data[idx+2];
-				} 
-
-				printk(KERN_DEBUG "tx_infrared write byte: size=%d, first byte=%d, last byte=%d\n",
-                                        size, btsys_tx_infrared_data_byte[0], btsys_tx_infrared_data_byte[size-1]);
-
+					size, btsys_tx_infrared_data_byte[0], btsys_tx_infrared_data_byte[size-1]);
 
 				return btsys_i2c_send(btweb_features.tx_infrared_addr,
 					btsys_tx_infrared_data_byte, size);
 			}
 			else {
-				printk(KERN_DEBUG "tx_infrared write: bad size=%d\n",size);
+				printk(KERN_DEBUG "tx_infrared write: bad size=%d\n", size);
 				return -EINVAL;
 			}
-		break;
 		}
+		break;
+	}
 	return 0;
 }
 
@@ -874,7 +863,7 @@ static int btsys_read(int name)
                         if (btsys_i2c_generic[0] < 0)
                                 return -EOPNOTSUPP;
 
-                        btsys_i2c_read(btsys_i2c_generic[0], btsys_i2c_generic[1], &ret);
+                        btsys_i2c_readByte(btsys_i2c_generic[0], btsys_i2c_generic[1], &ret);
                         btsys_i2c_generic[2]=(int)ret;
                         return 0;
                 break;
@@ -1056,7 +1045,7 @@ static int btsys_read(int name)
 				btsys_abil_tlk = -1;
                               return -EOPNOTSUPP;
 			}
-			btsys_i2c_read(btweb_features.abil_tlk_i2c_addr, btweb_features.abil_tlk_reg,&ret);
+			btsys_i2c_readByte(btweb_features.abil_tlk_i2c_addr, btweb_features.abil_tlk_reg,&ret);
                         if (ret==0x0F)
 				return btsys_abil_tlk=0;
 			else
@@ -1068,7 +1057,7 @@ static int btsys_read(int name)
 				btsys_lighting_level = -1;
                               return -EOPNOTSUPP;
 			}
-			btsys_i2c_read(btweb_features.lighting_level_i2c_addr, btweb_features.lighting_level_reg,&ret);
+			btsys_i2c_readByte(btweb_features.lighting_level_i2c_addr, btweb_features.lighting_level_reg,&ret);
 			return btsys_lighting_level=(int)(255-ret);
                 break;
                 case BTWEB_RX_TX_485:
@@ -1108,7 +1097,26 @@ static int btsys_read(int name)
 			btsys_cammotor_hz = cam_gethz();
 			return 0;
 		break;
+		case BTWEB_TX_INFRARED:
+		{
+			uint8_t hash_reg[2] = { 0x00, 0xCE };
+			uint8_t buf[8];
+			int i;
+
+			if (btweb_features.tx_infrared_addr < 0)
+				return -EOPNOTSUPP;
+
+			printk(KERN_DEBUG "tx_infrared read hash\n");
+
+			if (btsys_i2c_read(btweb_features.tx_infrared_addr, hash_reg, sizeof(hash_reg), buf, sizeof(buf) < 0))
+				return -EIO;
+
+			for (i = 0; i < sizeof(buf); i++)
+				btsys_tx_infrared_data[i] = buf[i];
+			return 0;
 		}
+		break;
+	}
 	return 1;
 }
 
@@ -1799,15 +1807,15 @@ ctl_table btsys_table[] = {
                 .extra1 =        short_min,
                 .extra2 =        short_max,
         },
-     {
-               .ctl_name =      BTWEB_TX_INFRARED,
-               .procname =      "tx_infrared",
-               .data =          btsys_tx_infrared_data,
-               .maxlen =        sizeof(btsys_tx_infrared_data),
-               .mode =          0644,
-               .proc_handler =  btsys_proc,
-               .strategy =      btsys_sysctl,
-       },
+        {
+                .ctl_name =      BTWEB_TX_INFRARED,
+                .procname =      "tx_infrared",
+                .data =          btsys_tx_infrared_data,
+                .maxlen =        sizeof(btsys_tx_infrared_data),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+        },
 	{0,}
 };
 

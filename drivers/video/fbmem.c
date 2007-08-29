@@ -110,6 +110,7 @@ extern int chips_init(void);
 extern int g364fb_init(void);
 extern int sa1100fb_init(void);
 extern int pxafb_init(void);
+extern int oledfb_init(void);
 extern int fm2fb_init(void);
 extern int fm2fb_setup(char*);
 extern int q40fb_init(void);
@@ -298,6 +299,11 @@ static struct {
 #endif
 #ifdef CONFIG_FB_PXA
 	{ "pxa", pxafb_init, NULL },
+#endif
+#ifdef CONFIG_FB_OLED
+	/* Oledfb should be initialized _after_ pxafb, because has no
+	 * console support */
+	{ "oledfb", oledfb_init, NULL },
 #endif
 #ifdef CONFIG_FB_SUN3
 	{ "sun3", sun3fb_init, sun3fb_setup },

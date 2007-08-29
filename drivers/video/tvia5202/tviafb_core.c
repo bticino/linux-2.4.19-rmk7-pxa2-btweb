@@ -85,9 +85,6 @@
 #define MEM_FOR_MOTION_JPEG 320*240*2
 //#define MEM_FOR_MOTION_JPEG 320
 
-/* Enabling RGBDAC and VGA HSINC/VSINC outputs */
-#undef DISABLE_RGBDAC
-/* #define DISABLE_RGBDAC 1 */
 
 
 #ifdef CONFIG_PM
@@ -3866,58 +3863,58 @@ static int __init tvia5202fb_init(void)
    dbg("SetDACPower");
    SetDACPower(ON);            /*power on DAC to turn on screen */
 
-#ifdef DISABLE_RGBDAC
-   deb("Disabling RGBDAC");
-   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
-   iTmpFA = tvia_inb(0x3cf);
-   tvia_outb(0x02, 0x3cf);
+   if (btweb_globals.flavor==BTWEB_INTERFMM){
+      trace("Disabling RGBDAC");
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      iTmpFA = tvia_inb(0x3cf);
+      tvia_outb(0x02, 0x3cf);
    
-   tvia_outb(0xB1, 0x3ce);
-   iTmp = tvia_inb(0x3cf);
-   deb("read 3cf/bf02.3cf/b1=%x",iTmp);
-   iTmp = (iTmp|0x0f);
-   deb("writing 3cf/fa05.3cf/b1=%x",iTmp);
-   tvia_outb(iTmp, 0x3cf);
+      tvia_outb(0xB1, 0x3ce);
+      iTmp = tvia_inb(0x3cf);
+      deb("read 3cf/bf02.3cf/b1=%x",iTmp);
+      iTmp = (iTmp|0x0f);
+      deb("writing 3cf/fa05.3cf/b1=%x",iTmp);
+      tvia_outb(iTmp, 0x3cf);
 
-   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
-   tvia_outb(iTmpFA, 0x3cf);
-   deb("Disabling RGBDAC done");
-#else 
-   deb("Enabling RGBDAC");
-   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
-   iTmpFA = tvia_inb(0x3cf);
-   tvia_outb(0x02, 0x3cf);
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      tvia_outb(iTmpFA, 0x3cf);
+      deb("Disabling RGBDAC done");
+   }else{
+      trace("Enabling RGBDAC");
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      iTmpFA = tvia_inb(0x3cf);
+      tvia_outb(0x02, 0x3cf);
 
-   tvia_outb(0xB1, 0x3ce);
-   iTmp = tvia_inb(0x3cf);
-   deb("read 3cf/bf02.3cf/b1=%x",iTmp);
-   iTmp = (iTmp&0xC0);/////per abilitare 3f
-   deb("writing 3cf/fa05.3cf/b1=%x",iTmp);
-   tvia_outb(iTmp, 0x3cf);
+      tvia_outb(0xB1, 0x3ce);
+      iTmp = tvia_inb(0x3cf);
+      deb("read 3cf/bf02.3cf/b1=%x",iTmp);
+      iTmp = (iTmp&0xC0);/////per abilitare 3f
+      deb("writing 3cf/fa05.3cf/b1=%x",iTmp);
+      tvia_outb(iTmp, 0x3cf);
 
-   tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
-   tvia_outb(iTmpFA, 0x3cf);
-   trace("Enabling RGBDAC done");
-#endif
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      tvia_outb(iTmpFA, 0x3cf);
+      deb("Enabling RGBDAC done");
+   }
 
    deb("Disabling DigitalRGB");
    EnableDigitalRGB(OFF);
    deb("Disabling DigitalCursor");
    EnableDigitalCursor(OFF);
 
-#ifdef DISABLE_RGBDAC
-   trace("Disabling HSync,VSync");
-    //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
-    //00  ----- enable Hsync
-    //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
-    Out_Video_Reg_M(0x16,0x05,0xF0);
-#else
-   trace("Enabling HSync,VSync");
-   //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
-   //00  ----- enable Hsync
-   //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
-   Out_Video_Reg_M(0x16,0x00,0xF0);
-#endif
+   if (btweb_globals.flavor!=BTWEB_INTERFMM){
+      trace("Disabling HSync,VSync");
+      //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
+      //00  ----- enable Hsync
+      //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
+      Out_Video_Reg_M(0x16,0x05,0xF0);
+   }else{
+      trace("Enabling HSync,VSync");
+      //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
+      //00  ----- enable Hsync
+      //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
+      Out_Video_Reg_M(0x16,0x00,0xF0);
+   }
 
    dbg("Disable hardware cursor");
    tvia_outb(0x56, 0x3ce);
