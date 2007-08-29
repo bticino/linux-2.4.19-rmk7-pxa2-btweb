@@ -59,7 +59,7 @@
 #include <asm/siginfo.h>
 
 /* DEBUG */
-#define DEBUG 1
+#undef DEBUG
 
 #ifdef DEBUG
 	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
@@ -99,6 +99,7 @@ static unsigned char *cursor_buf=NULL;
 #ifdef DEBUG
 static void debug_printf(char *fmt, ...)
 {
+    /* TODO add a newline */
     char buffer[128];
     va_list ap;
 
@@ -1133,12 +1134,12 @@ static void EnableTV(u16 iOnOff)
         iTmp = tvia_inb(0x3cf) & ~0x05; /*bit <2,0> */
 
         if (ReadTVReg(0xE438) & 0x1000) { /*1: NTSC; 0: PAL */
-	    trace ("EnableTV: NTSC\n");
+	    trace ("EnableTV: NTSC");
             tvia_outb(iTmp | 0x04, 0x3cf);
 	}
         else
 	{
-            trace ("EnableTV: PAL\n");
+            trace ("EnableTV: PAL");
 
 //		  trace("EnableTV PAL but Disable RGB DAC and SCART");
 //          tvia_outb((iTmp|0x25)&0x2f, 0x3cf);   // Disable RGB DAC and SCART
@@ -1379,7 +1380,7 @@ static void ProgramTV(void)
          || (init_var.xres==720 && init_var.yres==576)  \
          || (init_var.xres==640 && init_var.yres==440) ) {
 
-	trace("ProgramTv: init_mode=%d\n",init_mode);
+	trace("ProgramTv: init_mode=%d",init_mode);
     bpTVReg = TVModeReg_5202_SDRAM[init_mode];
 //        reg_tv_size = REG_TV_SIZE_5202; //Wei  sizeof(bpTVReg->TVRegs);
 //        reg_tv_size = sizeof(TVModeReg_5202_SDRAM[INIT_MODE].TVRegs);
@@ -1963,7 +1964,7 @@ static int tviafb_pan_display(struct fb_var_screeninfo *var, int con,
 
 void Tvia_TestVideo(u8 type){
 
-   trace("TestVideo: 3cf/58=0x0f and after 0xff");
+   trace("TestVideo: 3cf/58=0x0f and after 0xff\n");
    tvia_outb(0x58,0x3ce);
    udelay(1000);
    tvia_outb(0x0f,0x3cf);
@@ -1986,8 +1987,8 @@ void My_Tvia_ioctl(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
 
   if (type==1) 
   {
-   trace("Starting DumpTotalTest");
-   trace("Dumping Tvia Cyberpro 5202");
+   trace("Starting DumpTotalTest\n");
+   trace("Dumping Tvia Cyberpro 5202\n");
 	
    tmp=In_Video_Reg(0x33);
    tmp|=0x40;
@@ -3684,7 +3685,7 @@ static int __init tvia5202fb_init(void)
     current_par.memtype = 1;
     current_par.palette_size = 256;
 
-    trace("Tvia5202 INIT 1.7.6");
+    trace("Tvia5202 INIT 1.7.7");
 
     if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
        /* Reset Tvia5202 */
@@ -3713,8 +3714,8 @@ static int __init tvia5202fb_init(void)
   udelay(100000);
 #endif
 
-  trace("MSC2=%X\n",MSC2);
-  trace("MDREFR=%X\n",MDREFR);
+  trace("MSC2=%X",MSC2);
+  trace("MDREFR=%X",MDREFR);
 
     if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
       GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
@@ -3792,7 +3793,7 @@ static int __init tvia5202fb_init(void)
 	dbg("OK NO_BE_MODE");
 
     /* Verifying paramter from cmdline */
-    trace ("tvia_mode=%d\n",tvia_mode);
+    trace ("tvia_mode=%d",tvia_mode);
 
 
     dbg("tviafb_init_fbinfo");
@@ -3802,21 +3803,21 @@ static int __init tvia5202fb_init(void)
         selected_yres = 576;
 	init_mode = 1;
 	reg_tv_size_5202 = 141*2;
-	trace ("Tvia mode PAL 720x576\n");
+	trace ("Tvia mode PAL 720x576");
 	break;
     case 2:
         selected_xres = 640;
         selected_yres = 480;
         init_mode = 2;
         reg_tv_size_5202 = 133*2;
-        trace ("Tvia mode NTSC 640x480-16-50\n");
+        trace ("Tvia mode NTSC 640x480-16-50");
         break;
    case 3:
         selected_xres = 640;
         selected_yres = 480;
         init_mode = 3;
         reg_tv_size_5202 = 133*2;
-        trace ("Tvia mode NTSC 640x480-16-60\n");
+        trace ("Tvia mode NTSC 640x480-16-60");
         break;
    case 4:
         selected_xres = 640;
@@ -3824,14 +3825,14 @@ static int __init tvia5202fb_init(void)
         init_mode = 4;
         reg_tv_size_5202 = 133*2;
 	
-        trace ("Tvia mode NTSC 640x440-16-60 : \n");
+        trace ("Tvia mode NTSC 640x440-16-60");
         break;
    case 5:
         selected_xres = 800;
         selected_yres = 600;
         init_mode = 0;
         reg_tv_size_5202 = 133*2; /* ? */
-        trace ("Tvia mode NTSC 800x600-?-? : \n");
+        trace ("Tvia mode NTSC 800x600-?-?");
         break;
 
     }
