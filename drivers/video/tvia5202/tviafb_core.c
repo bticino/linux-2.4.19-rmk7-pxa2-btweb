@@ -3863,7 +3863,7 @@ static int __init tvia5202fb_init(void)
    dbg("SetDACPower");
    SetDACPower(ON);            /*power on DAC to turn on screen */
 
-   if (btweb_globals.flavor==BTWEB_INTERFMM){
+   if (btweb_globals.flavor!=BTWEB_INTERFMM){
       trace("Disabling RGBDAC");
       tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
       iTmpFA = tvia_inb(0x3cf);
