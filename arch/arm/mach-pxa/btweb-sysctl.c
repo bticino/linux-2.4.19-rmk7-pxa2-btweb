@@ -1106,13 +1106,20 @@ static int btsys_read(int name)
 			if (btweb_features.tx_infrared_addr < 0)
 				return -EOPNOTSUPP;
 
-			printk(KERN_DEBUG "tx_infrared read hash\n");
-
-			if (btsys_i2c_read(btweb_features.tx_infrared_addr, hash_reg, sizeof(hash_reg), buf, sizeof(buf) < 0))
+			memset(buf, 0xff, sizeof(buf));
+			if (btsys_i2c_read(btweb_features.tx_infrared_addr, hash_reg, sizeof(hash_reg), buf, sizeof(buf)) < 0)
+			{
+				printk(KERN_ERR "tx_infrared read hash error\n");
 				return -EIO;
+			}
 
+			printk(KERN_DEBUG "tx_infrared read hash: ");
 			for (i = 0; i < sizeof(buf); i++)
+			{
+				printk(KERN_DEBUG "%2x ", buf[i]);
 				btsys_tx_infrared_data[i] = buf[i];
+			}
+			printk(KERN_DEBUG "\n");
 			return 0;
 		}
 		break;
@@ -1129,7 +1136,9 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 #ifdef MY_REAL_READ
 	if (!write)
 	{
-		btsys_read(table->ctl_name);
+		retval = btsys_read(table->ctl_name);
+		if (retval < 0)
+			return retval;
 	}
 #endif
 
