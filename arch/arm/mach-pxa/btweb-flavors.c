@@ -110,7 +110,7 @@ static struct btweb_flavor fltab[] __initdata = {
 	{0x2,0x2, BTWEB_2F,	   "2F",        64, 400, &feat, &init_f453av_346890},
 	{0x3,0x3, BTWEB_PBX288exp, "PBX288EXP", 64, 400, &feat, &init_pbx288exp},
 	{0x4,0x4, BTWEB_PBX288,    "PBX288",    64, 400, NULL,  NULL},
-	{0x5,0x5, BTWEB_PE,    	   "PE",        64, 400, &feat, &init_pe},
+	{0x5,0x5, BTWEB_PE,    	   "PE",        64, 200, &feat, &init_pe}, /* Half speed !!! */
 	{0x6,0x6, BTWEB_PI,        "PI",        64, 400, &feat, &init_pi},
 	{0x7,0x7, BTWEB_H4684_IP,  "H4684_IP",  64, 400, &feat, &init_h4684ip},
         {0x8,0x8, BTWEB_H4684_IP_8,"H4684_IP_8",64, 400, &feat, &init_h4684ip_8},
@@ -361,6 +361,14 @@ int __init btweb_find_device(int *memsize)
 	if (fptr->speed == 400) {
 		int cpuspeed = 0x161;
 		printk("Switching to 400MHz\n");
+		/* Frequency change sequence (3.4.7 and 3.7.1) */
+		CCCR = cpuspeed;
+		__asm__("mcr     p14, 0, %0, c6, c0, 0" :
+			/* no output */ : "r" (2) : "memory");
+	}	
+	if (fptr->speed == 200) {
+		int cpuspeed = 0x141;
+		printk("Switching to 200MHz\n");
 		/* Frequency change sequence (3.4.7 and 3.7.1) */
 		CCCR = cpuspeed;
 		__asm__("mcr     p14, 0, %0, c6, c0, 0" :

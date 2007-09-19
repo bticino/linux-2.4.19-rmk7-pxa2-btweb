@@ -51,6 +51,8 @@
 #include <video/fbcon-cfb16.h>
 /* ADVANTECH #include <video/fbcon-cfb24.h> */
 
+extern void printascii(const char *);
+
 
 /* DMA */
 #include <asm/dma.h>
@@ -107,7 +109,7 @@ static void debug_printf(char *fmt, ...)
     vsprintf(buffer, fmt, ap);
     va_end(ap);
 
-    printascii(buffer);
+    printk(buffer);
 }
 #else
 #define debug_printf(x...) do { } while (0)
@@ -1376,7 +1378,7 @@ static void ProgramTV(void)
   /*-------------------------------------
   |*  TV Out Programming  
   -------------------------------------*/
-    if ( (init_var.xres==640 && init_var.yres==480) \ 
+    if ( (init_var.xres==640 && init_var.yres==480) \
          || (init_var.xres==720 && init_var.yres==576)  \
          || (init_var.xres==640 && init_var.yres==440) ) {
 
@@ -1679,12 +1681,14 @@ static inline void tviafb_update_start(struct fb_var_screeninfo *var)
 
 static int tviafb_open(struct fb_info *info, int user)
 {
+    dbg("tviafb_open: MOD_INC_USE_COUNT");
     MOD_INC_USE_COUNT;
     return 0;
 }
 
 static int tviafb_release(struct fb_info *info, int user)
 {
+    dbg("tviafb_release: MOD_DEC_USE_COUNT");
     MOD_DEC_USE_COUNT;
     return 0;
 }
@@ -1828,7 +1832,7 @@ tviafb_set_var(struct fb_var_screeninfo *var, int con,
 #endif
 #ifdef FBCON_HAS_CFB16
     case 16:
-        dbg ("tviafb_set_var: setting fbcon_cfb16",fbcon_cfb16);
+        dbg ("tviafb_set_var: setting fbcon_cfb16");
         dispsw = &fbcon_cfb16;
         display->dispsw_data = current_par.c_table.cfb16;
         var->bits_per_pixel = 16;
@@ -2171,6 +2175,14 @@ void My_Tvia_ioctl(u8 type,u8 index,u8 val, u16 indexword, u16 valword){
  else if (type==15) // Graphic frame buffer: copying 2nd line to first, 4th to 3rd and so on ..
  {
   	Fb_line_copy(val);
+ }
+ else if (type==16) // Resetting Tvia
+ {
+        tvia5202_power_off();
+ }
+ else if (type==17) // Re-init Tvia
+ {
+        tvia5202_power_on();
  }
 
 
@@ -3675,6 +3687,212 @@ static int fb_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
 }
 #endif
 
+static int tvia5202_power_on(void)
+{
+    //volatile unsigned char *ioaddr;
+    int w, b;
+    u8 tmp,iTmpFA,iTmp;
+
+    current_par.device_id = 0x5202;
+    current_par.memtype = 1;
+    current_par.palette_size = 256;
+
+    trace("Tvia5202 Runtime init");
+    trace("R: MSC2=%X",MSC2);
+    trace("R: MDREFR=%X",MDREFR);
+
+    if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
+      GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
+    }
+    else if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_2F)|| \
+                (btweb_globals.flavor==BTWEB_INTERFMM) ){
+      GPSR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
+    }
+
+	/* Wake up the chip */
+	tvia_outb(0x18, 0x46e8);
+	tvia_outb(0x01, 0x102);
+	tvia_outb(0x08, 0x46e8);  
+	dbg("R: Wake up the chip");
+
+	/* Enable linear address */
+	//tvia_outb(0x33, 0x3ce);
+	//tvia_outb(0x01, 0x3cf);
+	dbg("R: Enable linear address SHOULD ALREADY ENABLED");
+
+	dbg("Now enable NO_BE_MODE");
+
+	/* Set NO_BE_MODE */	
+	tvia_outb(0x33, 0x3ce);
+	tvia_outb(0x40, 0x3cf); /* set the banking */
+
+	dbg("tviafb: enable NO_BE_MODE 1");
+
+	tvia_outb(0x3c, 0x3ce);
+	tvia_outb(0x40, 0x3cf); /* set NO_BE_MODE */
+
+	//trace("tviafb: enable NO_BE_MODE 2");
+
+	if(tvia_inb(0x3cf) != 0x40)
+	{
+		trace("Error on enabling NO_BE_MODE");
+		tvia_outb(0x33, 0x3ce);
+		tvia_outb(0x00, 0x3cf);
+		if (CyberRegs != 0) {
+		iounmap((void *) CyberRegs);
+		CyberRegs = 0;
+		}
+		if (current_par.screen_base != 0) {
+			iounmap((void *) current_par.screen_base);
+			current_par.screen_base = 0;
+		}
+		trace("Exiting from tviafb module");
+		
+		return 1;
+	}
+	tvia_outb(0x33, 0x3ce);
+	tvia_outb(0x00, 0x3cf);  /* clear the banking */
+	dbg("OK NO_BE_MODE");
+
+    /* Verifying paramter from cmdline */
+    trace ("R: tvia_mode=%d",tvia_mode);
+
+    dbg("R: tvia_init_hw");
+    tvia_init_hw();
+
+    dbg("R: Going to ProgramTV");
+    ProgramTV();
+    dbg("R: ProgramTV done");
+
+    if (init_var.bits_per_pixel >= 16)
+        BypassMode(ON);         /*want bypass mode */
+    else {
+        BypassMode(OFF);        /*want index mode */
+        SetRamDac(RamDacData, sizeof(RamDacData) / 3);
+    }
+   dbg("R: SetDACPower");
+   SetDACPower(ON);            /*power on DAC to turn on screen */
+
+   if (btweb_globals.flavor!=BTWEB_INTERFMM){
+      trace("R: Disabling RGBDAC");
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      iTmpFA = tvia_inb(0x3cf);
+      tvia_outb(0x02, 0x3cf);
+   
+      tvia_outb(0xB1, 0x3ce);
+      iTmp = tvia_inb(0x3cf);
+      deb("R: read 3cf/bf02.3cf/b1=%x",iTmp);
+      iTmp = (iTmp|0x0f);
+      deb("R: writing 3cf/fa05.3cf/b1=%x",iTmp);
+      tvia_outb(iTmp, 0x3cf);
+
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      tvia_outb(iTmpFA, 0x3cf);
+      deb("R: Disabling RGBDAC done");
+   }else{
+      trace("R: Enabling RGBDAC");
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      iTmpFA = tvia_inb(0x3cf);
+      tvia_outb(0x02, 0x3cf);
+
+      tvia_outb(0xB1, 0x3ce);
+      iTmp = tvia_inb(0x3cf);
+      deb("R: read 3cf/bf02.3cf/b1=%x",iTmp);
+      iTmp = (iTmp&0xC0);/////per abilitare 3f
+      deb("R: writing 3cf/fa05.3cf/b1=%x",iTmp);
+      tvia_outb(iTmp, 0x3cf);
+
+      tvia_outb(0xBF, 0x3ce);     /*Banking I/O control */
+      tvia_outb(iTmpFA, 0x3cf);
+      deb("R: Enabling RGBDAC done");
+   }
+
+   deb("R: Disabling DigitalRGB");
+   EnableDigitalRGB(OFF);
+   deb("R: Disabling DigitalCursor");
+   EnableDigitalCursor(OFF);
+
+   if (btweb_globals.flavor!=BTWEB_INTERFMM){
+      trace("R: Disabling HSync,VSync");
+      //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
+      //00  ----- enable Hsync
+      //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
+      Out_Video_Reg_M(0x16,0x05,0xF0);
+   }else{
+      trace("R: Enabling HSync,VSync");
+      //HSYNC:  3CF/16 [1:0] = 01  ----- disable Hsync
+      //00  ----- enable Hsync
+      //VSYNC:  3CF/16 [3:2] = 01  ----- disable Vsync
+      Out_Video_Reg_M(0x16,0x00,0xF0);
+   }
+
+   dbg("R:Disable hardware cursor");
+   tvia_outb(0x56, 0x3ce);
+   tvia_outb(tvia_inb(0x3cf) & 0xfe, 0x3cf);
+   dbg("R:Hardware cursor done");
+
+    if (init_var.bits_per_pixel == 8) {
+        b = 0;
+        w = init_var.xres;
+    } else if (init_var.bits_per_pixel == 16) {
+        b = 1;
+        w = init_var.xres;
+    } else if (init_var.bits_per_pixel == 24) {
+        b = 2;
+        w = init_var.xres*3;
+    }
+
+    tvia_outw(w - 1, 0xbf018);      /* 2d */
+    tvia_outw(w - 1, 0xbf218);
+    tvia_outb(b, 0xbf01c);
+
+    dbg("R: SetDACPower ON");
+    SetDACPower(ON);
+
+    trace("R: CyberPro5202: %ldkB VRAM, using %dx%d",
+           current_par.screen_size >> 10, init_var.xres, init_var.yres);
+
+    if (MOD_IN_USE)
+       dbg("R: Module in use");
+    else
+       dbg("R: Module not in use");
+
+    return 0;
+}
+
+static void tvia5202_power_off(void)
+{
+    dbg("SetDACPower OFF");
+    SetDACPower(OFF);
+    udelay(100000);
+    dbg("TV OFF");
+    TVOn(OFF);
+    udelay(100000);
+    dbg("EnableTV OFF");
+    EnableTV(OFF);
+    udelay(100000);
+    dbg("SetScartTV OFF");
+    SetScartTV(OFF);
+    udelay(100000);
+    
+#if 0
+    /* Resetting the chip increases power consumption */
+    
+    dbg("Setting tvia5202 in reset state");
+    if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
+       /* Reset Tvia5202 */
+       set_GPIO_mode(btweb_features.tvia_reset | GPIO_OUT);
+       GPSR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset);
+    }
+    else if ((btweb_globals.flavor==BTWEB_F453AV)||(btweb_globals.flavor==BTWEB_2F)|| \
+                (btweb_globals.flavor==BTWEB_INTERFMM) ){
+       /* Reset Tvia5202 */
+       set_GPIO_mode(btweb_features.tvia_reset | GPIO_OUT);
+       GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset);
+    }
+#endif
+}
+
 static int __init tvia5202fb_init(void)
 {
     //volatile unsigned char *ioaddr;
@@ -3685,7 +3903,7 @@ static int __init tvia5202fb_init(void)
     current_par.memtype = 1;
     current_par.palette_size = 256;
 
-    trace("Tvia5202 INIT 1.7.7");
+    trace("Tvia5202 INIT 1.8.0");
 
     if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
        /* Reset Tvia5202 */
@@ -3951,11 +4169,25 @@ static int __init tvia5202fb_init(void)
     trace("CyberPro5202: %ldkB VRAM, using %dx%d",
            current_par.screen_size >> 10, init_var.xres, init_var.yres);
 
+    if (MOD_IN_USE)
+       dbg("Module in use");
+    else
+       dbg("Module not in use");
+
+
+    if (btweb_globals.flavor==BTWEB_PE) {
+      trace("PEMONO doesn't use video output by now, so I switch them off");
+      tvia5202_power_off();
+    }
+    
+
     return 0;
 }
 
+
 static void __exit tvia5202fb_exit(void)
 {
+    dbg("Trying to unregister_framebuffer");
     unregister_framebuffer(&fbinfo);
 
     if (CyberRegs != 0) {
@@ -3966,6 +4198,8 @@ static void __exit tvia5202fb_exit(void)
         iounmap((void *) current_par.screen_base);
         current_par.screen_base = 0;
     }
+
+
 
 #ifdef CONFIG_PM
     if(!fb_pm_dev) {

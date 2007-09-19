@@ -298,6 +298,15 @@ static int i2c_pxa_do_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], 
 			}
 #endif
 		}
+#if DEBUG > 3
+		{
+			int idx;
+			for(idx=0;idx<ret;idx++){
+				printk(KERN_INFO"%02x ",pmsg->buf[idx]);
+			}
+			printk(KERN_INFO"\n");
+		}
+#endif
 	}
 
 	if (ret<0){

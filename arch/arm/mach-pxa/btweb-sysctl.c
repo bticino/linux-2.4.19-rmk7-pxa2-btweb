@@ -260,7 +260,7 @@ static int btsys_i2c_read(int addr, char *reg, size_t reg_size, char *buf, size_
         btsys_client.addr = addr;
         if (i2c_master_send(&btsys_client, reg, reg_size) == reg_size) {
                 ret = i2c_master_recv(&btsys_client, buf, buf_size);
-                if (ret == 1)
+                if (ret == buf_size)
                         return 0;
         }
         return -EIO;
@@ -1099,7 +1099,7 @@ static int btsys_read(int name)
 		break;
 		case BTWEB_TX_INFRARED:
 		{
-			uint8_t hash_reg[2] = { 0x00, 0xCE };
+			uint8_t hash_reg[2] = { 0x00, 0xC0 };
 			uint8_t buf[8];
 			int i;
 
