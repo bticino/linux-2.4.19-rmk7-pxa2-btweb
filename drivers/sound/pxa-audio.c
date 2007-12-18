@@ -41,7 +41,7 @@
 #define SNDCTL_BT_SETLINE     		_SIOWR('P',84, int)
 #define SNDCTL_BT_SETPCM     		_SIOWR('P',83, int)
 
-// #define BT_DEBUG
+#define BT_DEBUG
 			// PARM: x attivare scritte di debug, meglio farne a meno !
 
 #define AUDIO_NBFRAGS_DEFAULT	8
@@ -183,7 +183,7 @@ void pxa_ac97_write1(struct ac97_codec *codec, u8 reg, u16 val )
 		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
 	}
 	up(&CAR_mutex_1);
-	printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
+//	printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
 }
 
 struct ac97_codec pxa_ac97_codec1 = {
@@ -1217,7 +1217,7 @@ printk ("audio mmap \n");
 	return 0;
 }
 
-
+#if 0
 static int audio_release(struct inode *inode, struct file *file)
 {
 
@@ -1244,6 +1244,31 @@ static int audio_release(struct inode *inode, struct file *file)
 
 	up(&state->sem);
 	return 0;
+}
+#endif
+int pxa_audio_release(struct inode *inode, struct file *file)
+{
+        audio_state_t *state = file->private_data;
+
+        down(&state->sem);
+
+        if (file->f_mode & FMODE_READ) {
+                audio_clear_buf(state->input_stream);
+                *state->input_stream->drcmr = 0;
+                pxa_free_dma(state->input_stream->dma_ch);
+                state->rd_ref = 0;
+        }
+
+        if (file->f_mode & FMODE_WRITE) {
+                audio_sync(file);
+                audio_clear_buf(state->output_stream);
+                *state->output_stream->drcmr = 0;
+                pxa_free_dma(state->output_stream->dma_ch);
+                state->wr_ref = 0;
+        }
+
+        up(&state->sem);
+        return 0;
 }
 
 
@@ -1309,7 +1334,12 @@ if (file->f_mode & FMODE_READ) {
 	}
 
 	file->private_data	= state;
+#if 0
 	file->f_op->release	= audio_release;
+#else
+        if (!file->f_op->release)
+                file->f_op->release     = pxa_audio_release;
+#endif
 	file->f_op->write	= audio_write;
 	file->f_op->read	= audio_read;
 	file->f_op->mmap	= audio_mmap;
@@ -1346,5 +1376,6 @@ out:
 }
 
 EXPORT_SYMBOL(pxa_audio_attach);
+EXPORT_SYMBOL(pxa_audio_release);
 EXPORT_SYMBOL(pxa_audio_clear_buf);
 

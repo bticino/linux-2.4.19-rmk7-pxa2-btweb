@@ -69,7 +69,7 @@ void btweb_backlight(int onoff)
 /*
  * debugging?
  */
-#define DEBUG 1
+#undef DEBUG
 /*
  * Complain if VAR is out of range.
  */

@@ -23,7 +23,7 @@
 #include <linux/mtd/partitions.h>
 
 #define BTWEB_FLASH_32M  /* */
-#define BTWEB_PARTITIONS /* For all BTWEB Livin Luce products*/
+#define BTWEB_PARTITIONS /* For all BTWEB products*/
 
 #define WINDOW_ADDR 	0
 //#define WINDOW_ADDR 	0x04000000
@@ -97,51 +97,59 @@ fis create -b 0x880000 -l 0x020000 -f 0xFC0000 "extra"
 
 static struct mtd_partition btweb_partitions[] = {
 	{
-		name:		"Bootloader",
+		name:		"Bootloader",	/* mtd0 */
 		size:		0x00040000,
 		offset:		0,
 	},{
 		name:		"conf",
-		size:		0x00060000,
+		size:		0x00060000,	/* mtd1 */    
 		offset:		0x00040000,
 	},{
-		name:		"conf_copy",
+		name:		"conf_copy",	/* mtd2 */
 		size:		0x00060000,
 		offset:		0x000a0000,
 	},{
-		name:		"Kernel",
+		name:		"Kernel",	/* mtd3 */
 		size:		0x00120000,
 		offset:		0x00100000,
 	},{
-		name:		"btweb_only",
+		name:		"btweb_only",	/* mtd4 */
 		size:		0x008a0000,
 		offset:		0x00220000,
 	},{
-		name:		"btweb_app",
+		name:		"btweb_app",	/* mtd5 */
 		size:		0x00280000,
 		offset:		0x00ac0000
 	},{
-		name:		"btweb_app_copy",
+		name:		"btweb_app_copy",	/* mtd6 */
 		size:		0x00280000,
 		offset:		0x00d40000
+	},{
+		name:		"u-boot-env",	/* mtd7 */
+		size:		0x00020000,
+		offset:		0x00fc0000
+	},{
+		name:		"u-boot-env-maybe", 	/* mtd8 */
+		size:		0x00020000,
+		offset:		0x00fe0000
 #ifdef BTWEB_FLASH_32M
         },{
-                name:           "zImage1",
+                name:           "zImage1",	/* mtd9 */
                 size:           0x00120000,
                 offset:         0x01000000
         },{
-                name:           "btweb_only1",
+                name:           "btweb_only1",	/* mtd10 */
                 size:           0x008a0000,
                 offset:         0x01120000,
         },{
-                name:           "extra",
+                name:           "extra",	/* mtd11 */
                 size:           0x00640000,
                 offset:         0x019c0000
 
         }
 #else
         },{
-                name:           "extra",
+                name:           "extra",	/* mtd9 */
                 size:           0x00020000,
                 offset:         0x00fc0000
 
@@ -149,6 +157,71 @@ static struct mtd_partition btweb_partitions[] = {
 #endif
 
 };
+
+static struct mtd_partition btweb_extra_partitions[] = {
+	{
+		name:		"Bootloader", 		/* mtd0 */
+		size:		0x00040000,
+		offset:		0,
+	},{
+		name:		"conf",			/* mtd1 */
+		size:		0x00060000,
+		offset:		0x00040000,
+	},{
+		name:		"conf_copy",		/* mtd2 */
+		size:		0x00060000,
+		offset:		0x000a0000,
+	},{
+		name:		"Kernel",		/* mtd3 */
+		size:		0x00120000,
+		offset:		0x00100000,
+	},{
+		name:		"btweb_only",		/* mtd4 */
+		size:		0x008a0000,
+		offset:		0x00220000,
+	},{
+		name:		"btweb_app",		/* mtd5 */
+		size:		0x00280000,
+		offset:		0x00ac0000
+	},{
+		name:		"btweb_app_copy",	/* mtd6 */
+		size:		0x00280000,
+		offset:		0x00d40000
+	},{
+		name:		"u-boot-env",		/* mtd7 */
+		size:		0x00020000,
+		offset:		0x00fc0000
+	},{
+		name:		"u-boot-env-maybe",	/* mtd8 */
+		size:		0x00020000,
+		offset:		0x00fe0000
+#ifdef BTWEB_FLASH_32M
+        },{
+                name:           "zImage1",		/* mtd9 */
+                size:           0x00120000,
+                offset:         0x01000000
+        },{
+                name:           "btweb_only1",		/* mtd10 */
+                size:           0x00480000,
+                offset:         0x01120000,
+        },{
+                name:           "extra",		/* mtd11 */
+                size:           0x00A60000,
+                offset:         0x015A0000
+
+        }
+#else
+        },{
+                name:           "extra",		/* mtd9 */
+                size:           0x00020000,
+                offset:         0x00fc0000
+
+        }
+#endif
+
+};
+////
+
 
 #else  /* Old small partitions */
 static struct mtd_partition btweb_partitions[] = {
@@ -212,6 +285,10 @@ static int __init init_btweb(void)
 	if (parsed_nr_parts > 0) {
 		parts = parsed_parts;
 		nb_parts = parsed_nr_parts;
+	} else if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PBX288exp)||(btweb_globals.flavor==BTWEB_INTERFMM)) {
+		printk(KERN_NOTICE "Mtd BTWEB partitions (extra 10MB)\n");
+		parts = btweb_extra_partitions;
+		nb_parts = NB_OF(btweb_extra_partitions);
 	} else {
 		printk(KERN_NOTICE "Mtd BTWEB partitions\n");
 		parts = btweb_partitions;
@@ -236,7 +313,7 @@ static void __exit cleanup_btweb(void)
 	}
 	if (btweb_map.map_priv_1)
 		iounmap((void *)btweb_map.map_priv_1);
-	return 0;
+	return;
 }
 
 module_init(init_btweb);

@@ -21,3 +21,8 @@ void cam_panstop(void);
 void cam_tiltfwd(void);
 void cam_tiltback(void);
 void cam_tiltstop(void);
+int cam_panmove(int);
+int cam_tiltmove(int);
+int cam_getpan(void);
+int cam_gettilt(void);
+

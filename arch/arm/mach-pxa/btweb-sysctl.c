@@ -133,6 +133,9 @@ static int btsys_cammotor_fc2pan = 0;
 static int btsys_cammotor_fc1tilt = 0;
 static int btsys_cammotor_fc2tilt = 0;
 static int btsys_cammotor_hz = 0;
+static int btsys_cammotor_pan_set = 0;
+static int btsys_cammotor_tilt_set = 0;
+
 
 #define BTWEB_IRPROG_MAXSIZE  802
 static int btsys_tx_infrared_data[BTWEB_IRPROG_MAXSIZE+2];  /* 2 bytes for size of data in the buffer */
@@ -706,12 +709,25 @@ static int btsys_apply(int name)
 				return -EINVAL;
 			cam_sethz(btsys_cammotor_hz);
 		break;
+		case BTWEB_CAMMOTOR_TILT_SET:
+			if (btweb_features.cammotor_tilt_set < 0)
+				return -EOPNOTSUPP;
+			cam_tiltmove(btsys_cammotor_tilt_set); 
+		break;
+		case BTWEB_CAMMOTOR_PAN_SET:
+			if (btweb_features.cammotor_pan_set < 0)
+				return -EOPNOTSUPP;
+			cam_panmove(btsys_cammotor_pan_set); 
+		break;
 		case BTWEB_TX_INFRARED:
 		{
 			if (btweb_features.tx_infrared_addr < 0)
 				return -EOPNOTSUPP;
 
+			printk(KERN_DEBUG "tx_infrared %x,%x,%x,%x,%x \n",btsys_tx_infrared_data[0],btsys_tx_infrared_data[1],btsys_tx_infrared_data[2],btsys_tx_infrared_data[3],btsys_tx_infrared_data[4]);
+
 			unsigned int size = btsys_tx_infrared_data[0]*0x100 + btsys_tx_infrared_data[1];
+			printk(KERN_DEBUG "tx_infrared size=%x \n",size);
 			if (size != 0 && size <= BTWEB_IRPROG_MAXSIZE) {
 				int i;
 				for (i=0; i < size; i++)
@@ -1097,6 +1113,22 @@ static int btsys_read(int name)
 			btsys_cammotor_hz = cam_gethz();
 			return 0;
 		break;
+		case BTWEB_CAMMOTOR_PAN_SET:
+			btsys_cammotor_pan_set = cam_getpan();
+			if (btsys_cammotor_pan_set == -1)
+				return -EOPNOTSUPP;
+			else if (btsys_cammotor_pan_set == -2)
+				return -EAGAIN;
+			return 0;
+		break;
+		case BTWEB_CAMMOTOR_TILT_SET:
+			btsys_cammotor_tilt_set = cam_gettilt();
+			if (btsys_cammotor_tilt_set == -1)
+				return -EOPNOTSUPP;
+			else if (btsys_cammotor_tilt_set == -2)
+				return -EAGAIN;
+			return 0;
+		break;
 		case BTWEB_TX_INFRARED:
 		{
 			uint8_t hash_reg[2] = { 0x00, 0xC0 };
@@ -1132,6 +1164,7 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 	       void *buff, size_t *lenp)
 {
 	int retval;
+	printk(KERN_DEBUG "btsys_proc\n"); 
 
 #ifdef MY_REAL_READ
 	if (!write)
@@ -1153,9 +1186,9 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 	else{
 		retval = proc_dointvec(table, write, filp, buff, lenp);
 	}
-/*	trace("btsys_proc: retval=%d",retval);*/
+	trace("btsys_proc: retval=%d",retval);
 	if (!write || retval < 0) return retval;
-/*	trace("btsys_proc: writing");*/
+	trace("btsys_proc: writing");
 
 	/* written: apply the change */
 	return btsys_apply(table->ctl_name);
@@ -1175,6 +1208,8 @@ static int btsys_sysctl(ctl_table *table, int *name, int nlen,
 
 	retval = sysctl_intvec(table, name, nlen, oldval, oldlenp,
 			       newval, newlen, context);
+	if (retval < 0) 
+		trace("sysctl_intvec returned error for %d, errno=%d:nlen=%d,newlen=%d",*name,retval,nlen,newlen);
 	if (!newval || retval < 0) return retval;
 	trace("Modifying %s",table->procname);
 	return btsys_apply(table->ctl_name);
@@ -1689,6 +1724,28 @@ ctl_table btsys_table[] = {
                 .extra2 =        bool_max,
         },
         {
+                .ctl_name =      BTWEB_CAMMOTOR_PAN_SET,
+                .procname =      "cammotor_pan_set",
+                .data =          &btsys_cammotor_pan_set,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        short_min,
+		.extra2 =        short_max,
+        },
+        {
+                .ctl_name =      BTWEB_CAMMOTOR_TILT_SET,
+                .procname =      "cammotor_tilt_set",
+                .data =          &btsys_cammotor_tilt_set,
+		.maxlen =        sizeof(int),
+		.mode =          0644,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+		.extra1 =        short_min,
+		.extra2 =        short_max,
+        },
+        {
                 .ctl_name =      BTWEB_LED_TLC,
                 .procname =      "led_tlc",
                 .data =          &btsys_led_tlc,
@@ -1824,6 +1881,8 @@ ctl_table btsys_table[] = {
                 .mode =          0644,
                 .proc_handler =  btsys_proc,
                 .strategy =      btsys_sysctl,
+/*                .extra1 =        short_min, */
+/*                .extra2 =        short_max, */
         },
 	{0,}
 };

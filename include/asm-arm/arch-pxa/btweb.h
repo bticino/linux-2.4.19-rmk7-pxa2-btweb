@@ -92,8 +92,10 @@ struct btweb_features {
 	int cammotor_fc2pan;
 	int cammotor_fc1tilt;
 	int cammotor_fc2tilt;
+	int cammotor_tilt_set;
+	int cammotor_pan_set;
 
-        int penirq;
+	int penirq;
 
 	int pbx_rst_ext_d;
 	int pbx_line_off_d;
@@ -216,6 +218,8 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_TX_INFRARED	52 /* Remote control infrared transmitter */
 #define BTWEB_ABIL_I2S		53 /* POWER ON on I2S transmitter */
 #define BTWEB_SERIAL_NUMBER     54 /* SERIAL NUMBER : normally is thew MAC_ADDRESS */
+#define BTWEB_CAMMOTOR_TILT_SET 55 /* Camera tilt set position */
+#define BTWEB_CAMMOTOR_PAN_SET  56 /* Camera pan set position */
 
 
 #endif

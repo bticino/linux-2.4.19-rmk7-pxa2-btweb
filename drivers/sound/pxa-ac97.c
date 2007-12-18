@@ -144,7 +144,7 @@ static void pxa_ac97_write(struct ac97_codec *codec, u8 reg, u16 val)
 	down(&CAR_mutex);
 	if (!(CAR & CAR_CAIP)) {
 		addr = addr_cod_base + (reg << 1 );
-printk ("pxa_ac97_write addr %X val %X \n", addr, val);
+//printk ("pxa_ac97_write addr %X val %X \n", addr, val);
 		ioaddr = (volatile u32 *)ioremap( addr , 4);
 		GSR |= GSR_CDONE;
 		CAR |= CAR_CAIP;
@@ -159,7 +159,7 @@ printk ("pxa_ac97_write addr %X val %X \n", addr, val);
 		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
 	}
 	up(&CAR_mutex);
-	printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
+//	printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
 }
 #endif
 
@@ -392,7 +392,7 @@ int pxa_ac97_get1(struct ac97_codec **codec)
 {
 	int ret;
 
-printk ("pxa ac97 get1, refcount %d \n", pxa_ac97_refcount);
+//printk ("pxa ac97 get1, refcount %d \n", pxa_ac97_refcount);
 
 	*codec = NULL;
 	down(&pxa_ac97_mutex_1);
@@ -443,7 +443,7 @@ printk ("pxa ac97 get1, refcount %d \n", pxa_ac97_refcount);
 #ifdef CODEC_PRIMARY
 void pxa_ac97_put(void)
 {
-printk ("pxa_ac97_put \n");
+//printk ("pxa_ac97_put \n");
 	down(&pxa_ac97_mutex);
 	pxa_ac97_refcount--;
 	if (!pxa_ac97_refcount) {
@@ -616,11 +616,11 @@ static int ac97_ioctl(struct inode *inode, struct file *file,
 	long val;
 	u16 valVRA;
 
-printk( "access to ac97 ioctl ");
+//printk( "access to ac97 ioctl ");
 	switch(cmd) {
 
 	case SNDCTL_DSP_STEREO:
-printk( " DSP stereo \n");
+//printk( " DSP stereo \n");
 
 		ret = get_user(val, (int *) arg);
 		if (ret)
@@ -701,7 +701,7 @@ static int ac97_ioctl_1(struct inode *inode, struct file *file,
 	switch(cmd) {
 
 	case SNDCTL_DSP_STEREO:
-printk( " DSP stereo \n");
+//printk( " DSP stereo \n");
 
 		ret = get_user(val, (int *) arg);
 		if (ret)
@@ -721,7 +721,7 @@ printk( " DSP stereo \n");
 	case SNDCTL_DSP_SPEED:
 
 		ret = get_user(val, (long *) arg);
-printk( "set DSP speed to %d\n", val);
+//printk( "set DSP speed to %d\n", val);
 
 		if (ret)
 			return ret;
@@ -804,7 +804,7 @@ static audio_state_t ac97_audio_state = {
 
 static int ac97_audio_open(struct inode *inode, struct file *file)
 {
-printk ("audio open\n");
+//printk ("audio open\n");
 	return pxa_audio_attach(inode, file, &ac97_audio_state);
 }
 
@@ -870,7 +870,7 @@ static int __init pxa_ac97_init(void)
 	struct ac97_codec *dummy;
 
 #ifdef CODEC_PRIMARY
-printk("primary codec pxa ac97 init \n");
+//printk("primary codec pxa ac97 init \n");
 	ret = pxa_ac97_get(&dummy);
 	if (ret)
 		return ret;
@@ -879,7 +879,7 @@ printk("primary codec pxa ac97 init \n");
 #endif
 
 #ifdef CODEC_SECONDARY
-printk("secondo codec pxa ac97 init \n");
+//printk("secondo codec pxa ac97 init \n");
 	ret = pxa_ac97_get1(&dummy);
 	if (ret)
 		return ret;

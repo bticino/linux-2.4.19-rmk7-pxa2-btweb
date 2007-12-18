@@ -54,15 +54,31 @@ Moreover: GPIO63, GPIO64, GPIO69 (hw revisions)
 #include "btweb-cammotors.h"
 
 
-static struct btweb_features feat;
-#if 0
-static struct btweb_features feat_f452;
-static struct btweb_features feat_h4684;
-static struct btweb_features feat_h4684ip;
-static struct btweb_features feat_f453av;
-static struct btweb_features feat_pe;
-static struct btweb_features feat_pi;
+#ifndef MODULE
+
+
+#define NO_MACHINE "NO_MACHINE"
+char * MACHINE=NO_MACHINE;
+#if 1
+static int
+__init Btweb_Machine_setup(char *str)
+{
+	printk(KERN_ALERT "Btweb_Machine_setup\n");	
+	MACHINE = str;
+	printk(KERN_ALERT "MACHINE=%s\n",MACHINE);	
+	return 1;
+}
+
+__setup("MACHINE=", Btweb_Machine_setup);
 #endif
+
+
+#endif                          /* MODULE */
+
+
+
+/* Common features declarations */
+static struct btweb_features feat;
 
 /* Low-level output routine, to spit a grand failure before printk is there */
 static void __init serialout(int c)
@@ -93,6 +109,7 @@ static int init_pe(struct btweb_flavor *fla, int rev);
 static int init_pi(struct btweb_flavor *fla, int rev); 
 static int init_megaticker(struct btweb_flavor *fla, int rev);
 static int init_pbx288exp(struct btweb_flavor *fla, int rev);
+static int init_mh500(struct btweb_flavor *fla, int rev);
 
 
 struct btweb_gpio {
@@ -116,7 +133,7 @@ static struct btweb_flavor fltab[] __initdata = {
         {0x8,0x8, BTWEB_H4684_IP_8,"H4684_IP_8",64, 400, &feat, &init_h4684ip_8},
         {0x9,0x9, BTWEB_CDP_HW,    "CDP_HW",    64, 400, NULL,  NULL},
         {0xa,0xa, BTWEB_INTERFMM,  "INTERFMM",  64, 400, &feat, &init_interfmm},
-        {0xb,0xb, BTWEB_MH500,     "MH500",     64, 400, NULL,  NULL},
+        {0xb,0xb, BTWEB_MH500,     "MH500",     64, 400, &feat, &init_mh500},
         {0xc,0xc, BTWEB_MEGATICKER,"MEGATICKER",64, 400, &feat, &init_megaticker},
 #if 0  /* Old Rubini */
         {0x4,0x7, BTWEB_F452,   "F452",   64, 400, &feat_f452,   NULL},
@@ -278,7 +295,21 @@ struct btweb_gpio gpios[] __initdata = {
 			  0xA0000000,
 			  0x00000002
 		},
-	}
+	},
+        {
+                .id = BTWEB_MH500,
+                .gpdr = { 0xF85B9C3D,0xFCFFBBF3,0x0001FFFF},
+                .gpsr = { 0x00028000,0x03FF8A80,0x0000C040},
+                .gpcr = { ~(0x00028000),~(0x03FF8A80) ,~(0x0000C040) },
+                .gafr = { 0x80000000,
+                          0x00000010,
+                          0x00908010,
+                          0x0AA5AAAA,
+                          0xAAA00000,
+                          0x00000000
+                }
+        },
+
 };
 
 /* return a 4-bit number from 4 GPIO configured as input */
@@ -323,6 +354,12 @@ int __init btweb_find_device(int *memsize)
 			"please fix btweb-flavors.c\n", id);
 		for (i=0; s[i]; i++)
 			serialout(s[i]);
+		udelay(500000);
+		udelay(500000);
+		udelay(500000);
+		udelay(500000);
+		udelay(500000);
+		udelay(500000);
 		return -ENODEV;
 	}
 
@@ -476,6 +513,8 @@ static struct btweb_features feat __initdata = {
 	.MIN3B = -1,
 	.MIN4A = -1, 
 	.MIN4B = -1,
+	.fc_pan = -1,
+	.fc2_pan = -1,
 
 	.rx_tx_485 = -1,
 
@@ -501,6 +540,8 @@ static struct btweb_features feat __initdata = {
 	.pbx_rst1_d = -1,
 	.pbx_batt_state = -1,
 	.pbx_batt_low = -1,
+        .pbx_pcm_fs_rst = -1;
+
 
         /* infrared transmitter */
         .tx_infrared_addr = -1,
@@ -902,4 +943,24 @@ static int init_pbx288exp(struct btweb_flavor *fla, int rev) {
 
         return 0;
 }
+
+
+static int init_mh500(struct btweb_flavor *fla, int rev) {
+
+	printk("Customizing %s, revision is %d\n",fla->name,rev);
+
+        btweb_features.eth_reset = 3;
+        btweb_features.eth_irq = 22;
+        btweb_features.e2_wp = 10;
+        btweb_features.rtc_irq = 8;
+        btweb_features.led = 40;
+        btweb_features.pic_reset = 44;
+        btweb_features.mdcnfg = 0x19C9;
+
+	return 0;
+
+}
+
+
+MODULE_PARM(MACHINE, "s");
 

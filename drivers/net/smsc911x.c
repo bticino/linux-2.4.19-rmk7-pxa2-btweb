@@ -3824,7 +3824,7 @@ FINISH_OVERRUN_PROCESSING:
 			privateData->LastReasonForReleasingCPU=1;//Status FIFO Empty
 		}
 	} else {
-		//disable and reenable the INT_EN
+		SMSC_WARNING("Disable and reenable the INT_EN\n");
 		//  This will allow the deassertion interval to begin
 		DWORD temp=Lan_GetRegDW(INT_EN);
 		Lan_SetRegDW(INT_EN,0);

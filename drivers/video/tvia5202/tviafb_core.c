@@ -3782,7 +3782,7 @@ static int tvia5202_power_on(void)
       tvia_outb(0xB1, 0x3ce);
       iTmp = tvia_inb(0x3cf);
       deb("R: read 3cf/bf02.3cf/b1=%x",iTmp);
-      iTmp = (iTmp|0x0f);
+      iTmp = (iTmp|0x3f); // Only 0x0f not completely disable, 0x3f is required
       deb("R: writing 3cf/fa05.3cf/b1=%x",iTmp);
       tvia_outb(iTmp, 0x3cf);
 
@@ -3903,7 +3903,7 @@ static int __init tvia5202fb_init(void)
     current_par.memtype = 1;
     current_par.palette_size = 256;
 
-    trace("Tvia5202 INIT 1.8.0");
+    trace("Tvia5202 INIT 1.8.1");
 
     if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
        /* Reset Tvia5202 */
@@ -3923,17 +3923,14 @@ static int __init tvia5202fb_init(void)
     udelay(100000);
 
 
-#if 1
-  trace("MDREFR=%X",MDREFR);
-  trace("MSC2=%X",MSC2);
-  trace("Setting MDREFR to 0xDC018");
+  dbg("MDREFR=%X",MDREFR);
+  dbg("MSC2=%X",MSC2);
+  dbg("Setting MDREFR to 0xDC018");
   MDREFR=0x000DC018;
-  trace("MDREFR=%X",MDREFR);
+  dbg("MDREFR=%X",MDREFR);
   udelay(100000);
-#endif
-
-  trace("MSC2=%X",MSC2);
-  trace("MDREFR=%X",MDREFR);
+  dbg("MSC2=%X",MSC2);
+  dbg("MDREFR=%X",MDREFR);
 
     if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PI)) {
       GPCR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
@@ -3943,7 +3940,7 @@ static int __init tvia5202fb_init(void)
       GPSR(btweb_features.tvia_reset) = GPIO_bit(btweb_features.tvia_reset); /* tvia5202 HW reset end */
     }
 
-    trace("GO tvia!");
+    dbg("GO tvia!");
 
     CyberRegs = (volatile unsigned char *)ioremap(VMEM_BASEADDR + 0x00800000, 0x100000);
     current_par.currcon = -1;

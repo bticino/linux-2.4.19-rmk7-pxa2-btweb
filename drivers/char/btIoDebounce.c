@@ -19,8 +19,9 @@
 #include <asm/uaccess.h>
 
 
-#define GPIO_AUX_NUMBER 2
+#define GPIO_AUX_NUMBER_DEFAULT 2
 /* #define BTIODEBOUNCE_MINOR from miscdevice */
+static unsigned short gpio_num=GPIO_AUX_NUMBER_DEFAULT;
 
 static void notify_pad_up_down(void);
 static int raw_data;
@@ -28,7 +29,6 @@ static int button_pending;
 
 
 struct btIoDebounce {
-/*        enum pc110pad_mode mode; */
         int     bounce_interval;
         int     irq;
         int     io;
@@ -36,9 +36,8 @@ struct btIoDebounce {
 
 
 static struct btIoDebounce default_params = {
-/*        mode:                   0, */
         bounce_interval:        10,
-        io:			GPIO_AUX_NUMBER
+        io:			GPIO_AUX_NUMBER_DEFAULT
 };
                                                                                                         
 static struct btIoDebounce current_params;
@@ -64,7 +63,7 @@ static struct timer_list bounce_timer = { function: bounce_timeout };
                                                                              
 static void bounce_timeout(unsigned long data)
 {
-	if (!(GPLR(GPIO_AUX_NUMBER) & GPIO_bit(GPIO_AUX_NUMBER))==raw_data) {
+	if (!(GPLR(gpio_num) & GPIO_bit(gpio_num))==raw_data) {
 		printk("rd\n");
 		notify_pad_up_down();
 	}
@@ -125,9 +124,11 @@ static void notify_pad_up_down(void)
 static int open_Io(struct inode * inode, struct file * file)
 {
         current_params = default_params;
+        current_params.io=gpio_num;
+
 	del_timer(&bounce_timer);
         button_pending=0;
-        GPDR(GPIO_AUX_NUMBER) &= ~GPIO_bit(GPIO_AUX_NUMBER); /* input */
+        GPDR(current_params.io) &= ~GPIO_bit(current_params.io); /* input */
 
         return 0;
 }
@@ -211,7 +212,7 @@ static void btIo_irq(int irq, void *ptr, struct pt_regs *regs)
 {
 	int value=0;
         {
-		if (!(GPLR(GPIO_AUX_NUMBER) & GPIO_bit(GPIO_AUX_NUMBER)))
+		if (!(GPLR(current_params.io) & GPIO_bit(current_params.io)))
 			value=1;
 
                 raw_data=value;
@@ -299,6 +300,9 @@ static void __exit btIoDebounce_exit_driver(void)
 
 module_init(btIoDebounce_init_driver);
 module_exit(btIoDebounce_exit_driver);
+
+MODULE_PARM (gpio_num, "i");
+MODULE_PARM_DESC (gpio_num, "Gpio number to be debounced.");
                                                                              
 MODULE_AUTHOR("Raffaele Recalcati");
 MODULE_DESCRIPTION("Driver for reading from gpio using interrupt");

@@ -127,8 +127,8 @@ typedef void            (*ExcpHndlr) (void) ;
 #define DRCMR12		__REG(0x40000130)  /* Request to Channel Map Register for AC97 audio transmit Request */
 #define DRCMR13		__REG(0x40000134)  /* Request to Channel Map Register for SSP receive Request */
 #define DRCMR14		__REG(0x40000138)  /* Request to Channel Map Register for SSP transmit Request */
-#define DRCMR15		__REG(0x4000013c)  /* Reserved */
-#define DRCMR16		__REG(0x40000140)  /* Reserved */
+#define DRCMR15		__REG(0x4000013c)  /* Request to Channel Map Register for NSSP receive Request */
+#define DRCMR16		__REG(0x40000140)  /* Request to Channel Map Register for NSSP transmit Request */
 #define DRCMR17		__REG(0x40000144)  /* Request to Channel Map Register for ICP receive Request */
 #define DRCMR18		__REG(0x40000148)  /* Request to Channel Map Register for ICP transmit Request */
 #define DRCMR19		__REG(0x4000014c)  /* Request to Channel Map Register for STUART receive Request */
@@ -166,6 +166,8 @@ typedef void            (*ExcpHndlr) (void) ;
 #define DRCMRTXPCDR	DRCMR12
 #define DRCMRRXSSDR	DRCMR13
 #define DRCMRTXSSDR	DRCMR14
+#define DRCMRRXSSDR2	DRCMR15
+#define DRCMRTXSSDR2	DRCMR16
 #define DRCMRRXICDR	DRCMR17
 #define DRCMRTXICDR	DRCMR18
 #define DRCMRRXSTRBR	DRCMR19
