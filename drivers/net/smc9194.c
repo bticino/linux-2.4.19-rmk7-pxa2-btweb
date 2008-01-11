@@ -1004,7 +1004,7 @@ int __init smc_init(struct net_device *dev)
 		unsigned char ecor;
 		unsigned long flags;
 
-		printk("BTWEB ether setup\n");
+		printk("smc9194.c: BTWEB ether setup\n");
 		/* NCR_0 |= NCR_ENET_OSC_EN; */
 		dev->irq = IRQ_GPIO(btweb_features.eth_irq);
 		set_GPIO_IRQ_edge(btweb_features.eth_irq, GPIO_FALLING_EDGE);

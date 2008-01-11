@@ -53,9 +53,13 @@ Moreover: GPIO63, GPIO64, GPIO69 (hw revisions)
 
 #include "btweb-cammotors.h"
 
+#undef DEBUG 
 
 #ifndef MODULE
 
+#define ATAG_OFFSET_MACHINE_TAG 0x24
+#define ATAG_OFFSET_START	0xc0000100
+static volatile unsigned char *ram_iopage;
 
 #define NO_MACHINE "NO_MACHINE"
 char * MACHINE=NO_MACHINE;
@@ -83,9 +87,9 @@ static struct btweb_features feat;
 /* Low-level output routine, to spit a grand failure before printk is there */
 static void __init serialout(int c)
 {
-        while ((FFLSR & LSR_TEMT) == 0)
-                ;
+        while ((FFLSR & LSR_TEMT) == 0);
         FFTHR = c;
+	udelay(5000);
 }
 
 struct btweb_flavor {
@@ -133,7 +137,7 @@ static struct btweb_flavor fltab[] __initdata = {
         {0x8,0x8, BTWEB_H4684_IP_8,"H4684_IP_8",64, 400, &feat, &init_h4684ip_8},
         {0x9,0x9, BTWEB_CDP_HW,    "CDP_HW",    64, 400, NULL,  NULL},
         {0xa,0xa, BTWEB_INTERFMM,  "INTERFMM",  64, 400, &feat, &init_interfmm},
-        {0xb,0xb, BTWEB_MH500,     "MH500",     64, 400, &feat, &init_mh500},
+        {0xb,0xb, BTWEB_MH500,     "MH500",     64, 200, &feat, &init_mh500},
         {0xc,0xc, BTWEB_MEGATICKER,"MEGATICKER",64, 400, &feat, &init_megaticker},
 #if 0  /* Old Rubini */
         {0x4,0x7, BTWEB_F452,   "F452",   64, 400, &feat_f452,   NULL},
@@ -332,14 +336,63 @@ int __init btweb_find_device(int *memsize)
 {
 	struct btweb_flavor *fptr;
 	struct btweb_gpio *gptr;
-	int i, id,ret;
+	int i, id, ret, idx;
+	char s[80];
 
 	/* retrieve the ID and hw version (even if not always meaningful */
 	id = get_4_gpio(6, 7, 82, 84);
         printk(KERN_ALERT "btweb_find_device: read id=%d from 4 gpios\n",id);
 
+#if DEBUG
+	/* Test early print */
+	sprintf(s, "testing serialout string\r\n");
+	printk(KERN_ALERT "serialout work <%s> ?\n",s);
+		for (i=0; s[i]; i++)
+			serialout(s[i]);
+
+	printk(KERN_INFO "dump from ram: searching uboot cmdline\n");
+	printk("0000: ");
+	ram_iopage=0xc0000100; /* Start of uboot ATAG : see bdinfo uboot command */
+	for (idx=0;idx<0x60;idx++) {
+		printk("%04x ",*ram_iopage++);
+		udelay(500000);
+		udelay(500000);
+		if (idx%16==0) {
+			printk("\n");
+			printk("%02x: ",idx);
+		}
+	}
+	printk(KERN_INFO "\nend dump from ram\n");
+	udelay(500000);
+	udelay(500000);
+	udelay(500000);
+	udelay(500000);
+	udelay(500000);
+	udelay(500000);
+#endif
+
+	ram_iopage=ATAG_OFFSET_START;
+	ram_iopage+=ATAG_OFFSET_MACHINE_TAG;
+	
+#ifdef DEBUG
+	printk("%p:%02x\n",ram_iopage,*ram_iopage);
+	printk("%p:%02x\n",ram_iopage+1,*(ram_iopage+1));
+	printk("%p:%02x\n",ram_iopage+2,*(ram_iopage+2));
+	printk("%p:%02x\n",ram_iopage+3,*(ram_iopage+3));
+	printk("%p:%02x\n",ram_iopage+4,*(ram_iopage+4));
+#endif
+
+	/* Verify MH500 string in cmdline due to lack of gpio recognition */
+	if ((*ram_iopage=='M')&&(*(ram_iopage+1)=='H')&&(*(ram_iopage+2)=='5')&& \
+		(*(ram_iopage+3)=='0')&&(*(ram_iopage+4)=='0') ) {
+		printk(KERN_INFO "MH500 detected from cmdline: id forced to 0x%x\n",BTWEB_MH500);
+		id = BTWEB_MH500;
+	}
+
 	btweb_globals.hw_version = get_4_gpio(58, 63, 64, 69);
         printk(KERN_ALERT "btweb_find_device: read hw_version=%d from 4 gpios\n",btweb_globals.hw_version);
+
+
 
 	for (fptr = fltab; fptr->min_gpio >= 0; fptr++)
 		if (id >= fptr->min_gpio && id <= fptr->max_gpio)
@@ -348,7 +401,6 @@ int __init btweb_find_device(int *memsize)
 	if (fptr->min_gpio < 0) return -ENODEV;
 
 	if (!fptr->features) {
-		char s[80];
 		/* This won't reach the console with printk, unfortunately */
 		sprintf(s, "btweb_find_device: hw ID is 0x%x (unknown), "
 			"please fix btweb-flavors.c\n", id);
@@ -371,6 +423,8 @@ int __init btweb_find_device(int *memsize)
 
 	printk(KERN_ALERT "btweb_find_device: Detected \"%s\" device (hw version %i)\n",
 	       btweb_globals.name, btweb_globals.hw_version);
+
+	if (btweb_globals.flavor!=BTWEB_MH500) {
 
 	/* setup GPIO */
 	for (gptr = gpios; gptr->id != id && gptr->id != BTWEB_ANY; gptr++)
@@ -411,6 +465,9 @@ int __init btweb_find_device(int *memsize)
 		__asm__("mcr     p14, 0, %0, c6, c0, 0" :
 			/* no output */ : "r" (2) : "memory");
 	}	
+	} else {
+		printk(KERN_ALERT "MH500: not fixing GPIO\n");
+	}
 
 	/* set up features */
 	btweb_features = *fptr->features;
@@ -540,7 +597,6 @@ static struct btweb_features feat __initdata = {
 	.pbx_rst1_d = -1,
 	.pbx_batt_state = -1,
 	.pbx_batt_low = -1,
-        .pbx_pcm_fs_rst = -1;
 
 
         /* infrared transmitter */
@@ -947,14 +1003,13 @@ static int init_pbx288exp(struct btweb_flavor *fla, int rev) {
 
 static int init_mh500(struct btweb_flavor *fla, int rev) {
 
-	printk("Customizing %s, revision is %d\n",fla->name,rev);
-
-        btweb_features.eth_reset = 3;
-        btweb_features.eth_irq = 22;
-        btweb_features.e2_wp = 10;
+        printk("Customizing %s, revision is not available\n",fla->name);
+        btweb_features.eth_reset = 63;
+        btweb_features.eth_irq = 23;
+        btweb_features.e2_wp = 70;
         btweb_features.rtc_irq = 8;
-        btweb_features.led = 40;
-        btweb_features.pic_reset = 44;
+        btweb_features.led = 72;
+        btweb_features.pic_reset = 62;
         btweb_features.mdcnfg = 0x19C9;
 
 	return 0;

@@ -65,7 +65,7 @@ static int __init btweb_init(void)
 	if (btweb_features.usb_irq >= 0)
 		set_GPIO_IRQ_edge(btweb_features.usb_irq, GPIO_RISING_EDGE);
 	/* Similarly, we beed I/O mapped before doing this */
-	if (MDCNFG != btweb_features.mdcnfg) {
+	if ((btweb_globals.flavor!=BTWEB_MH500) && (MDCNFG != btweb_features.mdcnfg)) {
 		printk("Warning: MDCNFG is 0x%08x, setting it to 0x%08x\n",
 		       MDCNFG, btweb_features.mdcnfg);
 		MDCNFG = btweb_features.mdcnfg;

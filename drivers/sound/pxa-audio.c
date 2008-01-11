@@ -41,7 +41,7 @@
 #define SNDCTL_BT_SETLINE     		_SIOWR('P',84, int)
 #define SNDCTL_BT_SETPCM     		_SIOWR('P',83, int)
 
-#define BT_DEBUG
+#undef BT_DEBUG
 			// PARM: x attivare scritte di debug, meglio farne a meno !
 
 #define AUDIO_NBFRAGS_DEFAULT	8
