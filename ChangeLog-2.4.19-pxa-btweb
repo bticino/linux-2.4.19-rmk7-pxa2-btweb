@@ -16,6 +16,78 @@ The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
 
 Beginning of developing notes
 -----------------------------
+2.4.19-rmk7-pxa2-btweb-2_3_5:
+- MH500 support (hardware identical to MH200)
+  MH500 hardware not recognized, but first bytes of cmdline
+  passed from u-boot must contain "MACHINE=MH500"
+  arch/arm/mach-pxa/btweb-flavors.c
+  Now lan91c96 (CONFIG_SMC9194) and smsc911x (CONFIG_SMC911X) supported.
+   
+- PEMONO: cammotor setting to x,y position
+  arch/arm/mach-pxa/btweb-cammotors.c
+
+- INTMM: reading from infrared pic uses different sysctl
+  arch/arm/mach-pxa/btweb-sysctl.c
+
+- ANY PRODUCT:
+  reading from gpio extended to any gpio
+  drivers/char/btIoDebounce.c
+
+- PABX288: interrupt mode for spi codec legerity mode added:
+  not enabled because is better to poll, through mmap,
+  the status of interrupt pin and use particular efficient polled
+  mode by legerity api.
+  drivers/char/pxa-ssp-legerity.c
+
+- ANY PRODUCT: mtd mapping modified to cover u-boot redundant
+  environment sectors: environment are written twice, in order
+  to allow the modification from linux and be more safe.
+  MH500 new mapping
+  "extra" partition now is bigger -- 10MB 
+  ac97 debug messages deleted  
+  tvia debug messages deleted
+
+  
+
+2.4.19-rmk7-pxa2-btweb-2_3_4:
+- PEMONO speed set to 200Mhz
+- PABX288 gpios verified
+- INTMM oledfb added: i2c frmae buffer driver
+  drivers/video/oledfb.c
+- PEMONO disabled Tvia analog outputs (not used)
+  tvia5202/tviafb_core.c
+- 
+
+2.4.19-rmk7-pxa2-btweb-2_3_3:
+- infrared communication bug fix (INTMM)
+  arch/arm/mach-pxa/btweb-sysctl.c;
+  arch/arm/mach-pxa/btweb-flavors.c
+- spi cfg codec legerity completed
+  drivers/char/pxa-ssp-legerity.c
+- pixel ratio compensation,
+  support for bi-directional video flow
+  drivers/video/tvia5202/*
+- 
+
+2.4.19-rmk7-pxa2-btweb-2_3_2:
+- added support for i2c communication to pic for infrared communication (INTMM)
+  arch/arm/mach-pxa/btweb-sysctl.c;
+  arch/arm/mach-pxa/btweb-flavors.c
+- added support for Telephony Legerity Codecs 
+   (spi configuration - ssp port, pcm tdm bus - nssp port)
+- bug fix to time management:
+  drivers/char/pcf8563.c
+- reading mac address for using as serial number
+  drivers/net/smsc911x.c, 
+  arch/arm/mach-pxa/btweb-sysctl.c;
+- set smsc91 speed accepted to any (LINK_MODE)
+  drivers/net/smsc911x.c,
+- deleted some debug messages
+  drivers/sound/ac97_codec.c
+
+2.4.19-rmk7-pxa2-btweb-2_3_1:
+The final part of EXTRAVERSION is the cvs tag: btweb_x_y_z.
+
 
 2.4.19-rmk7-pxa2-btweb-2_3_0_1:
 
