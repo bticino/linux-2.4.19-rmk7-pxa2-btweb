@@ -138,8 +138,10 @@ static int btsys_cammotor_tilt_set = 0;
 
 
 #define BTWEB_IRPROG_MAXSIZE  802
+#define BTWEB_IRHASH_SIZE  8
 static int btsys_tx_infrared_data[BTWEB_IRPROG_MAXSIZE+2];  /* 2 bytes for size of data in the buffer */
 static char btsys_tx_infrared_data_byte[BTWEB_IRPROG_MAXSIZE];  /* only data */
+static int btsys_rx_infrared_hash[BTWEB_IRHASH_SIZE]; 
 
 static int bool_min[] = {0};
 static int bool_max[] = {1};
@@ -712,12 +714,12 @@ static int btsys_apply(int name)
 		case BTWEB_CAMMOTOR_TILT_SET:
 			if (btweb_features.cammotor_tilt_set < 0)
 				return -EOPNOTSUPP;
-			cam_tiltmove(btsys_cammotor_tilt_set); 
+			return cam_tiltmove(btsys_cammotor_tilt_set); 
 		break;
 		case BTWEB_CAMMOTOR_PAN_SET:
 			if (btweb_features.cammotor_pan_set < 0)
 				return -EOPNOTSUPP;
-			cam_panmove(btsys_cammotor_pan_set); 
+			return cam_panmove(btsys_cammotor_pan_set); 
 		break;
 		case BTWEB_TX_INFRARED:
 		{
@@ -1129,7 +1131,7 @@ static int btsys_read(int name)
 				return -EAGAIN;
 			return 0;
 		break;
-		case BTWEB_TX_INFRARED:
+		case BTWEB_RX_INFRARED_HASH:
 		{
 			uint8_t hash_reg[2] = { 0x00, 0xC0 };
 			uint8_t buf[8];
@@ -1138,18 +1140,18 @@ static int btsys_read(int name)
 			if (btweb_features.tx_infrared_addr < 0)
 				return -EOPNOTSUPP;
 
-			memset(buf, 0xff, sizeof(buf));
+			memset(buf, 0x5a, sizeof(buf));
 			if (btsys_i2c_read(btweb_features.tx_infrared_addr, hash_reg, sizeof(hash_reg), buf, sizeof(buf)) < 0)
 			{
-				printk(KERN_ERR "tx_infrared read hash error\n");
+				printk(KERN_ERR "rx_infrared read hash error\n");
 				return -EIO;
 			}
 
-			printk(KERN_DEBUG "tx_infrared read hash: ");
+			printk(KERN_DEBUG "rx_infrared read hash: ");
 			for (i = 0; i < sizeof(buf); i++)
 			{
 				printk(KERN_DEBUG "%2x ", buf[i]);
-				btsys_tx_infrared_data[i] = buf[i];
+				btsys_rx_infrared_hash[i] = buf[i];
 			}
 			printk(KERN_DEBUG "\n");
 			return 0;
@@ -1164,7 +1166,7 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 	       void *buff, size_t *lenp)
 {
 	int retval;
-	printk(KERN_DEBUG "btsys_proc\n"); 
+	printk(KERN_DEBUG "btsys_proc: \n"); 
 
 #ifdef MY_REAL_READ
 	if (!write)
@@ -1878,6 +1880,17 @@ ctl_table btsys_table[] = {
                 .procname =      "tx_infrared",
                 .data =          btsys_tx_infrared_data,
                 .maxlen =        sizeof(btsys_tx_infrared_data),
+                .mode =          0644,
+                .proc_handler =  btsys_proc,
+                .strategy =      btsys_sysctl,
+/*                .extra1 =        short_min, */
+/*                .extra2 =        short_max, */
+        },
+        {
+                .ctl_name =      BTWEB_RX_INFRARED_HASH,
+                .procname =      "rx_infrared_hash",
+                .data =          btsys_rx_infrared_hash,
+                .maxlen =        sizeof(btsys_rx_infrared_hash),
                 .mode =          0644,
                 .proc_handler =  btsys_proc,
                 .strategy =      btsys_sysctl,

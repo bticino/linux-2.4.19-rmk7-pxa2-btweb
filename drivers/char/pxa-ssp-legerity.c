@@ -10,16 +10,16 @@
 #include <linux/delay.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <linux/timer.h>
+//#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/config.h>
 #include <linux/version.h>
-#include <linux/rtc.h>
-#include <linux/string.h>
-#include <linux/proc_fs.h>
+//#include <linux/rtc.h>
+//#include <linux/string.h>
+//#include <linux/proc_fs.h>
 #include <asm/hardware.h> /* for btweb_globals when ARCH_BTWEB is set */
 
 
@@ -32,6 +32,10 @@
 #include <asm/arch/pxa-regs.h>
 #endif
  
+/* Mode */
+#undef CODEC_INTERRUPT_MODE
+
+
 /* DEBUG */
 #undef DEBUG 
 
@@ -44,6 +48,12 @@
 #define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
 
 /* DEFINES */
+#define CODEC_INT1 59
+#define CODEC_INT2 60
+#define CODEC_INT3 65
+#define CODEC_EXT_D 9
+
+
 #define PXA_SSP_WRITE 5500
 #define PXA_SSP_READ  5501
 #define CSON(x) switch (x) {\
@@ -135,7 +145,25 @@
 
 static int ctrlssp_active=0;
 static int voicedev=-1;
-	
+static int interrupt_pending;
+/* driver/filesystem interface management */
+static wait_queue_head_t queue;
+static struct fasync_struct *asyncptr;
+static struct semaphore reader_lock;
+
+#define MAX_CODEC_IRQ 4
+
+struct codec_interrupt_type {
+	int     bounce_interval;
+	int     irq[MAX_CODEC_IRQ];
+	int     io[MAX_CODEC_IRQ];
+};
+
+static struct codec_interrupt_type codec_interrupt  = {
+        bounce_interval:        1,
+        io:                     {CODEC_INT1,CODEC_INT2},
+};
+
 
 static void ctrlssp_set_gpio(void)
 {
@@ -145,7 +173,106 @@ static void ctrlssp_set_gpio(void)
 	set_GPIO_mode(GPIO26_SRXD_MD);
 }
 
+/**
+ * poll_ssp:
+ *
+ * @file: File of the Io device
+ * @wait: Poll table
+ *  
+ * The pad is ready to read if there is a button or any position change
+ * pending in the queue. The reading and interrupt routines maintain the
+ * required state for us and do needed wakeups.
+ *
+*/
 
+static unsigned int poll_ssp(struct file *file, poll_table * wait)
+{
+	poll_wait(file, &queue, wait);
+	if (interrupt_pending)
+		return POLLIN | POLLRDNORM;
+	return 0;
+}
+
+/*
+ *  * Timer goes off a short while after an up/down transition and copies
+ *   * the value of raw_down to debounced_down.
+ *    */
+
+static void bounce_timeout(unsigned long data);
+static struct timer_list bounce_timer = { function: bounce_timeout };
+
+/**
+ *      wake_readers:
+ *
+ *      Take care of letting any waiting processes know that
+ *      now would be a good time to do a read().  Called
+ *      whenever a state transition occurs, real or synthetic. Also
+ *      issue any SIGIO's to programs that use SIGIO on mice (eg
+ *      Executor)
+*/
+
+static void wake_readers(void)
+{
+	wake_up_interruptible(&queue);
+	kill_fasync(&asyncptr, SIGIO, POLL_IN);
+}
+
+/*
+ * notify_interrupt:
+ *
+ * Called by the raw pad read routines when a (debounced) up/down
+ * transition is detected.
+*/
+
+static void notify_interrupt(void)
+{
+	wake_readers();
+}
+
+
+
+/*
+ * bounce_timeout:
+ * @data: Unused
+ *
+ * No further up/down transitions happened within the
+ * bounce period, so treat this as a genuine transition.
+*/
+static void bounce_timeout(unsigned long data)
+{
+	if ( (!(GPLR(codec_interrupt.io[0]) & GPIO_bit(codec_interrupt.io[0]))) || \
+		(!(GPLR(codec_interrupt.io[1]) & GPIO_bit(codec_interrupt.io[1]))) ) {
+		printk(".\n");
+               notify_interrupt();
+        }
+        else
+		printk(":\n");
+}
+
+
+
+
+/**
+ * ssp_irq:
+ * @irq: Interrupt number
+ * @ptr: Unused
+ * @regs: Unused
+ *
+ * Callback when pad's irq goes off; copies values in to raw_* globals;
+*/
+static void ssp_irq(int irq, void *ptr, struct pt_regs *regs)
+{
+	if ( (!(GPLR(codec_interrupt.io[0]) & GPIO_bit(codec_interrupt.io[0]))) || \
+		(!(GPLR(codec_interrupt.io[1]) & GPIO_bit(codec_interrupt.io[1]))) ) {
+#if DEBOUNCE
+		mod_timer(&bounce_timer,jiffies+codec_interrupt.bounce_interval);
+#else
+		printk(".\n");
+		notify_interrupt();
+#endif
+	}
+
+}
 
 static int
 ioctl_ssp( struct inode *inode, struct file *file,
@@ -235,19 +362,17 @@ static struct file_operations ctrlssp_fops = {
 	write:	  write_ssp,
 */
 	ioctl:	  ioctl_ssp,
+	poll:	  poll_ssp,
         open:     open_ssp,
         release:  release_ssp, 
 };
 
-#if 0 
-static struct miscdevice ctrlssp_tpanel = {
-	0, "voice0", &ctrlssp_fops
-};
-#endif
+static char banner[] __initdata = KERN_INFO "pxa-ssp-legerity at 0x%X, irq %d.\n";
 
 int __init ctrlssp_init(void)
 {
 	unsigned int sscr;
+	init_MUTEX(&reader_lock);
 
 	ctrlssp_set_gpio();
 
@@ -256,6 +381,25 @@ int __init ctrlssp_init(void)
 	/* out of reset state TODO*/
 	GPCR(btweb_features.pbx_rst_d)=GPIO_bit(btweb_features.pbx_rst_d);
         mdelay(100);
+
+#ifdef CODEC_INTERRUPT_MODE
+	set_GPIO_IRQ_edge(codec_interrupt.io[0], GPIO_FALLING_EDGE);
+	set_GPIO_IRQ_edge(codec_interrupt.io[1], GPIO_FALLING_EDGE);
+        codec_interrupt.irq[0]=GPIO_2_80_TO_IRQ(codec_interrupt.io[0]);
+        codec_interrupt.irq[1]=GPIO_2_80_TO_IRQ(codec_interrupt.io[1]);
+	if (request_irq(codec_interrupt.irq[0], ssp_irq, 0, "codec_irq", 0)) {
+		printk(KERN_ERR "pxa-ssp-legerity: Unable to get IRQ: io=%d.\n",codec_interrupt.io[0]);
+		return -EBUSY;
+	}
+	if (request_irq(codec_interrupt.irq[1], ssp_irq, 0, "codec_irq", 0)) {
+		printk(KERN_ERR "pxa-ssp-legerity: Unable to get IRQ. io=%d\n",codec_interrupt.io[1]);
+		return -EBUSY;
+	}
+	init_waitqueue_head(&queue);
+	printk(banner, codec_interrupt.io[0], codec_interrupt.irq[0]);
+	printk(banner, codec_interrupt.io[1], codec_interrupt.irq[1]);
+#endif
+
 
 	SSSR = 0x0080;
 //	SSCR0 = 0x1107;  /* 0x11yy=100000 Hz */

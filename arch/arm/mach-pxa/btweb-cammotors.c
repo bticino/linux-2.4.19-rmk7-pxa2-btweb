@@ -4,6 +4,19 @@
 #include <asm/irq.h>
 #include "btweb-cammotors.h"
 
+/* DEBUG */
+#undef DEBUG 1
+
+#ifdef DEBUG
+	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
+#else
+	#define dbg(format, arg...) do {} while (0)
+#endif
+
+#define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
+
+
+
 /*
  * Define this for a more "soft" mode for driving motors
  */
@@ -152,11 +165,11 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if ( (pan_status == ST_FWD && CAMPAN_FC1)
 		|| (pan_status == ST_BACK && CAMPAN_FC2) )
 	{
-		printk(KERN_INFO "Tlc FC CAMPAN reached: pan_status=%s \n",(pan_status==ST_FWD) ? "FORWARD":"BACK");
+		trace("Tlc FC CAMPAN reached: pan_status=%s",(pan_status==ST_FWD) ? "FORWARD":"BACK");
 		if (CAMPAN_FC2) 
 			pan_step_cur = 0;
 		if (CAMPAN_FC1)
-			printk(KERN_INFO "Tlc FC CAMPAN max value %d \n",pan_step_cur); 
+			dbg("Tlc FC CAMPAN max value %d",pan_step_cur); 
 			
 		pan_status = ST_IDLE;
 		pan_move = ST_IDLE;
@@ -172,8 +185,8 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (CAMTILT_FC1)
 			tilt_step_cur=0;
 		if (CAMTILT_FC2)
-			 printk(KERN_INFO "Tlc FC CAMTILT max value %d \n",tilt_step_cur);
-		printk(KERN_INFO "Tlc FC CAMTILT reached: pan_status=%s \n",(pan_status==ST_FWD) ? "FORWARD":"BACK");
+			 trace("Tlc FC CAMTILT max value %d",tilt_step_cur);
+		trace("Tlc FC CAMTILT reached: pan_status=%s",(pan_status==ST_FWD) ? "FORWARD":"BACK");
 		tilt_status = ST_IDLE;
 		tilt_move = ST_IDLE;
 		set_tiltmotor_state(&motor_standby);
@@ -185,7 +198,7 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if ( ( (pan_move == ST_FWD ) && ( pan_step_set<=pan_step_cur) ) 
 		||  ( ( pan_move == ST_BACK ) && ( pan_step_set>=pan_step_cur) ) )
 	{
-		printk(KERN_INFO "Pan position reached %d \n",pan_step_cur);
+		dbg("Pan position reached %d",pan_step_cur);
 		pan_status = ST_IDLE;
 		pan_move = ST_IDLE;
 		set_panmotor_state(&motor_standby);
@@ -196,7 +209,7 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if ( ( (tilt_move == ST_FWD ) && ( tilt_step_set<=tilt_step_cur) )
 		|| ( ( tilt_move == ST_BACK ) && ( tilt_step_set>=tilt_step_cur) ) )
 	{
-		printk(KERN_INFO "Tilt position reached %d \n",tilt_step_cur);
+		dbg("Tilt position reached %d",tilt_step_cur);
 		tilt_status = ST_IDLE;
 		tilt_move = ST_IDLE;
 		set_tiltmotor_state(&motor_standby);
@@ -253,14 +266,14 @@ void init_cammotors(void)
 	btweb_features.cammotor_pan_set = 0;
 	btweb_features.cammotor_tilt_set = 0;
 
-	printk(KERN_INFO "Camera motors GPIO initialized\n");
+	trace("Camera motors GPIO initialized");
 }
 
 /* Set the motor stepping speed in Hz */
 void cam_sethz(int hz)
 {
 	pulse_ticks = CLOCK_TICK_RATE / hz;
-	printk(KERN_DEBUG "Camera motors pulse_ticks changed: %d\n", pulse_ticks);
+	trace("Camera motors pulse_ticks changed: %d", pulse_ticks);
 }
 
 int cam_gethz(void)
@@ -319,24 +332,29 @@ void cam_tiltstop(void)
 int cam_tiltmove(int loc_tilt_step_set)
 {
 	tilt_step_set = loc_tilt_step_set;
-	printk(KERN_INFO "cam_tiltmove to %d\n",tilt_step_set);
-	if (tilt_step_cur_ok!=-1){
-		printk(KERN_INFO "cam_tiltmove\n");
+	dbg(KERN_INFO "cam_tiltmove to %d",tilt_step_set);
+	if (tilt_step_cur_ok==-2){
+		dbg("already moving");
+		return -EAGAIN;
+	} else if (tilt_step_cur_ok!=-1){
+		dbg("cam_tiltmove");
 		if (tilt_step_set>tilt_step_cur_ok){
-			printk(KERN_INFO "cam_tiltmove: fwd\n");
+			dbg("cam_tiltmove: fwd");
 			tilt_status = ST_FWD;
 			tilt_move = ST_FWD;
+			tilt_step_cur_ok=-2;
 			start_intr();
 		} else if (tilt_step_set<tilt_step_cur_ok){
-			printk(KERN_INFO "cam_tiltmove: back\n");
+			dbg("cam_tiltmove: back");
 			tilt_status = ST_BACK;
 			tilt_move = ST_BACK;
+			tilt_step_cur_ok=-2;
 			start_intr();
 		}
-	}
-	else {
-		printk(KERN_INFO "initing: tilt back to fc\n");
+	} else {
+		dbg("initing: tilt back to fc");
 		tilt_status = ST_BACK;
+		tilt_step_cur_ok=-2;
 		start_intr();
 	}
 	return 0;
@@ -345,24 +363,30 @@ int cam_tiltmove(int loc_tilt_step_set)
 int cam_panmove(int loc_pan_step_set)
 {
 	pan_step_set = loc_pan_step_set;
-	printk(KERN_INFO "cam_panmove to %d\n",pan_step_set);
-	if (pan_step_cur_ok!=-1){
-		printk(KERN_INFO "cam_panmove\n");
+	dbg("cam_panmove to %d",pan_step_set);
+	if (pan_step_cur_ok==-2){
+		dbg("already moving");
+		return -EAGAIN;
+	} else if (pan_step_cur_ok!=-1){
+		dbg("cam_panmove");
 		if (pan_step_set>pan_step_cur_ok){
-			printk(KERN_INFO "cam_panmove: fwd\n");
+			dbg("cam_panmove: fwd");
 			pan_status = ST_FWD;
 			pan_move = ST_FWD;
+			pan_step_cur_ok=-2;
 			start_intr();
 		} else if (pan_step_set<pan_step_cur_ok){
-			printk(KERN_INFO "cam_panmove: back\n");
+			dbg("cam_panmove: back");
 			pan_status = ST_BACK;
 			pan_move = ST_BACK;
+			pan_step_cur_ok=-2;
 			start_intr();
 		}
 	}
 	else {
-		printk(KERN_INFO "initing: pan back to fc\n");
+		dbg("initing: pan back to fc");
 		pan_status = ST_BACK;
+		pan_step_cur_ok=-2;
 		start_intr();
 	}
 	return 0;

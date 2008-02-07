@@ -220,6 +220,58 @@ static struct mtd_partition btweb_extra_partitions[] = {
 #endif
 
 };
+
+static struct mtd_partition btweb_partitions_mh500[] = {
+	{
+		name:		"Bootloader",	/* mtd0 */
+		size:		0x00040000,
+		offset:		0,
+	},{
+		name:		"conf",
+		size:		0x00060000,	/* mtd1 */    
+		offset:		0x00040000,
+	},{
+		name:		"conf_copy",	/* mtd2 */
+		size:		0x00060000,
+		offset:		0x000a0000,
+	},{
+		name:		"Kernel",	/* mtd3 */
+		size:		0x00100000,
+		offset:		0x00100000,
+	},{
+		name:		"btweb_only",	/* mtd4 */
+		size:		0x00400000,
+		offset:		0x00200000,
+	},{
+		name:		"btweb_app",	/* mtd5 */
+		size:		0x00100000,
+		offset:		0x00600000
+	},{
+		name:		"btweb_app_copy",	/* mtd6 */
+		size:		0x00100000,
+		offset:		0x00700000
+	},{
+		name:		"u-boot-env",	/* mtd10 */
+		size:		0x00020000,
+		offset:		0x00fc0000
+	},{
+		name:		"u-boot-env-maybe", 	/* mtd11 */
+		size:		0x00020000,
+		offset:		0x00fe0000
+        },{
+                name:           "zImage1",	/* mtd7 */
+                size:           0x00100000,
+                offset:         0x00800000
+        },{
+                name:           "btweb_only1",	/* mtd8 */
+                size:           0x00400000,
+                offset:         0x00900000,
+        },{
+                name:           "extra",	/* mtd9 */
+                size:           0x002c0000,
+                offset:         0x00d00000
+        }
+};
 ////
 
 
@@ -289,6 +341,10 @@ static int __init init_btweb(void)
 		printk(KERN_NOTICE "Mtd BTWEB partitions (extra 10MB)\n");
 		parts = btweb_extra_partitions;
 		nb_parts = NB_OF(btweb_extra_partitions);
+	} else if (btweb_globals.flavor==BTWEB_MH500) {
+		printk(KERN_NOTICE "Mtd BTWEB partitions for MH500\n");
+		parts = btweb_partitions_mh500;
+		nb_parts = NB_OF(btweb_partitions_mh500);
 	} else {
 		printk(KERN_NOTICE "Mtd BTWEB partitions\n");
 		parts = btweb_partitions;

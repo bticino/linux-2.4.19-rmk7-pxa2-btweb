@@ -220,6 +220,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_SERIAL_NUMBER     54 /* SERIAL NUMBER : normally is thew MAC_ADDRESS */
 #define BTWEB_CAMMOTOR_TILT_SET 55 /* Camera tilt set position */
 #define BTWEB_CAMMOTOR_PAN_SET  56 /* Camera pan set position */
+#define BTWEB_RX_INFRARED_HASH  57 /* Read infrared hash key */
 
 
 #endif

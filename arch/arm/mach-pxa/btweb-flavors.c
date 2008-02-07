@@ -797,8 +797,8 @@ static int init_pe(struct btweb_flavor *fla, int rev) {
         btweb_features.pic_reset = 44;
         btweb_features.buzzer = 1;
         btweb_features.mdcnfg = 0x19C9;
-        btweb_features.ctrl_video = 1;
-        btweb_features.abil_mod_video = 35;
+        btweb_features.ctrl_video = 1; /* video source selection to scs: 0=tlc,1=tvia */
+        btweb_features.abil_mod_video = 35; /* mod video power on: 1=on */
         btweb_features.abil_fon = 41;
         btweb_features.usb_soft_enum_n = 27;
         btweb_features.usb_pxa_slave_connected = 0;
