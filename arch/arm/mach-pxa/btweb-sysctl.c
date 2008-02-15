@@ -16,6 +16,14 @@
 
 #define MY_REAL_READ
 
+/* DEBUG */
+#undef DEBUG
+#ifdef DEBUG
+        #define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
+#else
+        #define dbg(format, arg...) do {} while (0)
+#endif
+
 
 #define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
 
@@ -1161,15 +1169,44 @@ static int btsys_read(int name)
 	return 1;
 }
 
+
+/* checker function, uses minmax but takes hold of the values immediately */
+int btsys_proc_raw(ctl_table *table, int write, struct file *filp,
+	       void *buff, size_t *lenp)
+{
+	int retval;
+	dbg("btsys_proc_raw"); 
+
+#ifdef MY_REAL_READ
+	if (!write)
+	{
+		retval = btsys_read(table->ctl_name);
+		if (retval < 0)
+			return retval;
+	}
+#endif
+
+	retval = proc_dostring(table, write, filp, buff, lenp);
+	
+	dbg("btsys_proc_raw: retval=%d",retval);
+	if (!write || retval < 0) return retval;
+	dbg("btsys_proc_raw: writing");
+
+	/* written: apply the change */
+	return btsys_apply(table->ctl_name);
+}
+
+
+
 /* checker function, uses minmax but takes hold of the values immediately */
 int btsys_proc(ctl_table *table, int write, struct file *filp,
 	       void *buff, size_t *lenp)
 {
 	int retval;
-	printk(KERN_DEBUG "btsys_proc: \n"); 
+	dbg("btsys_proc"); 
 
 #ifdef MY_REAL_READ
-	if (!write)
+	if (!write && (filp->f_pos == 0))
 	{
 		retval = btsys_read(table->ctl_name);
 		if (retval < 0)
@@ -1188,9 +1225,9 @@ int btsys_proc(ctl_table *table, int write, struct file *filp,
 	else{
 		retval = proc_dointvec(table, write, filp, buff, lenp);
 	}
-	trace("btsys_proc: retval=%d",retval);
+	dbg("btsys_proc: retval=%d",retval);
 	if (!write || retval < 0) return retval;
-	trace("btsys_proc: writing");
+	dbg("btsys_proc: writing");
 
 	/* written: apply the change */
 	return btsys_apply(table->ctl_name);
