@@ -34,10 +34,13 @@
  
 /* Mode */
 #undef CODEC_INTERRUPT_MODE
+#undef TX_DELAY    /* not using register fifo status to wait, but only wait */
+#undef RX_DELAY
+
 
 
 /* DEBUG */
-#undef DEBUG 
+#undef DEBUG  
 
 #ifdef DEBUG
         #define deb(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
@@ -145,13 +148,13 @@
 
 static int ctrlssp_active=0;
 static int voicedev=-1;
+
+#ifdef CODEC_INTERRUPT_MODE
 static int interrupt_pending;
 /* driver/filesystem interface management */
 static wait_queue_head_t queue;
 static struct fasync_struct *asyncptr;
 static struct semaphore reader_lock;
-
-#define MAX_CODEC_IRQ 4
 
 struct codec_interrupt_type {
 	int     bounce_interval;
@@ -164,6 +167,16 @@ static struct codec_interrupt_type codec_interrupt  = {
         io:                     {CODEC_INT1,CODEC_INT2},
 };
 
+static char banner[] __initdata = KERN_INFO "pxa-ssp-legerity at 0x%X, irq %d.\n";
+#endif
+
+#define SSP_TIMEOUT 100000
+int ssp_timeout = SSP_TIMEOUT;
+
+#define MAX_CODEC_IRQ 4
+
+
+
 
 static void ctrlssp_set_gpio(void)
 {
@@ -173,6 +186,10 @@ static void ctrlssp_set_gpio(void)
 	set_GPIO_mode(GPIO26_SRXD_MD);
 }
 
+#define small_delay(n) (\
+	{unsigned long nloop=(n); volatile static int i; while (nloop--){ i++; } })
+
+#ifdef CODEC_INTERRUPT_MODE
 /**
  * poll_ssp:
  *
@@ -273,6 +290,8 @@ static void ssp_irq(int irq, void *ptr, struct pt_regs *regs)
 	}
 
 }
+#endif
+
 
 static int
 ioctl_ssp( struct inode *inode, struct file *file,
@@ -284,26 +303,63 @@ ioctl_ssp( struct inode *inode, struct file *file,
 	voicedev = MINOR(inode->i_rdev);
 
         switch (cmd) {
-                case PXA_SSP_WRITE: /* write */
+                case PXA_SSP_WRITE: 
 			if (copy_from_user(&val, (unsigned char*)arg, sizeof(val))){
 	                        deb("copy_from_user error \n");
 				return -EFAULT;
 			}
 			CSON(voicedev);
-			udelay(1);
+			//small_delay(1);
 			deb("ioctl_ssp:wr %x to CSON=%d\n",val,voicedev);
+#if TX_DELAY
 			SSDR = 0xff&val;
 			udelay(7);
 			CSOFF;
 			udelay(7);
+#else
+
+			ssp_timeout=SSP_TIMEOUT;
+			while ( (SSSR & SSSR_TFL0) || (SSSR & SSSR_BSY) ) {
+				if (!--ssp_timeout)
+					return -ETIMEDOUT;
+			}
+
+			SSDR = 0xff&val;
+
+			ssp_timeout=SSP_TIMEOUT;
+			while ( (SSSR & SSSR_TFL0) || (SSSR & SSSR_BSY) ) {
+				if (!--ssp_timeout)
+					return -ETIMEDOUT;
+			}
+
+			// Hold time
+			small_delay(1);
+
+			CSOFF;
+
+			// Off time
+			udelay(3);
+#endif
 
 			/* trailing read */
+#if TX_DELAY
 			tmp=SSDR;
+#else
+                        ssp_timeout=SSP_TIMEOUT;
+                        while (!(SSSR & SSSR_RNE)) {
+                                if (!--ssp_timeout)
+                                        return -ETIMEDOUT;
+                        }
+                        tmp=0x00ff&SSDR;
+
+#endif
 
                 break;
-                case PXA_SSP_READ: /* read */
+                case PXA_SSP_READ:
 			CSON(voicedev);
-			udelay(1);
+			//small_delay(1);
+
+#if RX_DELAY
 			SSDR=0xff;
 			udelay(7);
 			ssdr=0x00ff&SSDR;
@@ -311,6 +367,30 @@ ioctl_ssp( struct inode *inode, struct file *file,
 			udelay(7);
 			CSOFF;
 			udelay(7);
+#else
+			/* 0xff write: I write in order to read */
+			ssp_timeout=SSP_TIMEOUT;
+			while (!(SSSR & SSSR_TNF)) {
+				if (!--ssp_timeout)
+					return -ETIMEDOUT;
+			}
+			SSDR = 0xff;
+			ssp_timeout=SSP_TIMEOUT;
+			while (!(SSSR & SSSR_TNF)) {
+				if (!--ssp_timeout)
+					return -ETIMEDOUT;
+			}
+
+			/* read */
+			ssp_timeout=SSP_TIMEOUT;
+			while (!(SSSR & SSSR_RNE)) {
+				if (!--ssp_timeout)
+					return -ETIMEDOUT;
+			}
+			ssdr=0x00ff&SSDR;
+			CSOFF;
+			small_delay(1);
+#endif
 			if(copy_to_user((void *)arg, &ssdr, sizeof(ssdr))) {
 				deb("ioctl_ssp: no copytouser\n");
 				return -EFAULT;
@@ -358,21 +438,16 @@ static int release_ssp(struct inode *inode, struct file *filp)
 
 static struct file_operations ctrlssp_fops = {
         owner:    THIS_MODULE,
-/*        read:     read_ssp,
-	write:	  write_ssp,
-*/
 	ioctl:	  ioctl_ssp,
-	poll:	  poll_ssp,
+/*	poll:	  poll_ssp, */
         open:     open_ssp,
         release:  release_ssp, 
 };
 
-static char banner[] __initdata = KERN_INFO "pxa-ssp-legerity at 0x%X, irq %d.\n";
 
 int __init ctrlssp_init(void)
 {
 	unsigned int sscr;
-	init_MUTEX(&reader_lock);
 
 	ctrlssp_set_gpio();
 
@@ -383,6 +458,7 @@ int __init ctrlssp_init(void)
         mdelay(100);
 
 #ifdef CODEC_INTERRUPT_MODE
+	init_MUTEX(&reader_lock);
 	set_GPIO_IRQ_edge(codec_interrupt.io[0], GPIO_FALLING_EDGE);
 	set_GPIO_IRQ_edge(codec_interrupt.io[1], GPIO_FALLING_EDGE);
         codec_interrupt.irq[0]=GPIO_2_80_TO_IRQ(codec_interrupt.io[0]);
