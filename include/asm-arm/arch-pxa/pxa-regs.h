@@ -1102,6 +1102,21 @@ typedef void            (*ExcpHndlr) (void) ;
 #define SSTO_P1         __REG(0x41000028)  /* SSP Port 1 Time Out Register */
 #define SSPSP_P2        __REG(0x4140002C)  /* SSP Port 2 Programmable Serial Protocol */
 
+#define SSSR_TNF        (1 << 2)        /* Transmit FIFO Not Full */
+#define SSSR_RNE        (1 << 3)        /* Receive FIFO Not Empty */
+#define SSSR_BSY        (1 << 4)        /* SSP Busy */
+#define SSSR_TFS        (1 << 5)        /* Transmit FIFO Service Request */
+#define SSSR_RFS        (1 << 6)        /* Receive FIFO Service Request */
+#define SSSR_ROR        (1 << 7)        /* Receive FIFO Overrun */
+#define SSSR_TFL0       (1 << 8)        /* First bit tx fifo */
+#define SSSR_TFL1       (1 << 9)        /* Second bit tx fifo */
+#define SSSR_TFL2       (1 << 10        /* Third bit tx fifo */
+#define SSSR_TFL3       (1 << 11)       /* Fourth bit tx fifo */
+#define SSSR_RFL0       (1 << 12        /* First bit rx fifo */
+#define SSSR_RFL1       (1 << 13)       /* Second bit rx fifo */
+#define SSSR_RFL2       (1 << 14)       /* Third bit rx fifo */
+#define SSSR_RFL3       (1 << 15)       /* Fourth bit rx fifo */
+
 
 /*
  * MultiMediaCard (MMC) controller
