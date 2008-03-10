@@ -126,10 +126,10 @@ do {									\
 
 /* Defines */
 
-#define GS_VERSION_STR			"v2.0"
+#define GS_VERSION_STR			"v3.0" /* Added correct Vendor_Id and Product_Id */
 #define GS_VERSION_NUM			0x0200
 
-#define GS_LONG_NAME			"Gadget Serial"
+#define GS_LONG_NAME			"BTicino S.p.A"
 #define GS_SHORT_NAME			"g_serial"
 
 #define GS_MAJOR			127
@@ -203,10 +203,13 @@ static int debug = 1;
  * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures.
  */
-#define GS_VENDOR_ID			0x0525	/* NetChip */
+#define GS_VENDOR_ID			0x1da4	/* BTicino S.p.A. */
 #define GS_PRODUCT_ID			0xa4a6	/* Linux-USB Serial Gadget */
 #define GS_CDC_PRODUCT_ID		0xa4a7	/* ... as CDC-ACM */
 
+#define GS_PRODUCT_ID_PE		0x2 	/* Linux-USB Serial Gadget - PEMONO */
+#define GS_PRODUCT_ID_INTMM		0x3	/* Linux-USB Serial Gadget - INTMM*/
+#define GS_PRODUCT_ID_H4684_IP		0x4	/* Linux-USB Serial Gadget - H4684_IP */
 #define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
 #define GS_NOTIFY_MAXPACKET		8
 
@@ -403,7 +406,7 @@ static struct usb_gadget_driver gs_gadget_driver = {
 #define GS_DATA_STR_ID		7
 
 /* static strings, in UTF-8 */
-static char manufacturer[50];
+static char manufacturer[50]="BTicino S.p.A.";
 static struct usb_string gs_strings[] = {
 	{ GS_MANUFACTURER_STR_ID, manufacturer },
 	{ GS_PRODUCT_STR_ID, GS_LONG_NAME },
@@ -666,6 +669,17 @@ static int __init gs_module_init(void)
 {
 	int i;
 	int retval;
+
+	if (btweb_globals.flavor==BTWEB_PE){
+		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_PE);
+		gs_gadget_driver.function = btweb_globals.name; 	
+	} else if (btweb_globals.flavor==BTWEB_INTERFMM){
+		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_INTMM);
+		gs_gadget_driver.function = btweb_globals.name; 	
+	} else if (btweb_globals.flavor==BTWEB_H4684_IP){
+		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_H4684_IP);
+		strcpy(gs_gadget_driver.function,btweb_globals.name); 	
+	}
 
 	retval = usb_gadget_register_driver(&gs_gadget_driver);
 	if (retval) {
@@ -1540,6 +1554,8 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	EP_OUT_NAME = ep->name;
 	ep->driver_data = ep;	/* claim the endpoint */
 
+
+
 	if (use_acm) {
 		ep = usb_ep_autoconfig(gadget, &gs_fullspeed_notify_desc);
 		if (!ep) {
@@ -1582,9 +1598,11 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	if (dev == NULL)
 		return -ENOMEM;
 
+#if 0
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
 		system_utsname.sysname, system_utsname.release,
 		gadget->name);
+#endif
 
 	memset(dev, 0, sizeof(struct gs_dev));
 	dev->dev_gadget = gadget;
