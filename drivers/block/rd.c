@@ -413,6 +413,11 @@ static void __exit rd_cleanup (void)
 static int __init rd_init (void)
 {
 	int		i;
+	extern int rd_size_btweb;
+
+	if (rd_size_btweb)
+		rd_size=rd_size_btweb;
+
 
 	if (rd_blocksize > PAGE_SIZE || rd_blocksize < 512 ||
 	    (rd_blocksize & (rd_blocksize-1)))

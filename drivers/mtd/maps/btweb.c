@@ -206,8 +206,71 @@ static struct mtd_partition btweb_extra_partitions[] = {
                 offset:         0x01120000,
         },{
                 name:           "extra",		/* mtd11 */
-                size:           0x00A60000,
-                offset:         0x015A0000
+                size:           0x00a60000,
+                offset:         0x015a0000
+
+        }
+#else
+        },{
+                name:           "extra",		/* mtd9 */
+                size:           0x00020000,
+                offset:         0x00fc0000
+
+        }
+#endif
+
+};
+
+static struct mtd_partition btweb_extra_partitions_intmm[] = {
+	{
+		name:		"Bootloader", 		/* mtd0 */
+		size:		0x00040000,
+		offset:		0,
+	},{
+		name:		"conf",			/* mtd1 */
+		size:		0x00060000,
+		offset:		0x00040000,
+	},{
+		name:		"conf_copy",		/* mtd2 */
+		size:		0x00060000,
+		offset:		0x000a0000,
+	},{
+		name:		"Kernel",		/* mtd3 */
+		size:		0x00120000,
+		offset:		0x00100000,
+	},{
+		name:		"btweb_only",		/* mtd4 */
+		size:		0x00960000,
+		offset:		0x00220000,
+	},{
+		name:		"btweb_app",		/* mtd5 */
+		size:		0x00220000,
+		offset:		0x00b80000
+	},{
+		name:		"btweb_app_copy",	/* mtd6 */
+		size:		0x00220000,
+		offset:		0x00da0000
+	},{
+		name:		"u-boot-env",		/* mtd7 */
+		size:		0x00020000,
+		offset:		0x00fc0000
+	},{
+		name:		"u-boot-env-maybe",	/* mtd8 */
+		size:		0x00020000,
+		offset:		0x00fe0000
+#ifdef BTWEB_FLASH_32M
+        },{
+                name:           "zImage1",		/* mtd9 */
+                size:           0x00120000,
+                offset:         0x01000000
+        },{
+                name:           "btweb_only1",		/* mtd10 */
+                size:           0x00480000,
+                offset:         0x01120000,
+        },{
+                name:           "extra",		/* mtd11 */
+                size:           0x00a60000,
+                offset:         0x015a0000
 
         }
 #else
@@ -338,7 +401,7 @@ static int __init init_btweb(void)
 		parts = parsed_parts;
 		nb_parts = parsed_nr_parts;
 	} else if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PBX288exp)||(btweb_globals.flavor==BTWEB_INTERFMM)) {
-		printk(KERN_NOTICE "Mtd BTWEB partitions (extra 10MB)\n");
+		printk(KERN_NOTICE "Mtd BTWEB partitions (extra 10MB) - app smaller\n");
 		parts = btweb_extra_partitions;
 		nb_parts = NB_OF(btweb_extra_partitions);
 	} else if (btweb_globals.flavor==BTWEB_MH500) {

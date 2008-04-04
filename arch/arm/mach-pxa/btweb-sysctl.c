@@ -697,7 +697,7 @@ static int btsys_apply(int name)
 			if (btweb_features.cammotor_pan < 0)
 				return -EOPNOTSUPP;
 			if (btsys_cammotor_pan == 0)
-				cam_panstop();
+				return cam_panstop();
 			else if (btsys_cammotor_pan == 1)
 				cam_panfwd();
 			else if (btsys_cammotor_pan == 2)
@@ -707,7 +707,7 @@ static int btsys_apply(int name)
 			if (btweb_features.cammotor_tilt < 0)
 				return -EOPNOTSUPP;
 			if (btsys_cammotor_tilt == 0)
-				cam_tiltstop();
+				return cam_tiltstop();
 			else if (btsys_cammotor_tilt == 1)
 				cam_tiltfwd();
 			else if (btsys_cammotor_tilt == 2)

@@ -30,7 +30,7 @@
 #include <video/fbcon.h>
 
 /* Define to either 0 or 1 */
-#define OLED_DEBUG  1
+#define OLED_DEBUG  0
 
 /* Driver name used in several places */
 #define OLED_NAME "oledfb"

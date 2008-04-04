@@ -213,6 +213,12 @@ static int debug = 1;
 #define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
 #define GS_NOTIFY_MAXPACKET		8
 
+#define GS_PRODUCT_DESCR_H4684_IP	"Touchscreen Color" /* Linux-USB Serial Gadget - H4684_IP platform */
+#define GS_PRODUCT_DESCR_PEMONO		"Monobloc Panel" /* Linux-USB Serial Gadget - PE platform */
+#define GS_PRODUCT_DESCR_INTMM		"Multimedia Interface" /* Linux-USB Serial Gadget - INTMM platform */
+#define GS_PRODUCT_DESCR_F453AV		"Web Server" /* Linux-USB Serial Gadget - F453AV platform */
+#define GS_PRODUCT_DESCR_346890		"2wires-eth interface" /* Linux-USB Serial Gadget - 346890 platform */
+
 
 /* Structures */
 
@@ -672,13 +678,13 @@ static int __init gs_module_init(void)
 
 	if (btweb_globals.flavor==BTWEB_PE){
 		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_PE);
-		gs_gadget_driver.function = btweb_globals.name; 	
+		strcpy(gs_gadget_driver.function,GS_PRODUCT_DESCR_PEMONO);
 	} else if (btweb_globals.flavor==BTWEB_INTERFMM){
 		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_INTMM);
-		gs_gadget_driver.function = btweb_globals.name; 	
+		strcpy(gs_gadget_driver.function,GS_PRODUCT_DESCR_INTMM);
 	} else if (btweb_globals.flavor==BTWEB_H4684_IP){
 		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_H4684_IP);
-		strcpy(gs_gadget_driver.function,btweb_globals.name); 	
+		strcpy(gs_gadget_driver.function,GS_PRODUCT_DESCR_H4684_IP); 	
 	}
 
 	retval = usb_gadget_register_driver(&gs_gadget_driver);

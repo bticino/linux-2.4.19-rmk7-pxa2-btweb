@@ -5,7 +5,7 @@
 #include "btweb-cammotors.h"
 
 /* DEBUG */
-#undef DEBUG 1
+#define DEBUG 1
 
 #ifdef DEBUG
 	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
@@ -33,6 +33,8 @@ struct motor_state {
 	int coil2a;
 	int coil2b;
 };
+
+static int init=0;
 
 #ifdef CAM_HALFSTEP
 	#define CAM_NSTEPS 8  // Note: irq handler assumes this is a power of 2!
@@ -224,7 +226,10 @@ static void start_intr(void)
 	{
 		OSMR2 = OSCR + pulse_ticks;	/* set initial match */
 		OSSR = OSSR_M2;			/* clear status on timer 2 */
-		request_irq(IRQ_OST2, cammotors_interrupt, SA_INTERRUPT, "cammotors", NULL);
+                if (!init) {
+                    request_irq(IRQ_OST2, cammotors_interrupt, SA_INTERRUPT, "cammotors", NULL);
+                    init = 1;
+                }
 		OIER |= OIER_E2;		/* enable match on timer 2 to cause interrupts */
 	}
 }
@@ -234,7 +239,7 @@ static void stop_intr(void)
 	if (pan_status == ST_IDLE && tilt_status == ST_IDLE)
 	{
 		OIER &= ~OIER_E2;		/* disable match on timer 2 intr */
-		free_irq(IRQ_OST2, NULL);
+//		free_irq(IRQ_OST2, NULL);
 	}
 }
 
@@ -267,6 +272,7 @@ void init_cammotors(void)
 	btweb_features.cammotor_tilt_set = 0;
 
 	trace("Camera motors GPIO initialized");
+
 }
 
 /* Set the motor stepping speed in Hz */
@@ -293,40 +299,70 @@ int cam_gettilt(void)
 
 void cam_panfwd(void)
 {
+        if (pan_step_cur_ok==-1){
+            dbg("initing: pan fwd to fc");
+        } else {
+            pan_step_cur_ok=-2;
+        }
 	pan_status = ST_FWD;
 	start_intr();
 }
 
 void cam_panback(void)
 {
+        if (pan_step_cur_ok==-1){
+            dbg("initing: pan back to fc");
+        } else {
+            pan_step_cur_ok=-2;
+        }
 	pan_status = ST_BACK;
 	start_intr();
 }
 
-void cam_panstop(void)
+int cam_panstop(void)
 {
-	pan_status = ST_IDLE;
-	stop_intr();
-	set_panmotor_state(&motor_standby);
+        if (pan_step_cur_ok!=-1){
+            pan_status = ST_IDLE;
+            stop_intr();
+            set_panmotor_state(&motor_standby);
+            pan_step_cur_ok = pan_step_cur;
+            return 0;
+        }
+        return -EAGAIN;
 }
 
 void cam_tiltfwd(void)
 {
+        if (tilt_step_cur_ok==-1){
+            dbg("initing: tilt fwd to fc");
+        } else {
+            tilt_step_cur_ok=-2;
+        }
 	tilt_status = ST_FWD;
 	start_intr();
 }
 
 void cam_tiltback(void)
 {
-	tilt_status = ST_BACK;
+        if (tilt_step_cur_ok==-1){
+            dbg("initing: tilt back to fc");
+        } else {
+            tilt_step_cur_ok=-2;
+        }
+        tilt_status = ST_BACK;
 	start_intr();
 }
 
-void cam_tiltstop(void)
+int cam_tiltstop(void)
 {
-	tilt_status = ST_IDLE;
-	stop_intr();
-	set_tiltmotor_state(&motor_standby);
+        if (tilt_step_cur_ok!=-1){
+            tilt_status = ST_IDLE;
+            stop_intr();
+            set_tiltmotor_state(&motor_standby);
+            tilt_step_cur_ok = tilt_step_cur;
+            return 0;            
+        }
+        return -EAGAIN;
 }
 
 int cam_tiltmove(int loc_tilt_step_set)

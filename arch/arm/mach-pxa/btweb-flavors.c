@@ -57,6 +57,10 @@ Moreover: GPIO63, GPIO64, GPIO69 (hw revisions)
 
 #ifndef MODULE
 
+int rd_size_btweb = 0;          /* Size of the RAM disks: it will overwrite cmdline settings if set  */
+#define BTWEB_H4684_IP_RAMDISK_KB 19000
+
+
 #define ATAG_OFFSET_MACHINE_TAG 0x24
 #define ATAG_OFFSET_START	0xc0000100
 static volatile unsigned char *ram_iopage;
@@ -723,6 +727,11 @@ static int init_h4684ip(struct btweb_flavor *fla, int rev) {
 
 	/* Enabling buzzer clock */
 	CKEN |= CKEN0_PWM0;
+
+
+	rd_size_btweb = BTWEB_H4684_IP_RAMDISK_KB;
+        printk("Preparing ramdisk fix size: %dKb\n",rd_size_btweb );
+
 
         return 0;
 }

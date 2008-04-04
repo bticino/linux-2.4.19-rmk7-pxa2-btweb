@@ -351,7 +351,7 @@ setup_ramdisk(int doload, int prompt, int image_start, unsigned int rd_sz)
 #ifdef CONFIG_BLK_DEV_RAM
 	extern int rd_size, rd_image_start, rd_prompt, rd_doload;
 
-	printk("setup_ramdisk: image_start=%x, prompt=%x, doload=%x, rd_sz=%x\n",image_start,prompt,doload,rd_sz); /* !!!raf */
+	printk("setup_ramdisk: image_start=%x, prompt=%x, doload=%x, rd_sz=%x\n",image_start,prompt,doload,rd_sz); 
 
 	rd_image_start = image_start;
 	rd_prompt = prompt;
