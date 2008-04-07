@@ -136,7 +136,7 @@ static void debug_printf(char *fmt, ...)
 static int reg_tv_size_5202=REG_TV_SIZE_5202;
 static int init_mode=INIT_MODE;
 static int tvia_mode=TVIA_MODE;
-MODULE_PARM(video,"i");
+//MODULE_PARM(video,"i");
 MODULE_PARM_DESC(tvia_mode,"Set Tvia mode output: 1=PAL-720x576,2=NTSC-M-640x480,default=PAL-720x576");
 
 
