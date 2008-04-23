@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/oledfb.c -- STV8102 OLED frame buffer device
  *
- * Copyright 2006,2007 Develer S.r.l. (http://www.develer.com/)
+ * Copyright 2006,2007,2008 Develer S.r.l. (http://www.develer.com/)
  * Author: Bernardo Innocenti <bernie@develer.com>
  * Author: Stefano Fedrigo <aleph@develer.com>
  *
@@ -30,7 +30,7 @@
 #include <video/fbcon.h>
 
 /* Define to either 0 or 1 */
-#define OLED_DEBUG  0
+#define OLED_DEBUG  1
 
 /* Driver name used in several places */
 #define OLED_NAME "oledfb"
@@ -41,6 +41,7 @@
 /* Dimensions in pixels */
 #define OLED_WIDTH  128
 #define OLED_HEIGHT 33
+#define OLED_HEIGHT_HIDDEN 31  /* Hidden VRAM area */
 
 /* Dimensions in millimeters */
 #define OLED_WIDTH_MM  55
@@ -51,6 +52,9 @@
 
 /* Framebuffer size in bytes */
 #define OLED_MEMSIZE (OLED_WIDTH_BYTES * OLED_HEIGHT)
+
+/* Hidden framebuffer area size */
+#define OLED_MEMSIZE_HIDDEN (OLED_WIDTH_BYTES * OLED_HEIGHT_HIDDEN)
 
 #define OLED_MEMORDER (get_order(PAGE_ALIGN(OLED_MEMSIZE)))
 
@@ -120,6 +124,10 @@ struct oledfb_info {
 	/* Second copy of shadow buffer for optimized refesh */
 	uint8_t *shadow2;
 
+	/* Buffer for the hidden part of the display, visible only
+	   when screensaver is active. */
+	uint8_t *hidden_area;
+
 	/* Physical address of shadow buffer as required by fbmem */
 	dma_addr_t shadow_phys;
 
@@ -139,6 +147,12 @@ struct oledfb_info {
 		#define OLED_SCRSVR_NOP   0
 		#define OLED_SCRSVR_START 1
 		#define OLED_SCRSVR_STOP  2
+
+	/* Flag used by syscall callbacks to force screen refresh by
+	 * kernel thread */
+	atomic_t cmd_refresh;
+		#define OLED_REFRESH_NOP   0
+		#define OLED_REFRESH_FORCE 1
 
 	#if CONFIG_OLED_REFRESH_THREAD
 		int thread_pid;
@@ -274,7 +288,7 @@ oledhw_backfill(struct oledfb_info *info, int frame)
 	}
 #else
 	uint8_t *bitmap = info->shadow;
-	memset(bitmap, 0, OLED_HEIGHT * OLED_WIDTH_BYTES);
+	memset(bitmap, 0, OLED_MEMSIZE);
 #endif
 }
 
@@ -324,6 +338,18 @@ oledhw_refresh(struct oledfb_info *info)
 	oledhw_write_data_multi(info, bitmap, OLED_MEMSIZE);
 }
 
+/* Like oledhw_refresh(), but copy white space in the second
+   part of the display RAM, to clean up the part visible only
+   when the screen saver is active */
+static void
+oledhw_refresh_hidden_area(struct oledfb_info *info)
+{
+	oledhw_gotoxy(info, 0, 0);
+
+	oledhw_write_data_multi(info, info->shadow, OLED_MEMSIZE);
+	oledhw_write_data_multi(info, info->hidden_area, OLED_MEMSIZE_HIDDEN);
+}
+
 #if CONFIG_OLED_REFRESH_THREAD
 
 /* Process to handle background OLED refresh from the shadow buffer. */
@@ -362,13 +388,19 @@ oledhw_thread(void *arg)
 		if (((unsigned char *)info->shadow)[0] == 0x55)
 			printk("BAR\n");
 #endif
-		/* Optimize refresh: transfer image only when it has changed */
+		/* Optimize refresh: transfer image only when it has changed... */
 		if (memcmp(info->shadow, info->shadow2, OLED_MEMSIZE)) {
 			if (info->screensaver_running)
 				oledhw_screensaver_stop(info);
 			memcpy(info->shadow2, info->shadow, OLED_MEMSIZE);
 			oledhw_refresh(info);
 			scrsaver_time = jiffies;
+		}
+		/* ... or when forced by userspace */
+		else if (atomic_read(&info->cmd_refresh) == OLED_REFRESH_FORCE) {
+			memcpy(info->shadow2, info->shadow, OLED_MEMSIZE);
+			oledhw_refresh_hidden_area(info);
+			atomic_set(&info->cmd_refresh, OLED_REFRESH_NOP);
 		}
 
 		/* Start/stop screen saver if timeout expired or requested by userspace */
@@ -424,14 +456,12 @@ static int
 oled_encode_fix(struct fb_fix_screeninfo *fix, const void *par,
 		struct fb_info_gen *info)
 {
-	OLED_TRACE;
 	/*
 	 *  This function should fill in the 'fix' structure based on the values
 	 *  in the `par' structure.
 	 */
 	strncpy(fix->id, OLED_NAME, sizeof(fix->id));
 	fix->smem_start  = (unsigned long)fb_info.shadow_phys;
-OLED_TRACEMSG("phys=%x p2v=%p, v=%p\n", fb_info.shadow_phys, phys_to_virt(fb_info.shadow_phys), fb_info.shadow);
 	fix->smem_len    = PAGE_ALIGN(OLED_MEMSIZE);
 	fix->type        = FB_TYPE_PLANES;
 	fix->type_aux    = 0;
@@ -443,6 +473,8 @@ OLED_TRACEMSG("phys=%x p2v=%p, v=%p\n", fb_info.shadow_phys, phys_to_virt(fb_inf
 	fix->mmio_start  = 0;
 	fix->mmio_len    = 0;
 	fix->accel       = FB_ACCEL_NONE;
+
+	OLED_TRACEMSG("phys=%x p2v=%p, v=%p\n", fb_info.shadow_phys, phys_to_virt(fb_info.shadow_phys), fb_info.shadow);
 
 	return 0;
 }
@@ -654,6 +686,9 @@ oledfb_ioctl(struct inode *inode, struct file *file,
 		case OLEDFB_SCREENSAVER_STOP:
 			atomic_set(&info->cmd_scrsaver, OLED_SCRSVR_STOP);
 			return 0;
+		case OLEDFB_REFRESH_FORCE:
+			atomic_set(&info->cmd_refresh, OLED_REFRESH_FORCE);
+			return 0;
 	}
 	return -EINVAL;
 }
@@ -838,13 +873,19 @@ oledfb_init(void)
 	 */
 	fb_info.shadow = NULL;
 	fb_info.shadow2 = NULL;
+	fb_info.hidden_area = NULL;
 	if (!(fb_info.shadow = consistent_alloc(GFP_KERNEL, PAGE_ALIGN(OLED_MEMSIZE),
 			&fb_info.shadow_phys, PTE_BUFFERABLE))
-		|| (!(fb_info.shadow2 = (void *)__get_free_pages(GFP_KERNEL, OLED_MEMORDER)))) {
-		printk(KERN_ERR OLED_NAME ": can't allocate shadow buffer");
+		|| (!(fb_info.shadow2 = (void *)__get_free_pages(GFP_KERNEL, OLED_MEMORDER)))
+		|| (!(fb_info.hidden_area = (void *)__get_free_pages(GFP_KERNEL, OLED_MEMORDER)))) {
+
+		printk(KERN_ERR OLED_NAME ": can't allocate shadow buffers");
 		result = -1;
 		goto out;
 	}
+
+	/* Cleanup hidden area buffer */
+	memset(fb_info.hidden_area, 0, OLED_MEMSIZE_HIDDEN);
 
 	/* This should give a reasonable default video mode */
 	fbgen_get_var(&disp.var, -1, &fb_info.gen.info);
@@ -885,6 +926,7 @@ out:
 	if (fb_info.shadow)
 		consistent_free(fb_info.shadow, PAGE_ALIGN(OLED_MEMSIZE), fb_info.shadow_phys);
 	free_pages((unsigned long)fb_info.shadow2, OLED_MEMORDER);
+	free_pages((unsigned long)fb_info.hidden_area, OLED_MEMORDER);
 
 	return result;
 }
@@ -909,6 +951,7 @@ oledfb_cleanup(struct fb_info *_info)
 	if (fb_info.shadow)
 		consistent_free(fb_info.shadow, PAGE_ALIGN(OLED_MEMSIZE), fb_info.shadow_phys);
 	free_pages((unsigned long)fb_info.shadow2, OLED_MEMORDER);
+	free_pages((unsigned long)fb_info.hidden_area, OLED_MEMORDER);
 }
 
 int __init
