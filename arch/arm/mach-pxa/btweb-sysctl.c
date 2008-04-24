@@ -1,6 +1,8 @@
 /*
  * Alessandro Rubini, 2005. GPL 2 or later.
  * Parts (i2c) by Simon G. Vogl, Frodo Looijaard. GPL 2 or later.
+ *
+ * Customizations for new BTicino products made by Raffaele Recalcati in 2006,2007,2008
  */
 #include <linux/config.h>
 #include <linux/module.h>

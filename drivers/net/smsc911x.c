@@ -1,6 +1,7 @@
 /***************************************************************************
  *
  * Copyright (C) 2004-2005  SMSC
+ * Copyright (C) 2007-2008  BTICINO S.p.A
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

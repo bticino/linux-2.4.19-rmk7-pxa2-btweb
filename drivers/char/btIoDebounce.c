@@ -1,3 +1,19 @@
+/*
+ * linux/drivers/char/btIoDebounce.c
+ *
+ * Author: Raffaele Recalcati 
+ * Created: 2007
+ * Copyright: BTicino S.p.A.
+ *
+ * Simple driver for reading a GPIO - debounce supported
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ * 
+ */
+
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>

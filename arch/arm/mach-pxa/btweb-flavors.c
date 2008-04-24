@@ -1,9 +1,18 @@
 /*
  *  linux/arch/arm/mach-pxa/btweb-flavors.c
  *
- * Management of different hardware flavors for the BTicino devices
+ *  Management of different hardware flavors for the BTicino devices
  *
- * The boot loader should have left the GPIO as generic as possible, so we fix
+ *  The boot loader should have left the GPIOs as generic as possible, so we fix
+ *  them to the needs of the product.
+ *
+ *  Adapted to the BTicino device family by Alessandro Rubini in 2006
+ *
+ *  Customizations for new BTicino products made by Raffaele Recalcati in 2006,2007,2008
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  */
 
 /***************************************************

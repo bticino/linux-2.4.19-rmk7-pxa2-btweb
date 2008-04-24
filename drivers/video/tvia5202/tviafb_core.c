@@ -26,6 +26,11 @@
   1. 10-15-2002  1)Support 5002
  		 2)Support work without BIOS
 		 3)Only support the mode given in SDK 
+  ---------------------------------------
+
+  Copyright 2006-2007-2008 BTICINO S.p.A.
+  Adaptation made for improving TVIA5202 funztionality inside BTICINO products.
+
  *---------------------------------------------*/
 #include <linux/module.h>
 #include <linux/kernel.h>

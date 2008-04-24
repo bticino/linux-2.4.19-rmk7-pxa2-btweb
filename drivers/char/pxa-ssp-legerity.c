@@ -1,7 +1,24 @@
-
 /*
- *  Driver for interfacing with Legerity codec based on pxa ssp port
- */
+ *  linux/drivers/char/pxa-ssp-legerity.c
+ *
+ *  Author: Raffaele Recalcati 
+ *  Created: 2007,2008
+ *  Copyright: BTicino S.p.A.
+ *
+ *  Driver for interfacing with Legerity codec based on pxa255 ssp port
+ *
+ *  PERMISSION IS HEREBY GRANTED TO USE, COPY AND MODIFY THIS SOFTWARE
+ *  ONLY FOR THE PURPOSE OF DEVELOPING LEGERITY RELATED PRODUCTS.
+ *
+ *  THIS SOFTWARE MAY NOT BE DISTRIBUTED TO ANY PARTY WHICH IS NOT COVERED
+ *  BY LEGERITY NON-DISCLOSURE AGREEMENT (NDA). UNAUTHORIZED DISCLOSURE
+ *  IS AGAINST LAW AND STRICTLY PROHIBITED.
+ *
+ *  THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+ *  EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+ *  WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+*/
+
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -10,24 +27,17 @@
 #include <linux/delay.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-//#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/config.h>
 #include <linux/version.h>
-//#include <linux/rtc.h>
-//#include <linux/string.h>
-//#include <linux/proc_fs.h>
 #include <asm/hardware.h> /* for btweb_globals when ARCH_BTWEB is set */
-
-
 #include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-#include <asm/hardware.h>
 #ifdef CONFIG_ARCH_PXA
 #include <asm/arch/pxa-regs.h>
 #endif

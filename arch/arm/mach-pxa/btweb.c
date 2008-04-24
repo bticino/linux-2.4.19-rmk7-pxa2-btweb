@@ -4,6 +4,8 @@
  *  Support for the Intel DBPXA250 Development Platform.
  *  Adapted to the BTicino device family by Alessandro Rubini in 2004,2005
  *  
+ *  Modifications made by Raffaele Recalcati in 2006,2007,2008
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.

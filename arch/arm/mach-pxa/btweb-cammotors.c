@@ -1,3 +1,16 @@
+/*
+ *  linux/arch/arm/mach-pxa/btweb-cammotors.c
+ *
+ *  Support for the step by step camera motor control
+ *  Developed by Develer 2007
+ *  
+ *  Improvements made by Raffaele Recalcati in 2007,2008
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
+ */
+
 
 #include <linux/sched.h>
 #include <asm/hardware.h>
@@ -5,7 +18,7 @@
 #include "btweb-cammotors.h"
 
 /* DEBUG */
-#define DEBUG 1
+#undef DEBUG
 
 #ifdef DEBUG
 	#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)

@@ -2,6 +2,7 @@
  * g_serial.c -- USB gadget serial driver
  *
  * Copyright 2003 (C) Al Borchers (alborchers@steinerpoint.com)
+ * Copyright 2007-2008 BTicino S.p.A - backport to 2.4.19
  *
  * This code is based in part on the Gadget Zero driver, which
  * is Copyright (C) 2003 by David Brownell, all rights reserved.

@@ -1,7 +1,18 @@
-/* pxa-ssp-oki.c */
 /*
- *  Driver for interfacing with Legerity codec based on pxa ssp port
+ *  linux/drivers/char/pxa-ssp-oki.c
+ *
+ *  Author: Raffaele Recalcati 
+ *  Created: 2007
+ *  Copyright: BTicino S.p.A.
+ *
+ *  Driver for interfacing with Zarlink acustic canceller
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
+ * 
  */
+
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>

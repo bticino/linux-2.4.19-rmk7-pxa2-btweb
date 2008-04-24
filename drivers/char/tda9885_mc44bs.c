@@ -1,5 +1,9 @@
 /*
- * tda9885_mc44bs.c
+ * linux/drivers/char/tda9885_mc44bs.c
+ *
+ * Author: Raffaele Recalcati 
+ * Created: 2006
+ * Copyright: BTicino S.p.A.
  *
  * Driver for TDA9885 and MC44BS, as found in the PXA F453AV BTicino device
  * These chips don't require data address to be sent for read and write session:

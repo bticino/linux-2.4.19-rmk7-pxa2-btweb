@@ -1,7 +1,18 @@
-
 /*
- *  PCM audio based on pxa255 nssp port   
+ * linux/drivers/sound/pxa-nssp-pcm.c
+ *
+ * Author: Raffaele Recalcati 
+ * Created: 2007
+ * Copyright: BTicino S.p.A.
+ *
+ * Driver initializing tdm 32 channels (pcm telephon audio bus)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
+
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -86,7 +97,7 @@ int __init ctrlnssp_init(void)
 #if 0 
         if (register_chrdev(100, "voice", &ctrlssp_fops))
         {
-                printk(KERN_NOTICE "Can't allocate major number %d for Legerity Codecs.\n",
+                printk(KERN_NOTICE "Can't allocate major number %d for Codecs.\n",
                        100);
                 return -EAGAIN;
         }
