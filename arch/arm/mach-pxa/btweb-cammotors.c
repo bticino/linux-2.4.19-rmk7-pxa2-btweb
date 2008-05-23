@@ -201,7 +201,7 @@ static void cammotors_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			tilt_step_cur=0;
 		if (CAMTILT_FC2)
 			 trace("Tlc FC CAMTILT max value %d",tilt_step_cur);
-		trace("Tlc FC CAMTILT reached: pan_status=%s",(pan_status==ST_FWD) ? "FORWARD":"BACK");
+		trace("Tlc FC CAMTILT reached: tilt_status=%s",(tilt_status==ST_FWD) ? "FORWARD":"BACK");
 		tilt_status = ST_IDLE;
 		tilt_move = ST_IDLE;
 		set_tiltmotor_state(&motor_standby);

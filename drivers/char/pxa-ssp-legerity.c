@@ -142,6 +142,12 @@
 		case 9:\
 		GPCR(btweb_features.pbx_cssb_d)=GPIO_bit(btweb_features.pbx_cssb_d);\
 		break;\
+		case 10:\
+		GPCR(btweb_features.pbx_cs_clid1_d)=GPIO_bit(btweb_features.pbx_cs_clid1_d);\
+		break;\
+		case 11:\
+		GPCR(btweb_features.pbx_cs_clid2_d)=GPIO_bit(btweb_features.pbx_cs_clid2_d);\
+		break;\
 		/* DISABLE ALL CHIP-SELECT */ \
 		default:\
 		GPSR(btweb_features.pbx_cs1_d)= GPIO_bit(btweb_features.pbx_cs1_d); \
@@ -151,6 +157,8 @@
 		GPSR(btweb_features.pbx_cs5_d)= GPIO_bit(btweb_features.pbx_cs5_d); \
 		GPSR(btweb_features.pbx_cssa_d)=GPIO_bit(btweb_features.pbx_cssa_d);\
 		GPSR(btweb_features.pbx_cssb_d)=GPIO_bit(btweb_features.pbx_cssb_d);\
+		GPSR(btweb_features.pbx_cs_clid1_d)=GPIO_bit(btweb_features.pbx_cs_clid1_d);\
+		GPSR(btweb_features.pbx_cs_clid2_d)=GPIO_bit(btweb_features.pbx_cs_clid2_d);\
 	}
 
 
