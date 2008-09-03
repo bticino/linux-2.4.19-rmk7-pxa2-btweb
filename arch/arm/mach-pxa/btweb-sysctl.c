@@ -30,6 +30,11 @@
 #define trace(format, arg...) printk(KERN_INFO __FILE__ ": " format "\n" , ## arg)
 
 
+int jffs2_my_status=1; /* the status of the jffs2 mounted  .. only one! : see fs/jffs2/... 
+			0: means mounted and ready
+			1 and so on: not ready */
+
+
 /*
  * The buzzer is always there; the pointer is set in btweb.c::btweb_init.
  * The structure of this code comes from drivers/char/vt.c
@@ -145,6 +150,7 @@ static int btsys_cammotor_fc2tilt = 0;
 static int btsys_cammotor_hz = 0;
 static int btsys_cammotor_pan_set = 0;
 static int btsys_cammotor_tilt_set = 0;
+static int btsys_jffs2 = 1;
 
 
 #define BTWEB_IRPROG_MAXSIZE  802
@@ -1167,6 +1173,10 @@ static int btsys_read(int name)
 			return 0;
 		}
 		break;
+		case BTWEB_JFFS2:
+			btsys_jffs2 = jffs2_my_status;
+			return 0;
+		break;
 	}
 	return 1;
 }
@@ -1936,6 +1946,15 @@ ctl_table btsys_table[] = {
 /*                .extra1 =        short_min, */
 /*                .extra2 =        short_max, */
         },
+	{
+		.ctl_name =      BTWEB_JFFS2,
+		.procname =      "jffs2_status",
+		.data =          &btsys_jffs2,
+		.maxlen =        sizeof(btsys_jffs2),
+		.mode =          0444,
+		.proc_handler =  btsys_proc,
+		.strategy =      btsys_sysctl,
+	},
 	{0,}
 };
 
@@ -1993,3 +2012,5 @@ module_init(btsys_init);
 module_exit(btsys_exit);
 
 #endif /* CONFIG_SYSCTL */
+
+EXPORT_SYMBOL(jffs2_my_status);
