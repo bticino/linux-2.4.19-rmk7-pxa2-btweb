@@ -15,7 +15,8 @@ obj-n :=
 obj-  :=
 
 export-objs := generic.o irq.o dma.o sa1111.o \
-               usb_ctl.o usb_recv.o usb_send.o btweb.o
+               usb_ctl.o usb_recv.o usb_send.o btweb.o \
+	       btweb-sysctl.o
 
 # Common support (must be linked before board specific support)
 obj-y += generic.o irq.o dma.o
