@@ -28,7 +28,9 @@ H4684/IP      0     0     1     1      1        64   400  // 0x3
 H4684/IP/8    0     1     0     0      0        64   400  // 0x3
 CDP/HW        0     1     0     0      1        64   400  // 0x3
 INTERFMM      0     1     0     1      0        64   400  // 0x3
-MH500         0     1     0     1      1        64   400  // 0x3
+BMNE500
+F452
+MH200         0     1     0     1      1        64   400  // 0x3
 MEGATICKER    0     1     1     0      0        64   400  // 0x3
 
 OLD
@@ -62,15 +64,15 @@ Moreover: GPIO63, GPIO64, GPIO69 (hw revisions)
 
 #include "btweb-cammotors.h"
 
-#undef DEBUG 
+#undef DEBUG
 
 #ifndef MODULE
 
 int rd_size_btweb = 0;          /* Size of the RAM disks: it will overwrite cmdline settings if set  */
 #define BTWEB_H4684_IP_RAMDISK_KB 19000
+int bt_demo = 0;
 
-
-#define ATAG_OFFSET_MACHINE_TAG 0x24
+#define ATAG_OFFSET_MACHINE_TAG 0x1C /* 0x24 */
 #define ATAG_OFFSET_START	0xc0000100
 static volatile unsigned char *ram_iopage;
 
@@ -126,7 +128,7 @@ static int init_pe(struct btweb_flavor *fla, int rev);
 static int init_pi(struct btweb_flavor *fla, int rev); 
 static int init_megaticker(struct btweb_flavor *fla, int rev);
 static int init_pbx288exp(struct btweb_flavor *fla, int rev);
-static int init_mh500(struct btweb_flavor *fla, int rev);
+static int init_pxa255_gw(struct btweb_flavor *fla, int rev);
 
 
 struct btweb_gpio {
@@ -150,7 +152,9 @@ static struct btweb_flavor fltab[] __initdata = {
         {0x8,0x8, BTWEB_H4684_IP_8,"H4684_IP_8",64, 400, &feat, &init_h4684ip_8},
         {0x9,0x9, BTWEB_CDP_HW,    "CDP_HW",    64, 400, NULL,  NULL},
         {0xa,0xa, BTWEB_INTERFMM,  "INTERFMM",  64, 400, &feat, &init_interfmm},
-        {0xb,0xb, BTWEB_MH500,     "MH500",     64, 200, &feat, &init_mh500},
+        {0xb,0xb, BTWEB_BMNE500,   "BMNE500",   64, 200, &feat, &init_pxa255_gw},
+        {0xb,0xb, BTWEB_F452,      "F452",      64, 200, &feat, &init_pxa255_gw},
+        {0xb,0xb, BTWEB_MH200,     "MH200",     64, 200, &feat, &init_pxa255_gw},
         {0xc,0xc, BTWEB_MEGATICKER,"MEGATICKER",64, 400, &feat, &init_megaticker},
 #if 0  /* Old Rubini */
         {0x4,0x7, BTWEB_F452,   "F452",   64, 400, &feat_f452,   NULL},
@@ -314,7 +318,33 @@ struct btweb_gpio gpios[] __initdata = {
 		},
 	},
         {
-                .id = BTWEB_MH500,
+                .id = BTWEB_BMNE500,
+                .gpdr = { 0xF85B9C3D,0xFCFFBBF3,0x0001FFFF},
+                .gpsr = { 0x00028000,0x03FF8A80,0x0000C040},
+                .gpcr = { ~(0x00028000),~(0x03FF8A80) ,~(0x0000C040) },
+                .gafr = { 0x80000000,
+                          0x00000010,
+                          0x00908010,
+                          0x0AA5AAAA,
+                          0xAAA00000,
+                          0x00000000
+                }
+        },
+        {
+                .id = BTWEB_MH200,
+                .gpdr = { 0xF85B9C3D,0xFCFFBBF3,0x0001FFFF},
+                .gpsr = { 0x00028000,0x03FF8A80,0x0000C040},
+                .gpcr = { ~(0x00028000),~(0x03FF8A80) ,~(0x0000C040) },
+                .gafr = { 0x80000000,
+                          0x00000010,
+                          0x00908010,
+                          0x0AA5AAAA,
+                          0xAAA00000,
+                          0x00000000
+                }
+        },
+        {
+                .id = BTWEB_F452,
                 .gpdr = { 0xF85B9C3D,0xFCFFBBF3,0x0001FFFF},
                 .gpsr = { 0x00028000,0x03FF8A80,0x0000C040},
                 .gpcr = { ~(0x00028000),~(0x03FF8A80) ,~(0x0000C040) },
@@ -350,7 +380,7 @@ int __init btweb_find_device(int *memsize)
 	struct btweb_flavor *fptr;
 	struct btweb_gpio *gptr;
 	int i, id, ret, idx;
-	char s[80];
+	char s[0x60];
 
 	/* retrieve the ID and hw version (even if not always meaningful */
 	id = get_4_gpio(6, 7, 82, 84);
@@ -365,16 +395,28 @@ int __init btweb_find_device(int *memsize)
 
 	printk(KERN_INFO "dump from ram: searching uboot cmdline\n");
 	printk("0000: ");
-	ram_iopage=0xc0000100; /* Start of uboot ATAG : see bdinfo uboot command */
+//	ram_iopage=0xc0000100; /* Start of uboot ATAG : see bdinfo uboot command */
+	i=0;
 	for (idx=0;idx<0x60;idx++) {
+		s[i]=*ram_iopage;
 		printk("%04x ",*ram_iopage++);
+		
 		udelay(500000);
 		udelay(500000);
 		if (idx%16==0) {
 			printk("\n");
 			printk("%02x: ",idx);
+			s[i]=0xa;
 		}
+		i++;
 	}
+	for (i=0; i<0x60; i++)
+		serialout(s[i]);
+	udelay(50000);
+        sprintf(s, "end testing serialout string\r\n");
+	for (i=0; i<11; i++)
+                        serialout(s[i]);
+
 	printk(KERN_INFO "\nend dump from ram\n");
 	udelay(500000);
 	udelay(500000);
@@ -386,7 +428,7 @@ int __init btweb_find_device(int *memsize)
 
 	ram_iopage=ATAG_OFFSET_START;
 	ram_iopage+=ATAG_OFFSET_MACHINE_TAG;
-	
+
 #ifdef DEBUG
 	printk("%p:%02x\n",ram_iopage,*ram_iopage);
 	printk("%p:%02x\n",ram_iopage+1,*(ram_iopage+1));
@@ -395,12 +437,25 @@ int __init btweb_find_device(int *memsize)
 	printk("%p:%02x\n",ram_iopage+4,*(ram_iopage+4));
 #endif
 
-	/* Verify MH500 string in cmdline due to lack of gpio recognition */
-	if ((*ram_iopage=='M')&&(*(ram_iopage+1)=='H')&&(*(ram_iopage+2)=='5')&& \
-		(*(ram_iopage+3)=='0')&&(*(ram_iopage+4)=='0') ) {
-		printk(KERN_INFO "MH500 detected from cmdline: id forced to 0x%x\n",BTWEB_MH500);
-		id = BTWEB_MH500;
-	}
+	/* Verify some strings in cmdline due to lack of gpio recognition */
+	if ((*ram_iopage=='B')&&(*(ram_iopage+1)=='M')&&(*(ram_iopage+2)=='N')&& \
+		(*(ram_iopage+3)=='E')&&(*(ram_iopage+4)=='5')&& \
+		(*(ram_iopage+5)=='0')&&(*(ram_iopage+6)=='0') ) {
+		printk(KERN_INFO "BMNE500 detected from cmdline: id forced to 0x%x\n",BTWEB_BMNE500);
+		id = BTWEB_BMNE500;
+	} else if ((*ram_iopage=='F')&&(*(ram_iopage+1)=='4')&&(*(ram_iopage+2)=='5')&& \
+		(*(ram_iopage+3)=='2'))  {
+		printk(KERN_INFO "F452 detected from cmdline: id forced to 0x%x\n",BTWEB_F452);
+		id = BTWEB_F452;
+	} else if ((*ram_iopage=='M')&&(*(ram_iopage+1)=='H')&&(*(ram_iopage+2)=='2')&& \
+		(*(ram_iopage+3)=='0'))  {
+		printk(KERN_INFO "MH200 detected from cmdline: id forced to 0x%x\n",BTWEB_MH200);
+		id = BTWEB_MH200;
+	} else if ((*ram_iopage=='D')&&(*(ram_iopage+1)=='E')&&(*(ram_iopage+2)=='M')&& \
+		(*(ram_iopage+3)=='O'))  {
+		printk(KERN_INFO "DEMO detected from cmdline");
+		bt_demo=1;
+	} 
 
 	btweb_globals.hw_version = get_4_gpio(58, 63, 64, 69);
         printk(KERN_ALERT "btweb_find_device: read hw_version=%d from 4 gpios\n",btweb_globals.hw_version);
@@ -437,7 +492,9 @@ int __init btweb_find_device(int *memsize)
 	printk(KERN_ALERT "btweb_find_device: Detected \"%s\" device (hw version %i)\n",
 	       btweb_globals.name, btweb_globals.hw_version);
 
-	if (btweb_globals.flavor!=BTWEB_MH500) {
+	if ((btweb_globals.flavor!=BTWEB_BMNE500) ||  \
+	    (btweb_globals.flavor!=BTWEB_F452) ||     \
+	    (btweb_globals.flavor!=BTWEB_MH200))  {
 
 	/* setup GPIO */
 	for (gptr = gpios; gptr->id != id && gptr->id != BTWEB_ANY; gptr++)
@@ -479,7 +536,7 @@ int __init btweb_find_device(int *memsize)
 			/* no output */ : "r" (2) : "memory");
 	}	
 	} else {
-		printk(KERN_ALERT "MH500: not fixing GPIO\n");
+		printk(KERN_ALERT "F452 or MH200 or BMNE500: not fixing GPIO\n");
 	}
 
 	/* set up features */
@@ -737,10 +794,11 @@ static int init_h4684ip(struct btweb_flavor *fla, int rev) {
 	/* Enabling buzzer clock */
 	CKEN |= CKEN0_PWM0;
 
-
-	rd_size_btweb = BTWEB_H4684_IP_RAMDISK_KB;
-        printk("Preparing ramdisk fix size: %dKb\n",rd_size_btweb );
-
+	if (!bt_demo) {
+		rd_size_btweb = BTWEB_H4684_IP_RAMDISK_KB;
+	        printk("Preparing ramdisk fix size: %dKb\n",rd_size_btweb );
+	} else 
+	        printk("Demo number %d\n",bt_demo );
 
         return 0;
 }
@@ -1019,7 +1077,7 @@ static int init_pbx288exp(struct btweb_flavor *fla, int rev) {
 }
 
 
-static int init_mh500(struct btweb_flavor *fla, int rev) {
+static int init_pxa255_gw(struct btweb_flavor *fla, int rev) {
 
         printk("Customizing %s, revision is not available\n",fla->name);
         btweb_features.eth_reset = 63;
@@ -1035,5 +1093,8 @@ static int init_mh500(struct btweb_flavor *fla, int rev) {
 }
 
 
+
 MODULE_PARM(MACHINE, "s");
+
+
 

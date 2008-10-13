@@ -29,6 +29,8 @@
 //#define WINDOW_ADDR 	0x04000000
 #define WINDOW_SIZE 	64*1024*1024
 
+int bt_mtd=0;
+
 static __u8 btweb_read8(struct map_info *map, unsigned long ofs)
 {
 	return *(__u8 *)(map->map_priv_1 + ofs);
@@ -337,6 +339,33 @@ static struct mtd_partition btweb_partitions_mh500[] = {
 };
 ////
 
+static struct mtd_partition btweb_custom_1[] = {
+	{
+		name:		"Bootloader", 		/* mtd0 */
+		size:		0x00040000,
+		offset:		0,
+	},{
+		name:		"conf",			/* mtd1 */
+		size:		0x00060000,
+		offset:		0x00040000,
+	},{
+		name:		"conf_copy",		/* mtd2 */
+		size:		0x00060000,
+		offset:		0x000a0000,
+	},{
+		name:		"Kernel",		/* mtd3 */
+		size:		0x00120000,
+		offset:		0x00100000,
+	},{
+		name:		"pool_1",		/* mtd4 */
+		size:		0x00DE0000,
+		offset:		0x00220000,
+	},{
+		name:		"pool_2",		/* mtd5 */
+		size:		0x01000000,
+		offset:		0x01000000
+	}
+};
 
 #else  /* Old small partitions */
 static struct mtd_partition btweb_partitions[] = {
@@ -400,14 +429,21 @@ static int __init init_btweb(void)
 	if (parsed_nr_parts > 0) {
 		parts = parsed_parts;
 		nb_parts = parsed_nr_parts;
-	} else if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PBX288exp)||(btweb_globals.flavor==BTWEB_INTERFMM)) {
+	} else if ((btweb_globals.flavor==BTWEB_PE)||(btweb_globals.flavor==BTWEB_PBX288exp)||(btweb_globals.flavor==BTWEB_INTERFMM)||(btweb_globals.flavor==BTWEB_H4684_IP)) {
 		printk(KERN_NOTICE "Mtd BTWEB partitions (extra 10MB) - app smaller\n");
 		parts = btweb_extra_partitions;
 		nb_parts = NB_OF(btweb_extra_partitions);
-	} else if (btweb_globals.flavor==BTWEB_MH500) {
-		printk(KERN_NOTICE "Mtd BTWEB partitions for MH500\n");
+	} else if ((btweb_globals.flavor==BTWEB_BMNE500) || \
+		  (btweb_globals.flavor==BTWEB_MH200) ||
+		  (btweb_globals.flavor==BTWEB_F452)) {
+		printk(KERN_NOTICE "Mtd BTWEB partitions for BMNE500 or F452 or MH200\n");
 		parts = btweb_partitions_mh500;
 		nb_parts = NB_OF(btweb_partitions_mh500);
+	} else if (bt_mtd==1) {
+		printk(KERN_NOTICE "btweb_custom_1 flash partition\n");
+		parts = btweb_custom_1;
+		nb_parts = NB_OF(btweb_custom_1);
+
 	} else {
 		printk(KERN_NOTICE "Mtd BTWEB partitions\n");
 		parts = btweb_partitions;
@@ -437,3 +473,7 @@ static void __exit cleanup_btweb(void)
 
 module_init(init_btweb);
 module_exit(cleanup_btweb);
+
+MODULE_PARM(bt_mtd, "i");
+MODULE_PARM_DESC (bt_mtd, "btweb: Id for custom flash partition");
+

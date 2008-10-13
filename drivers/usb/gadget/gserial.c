@@ -211,6 +211,7 @@ static int debug = 1;
 #define GS_PRODUCT_ID_PE		0x2 	/* Linux-USB Serial Gadget - PEMONO */
 #define GS_PRODUCT_ID_INTMM		0x3	/* Linux-USB Serial Gadget - INTMM*/
 #define GS_PRODUCT_ID_H4684_IP		0x4	/* Linux-USB Serial Gadget - H4684_IP */
+#define GS_PRODUCT_ID_PBX288exp		0x6	/* Linux-USB Serial Gadget - PBX288exp */
 #define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
 #define GS_NOTIFY_MAXPACKET		8
 
@@ -219,6 +220,7 @@ static int debug = 1;
 #define GS_PRODUCT_DESCR_INTMM		"Multimedia Interface" /* Linux-USB Serial Gadget - INTMM platform */
 #define GS_PRODUCT_DESCR_F453AV		"Web Server" /* Linux-USB Serial Gadget - F453AV platform */
 #define GS_PRODUCT_DESCR_346890		"2wires-eth interface" /* Linux-USB Serial Gadget - 346890 platform */
+#define GS_PRODUCT_DESCR_PBX288exp	"pabx" 		/* Linux-USB Serial Gadget - PBX288exp platform */
 
 
 /* Structures */
@@ -686,6 +688,9 @@ static int __init gs_module_init(void)
 	} else if (btweb_globals.flavor==BTWEB_H4684_IP){
 		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_H4684_IP);
 		strcpy(gs_gadget_driver.function,GS_PRODUCT_DESCR_H4684_IP); 	
+	} else if (btweb_globals.flavor==BTWEB_PBX288exp){
+		gs_device_desc.idProduct = __constant_cpu_to_le16(GS_PRODUCT_ID_PBX288exp);
+		strcpy(gs_gadget_driver.function,GS_PRODUCT_DESCR_PBX288exp); 	
 	}
 
 	retval = usb_gadget_register_driver(&gs_gadget_driver);

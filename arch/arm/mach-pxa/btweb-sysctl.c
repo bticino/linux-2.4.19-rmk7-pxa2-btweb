@@ -1955,6 +1955,17 @@ ctl_table btsys_table[] = {
 		.proc_handler =  btsys_proc,
 		.strategy =      btsys_sysctl,
 	},
+        {
+		.ctl_name =      BTWEB_ETH_LINK_STATUS,
+                .procname =      "eth_link_status",
+                .data =          &btweb_globals.eth_link_status,
+                .maxlen =        sizeof(int),
+                .mode =          0444,
+                .proc_handler =  proc_dointvec,
+                .strategy =      sysctl_intvec,
+	},
+
+
 	{0,}
 };
 

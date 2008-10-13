@@ -1300,6 +1300,7 @@ static int Smsc911x_stop(struct net_device *dev)
 
 	privateData->StopLinkPolling=TRUE;
 	del_timer_sync(&(privateData->LinkPollingTimer));
+	privateData->dev->owner = 0;
 
 	Lan_DisableInterrupt(privateData,INT_EN_GPT_INT_EN_);
 
@@ -1513,7 +1514,23 @@ int Smsc911x_do_ioctl(
 				Vl_ReleaseLock(&(privateData->MacPhyLock),keyCode,&dwIntFlags);
 			}
 			return 0;
+		case SIOCDEVPRIVATE+3:
+			SMSC_TRACE("SIOCSMIIREG: phy_id=0x%04X, reg_num=0x%04X, val_in=0x%04X",
+				data->phy_id,data->reg_num,data->val_in);
+			{
+				dev->owner = current->pid;		
+			}
+			return 0;
+		case SIOCDEVPRIVATE+4:
+			SMSC_TRACE("SIOCSMIIREG: phy_id=0x%04X, reg_num=0x%04X, val_in=0x%04X",
+				data->phy_id,data->reg_num,data->val_in);
+			{
+				dev->owner = 0;		
+			}
+			return 0;
+
 		default:break;//make lint happy
+		
 		}
 	}
 	if(ifr->ifr_data==NULL) {
@@ -3050,7 +3067,13 @@ void Phy_GetLinkMode(
 		privateData,
 		PHY_BSR,keyCode);
 	privateData->dwLinkSettings=LINK_OFF;
+	static int link_status=0;
+	static int old_link_status=0;
+
 	if(wRegBSR&PHY_BSR_LINK_STATUS_) {
+		old_link_status=link_status;
+		link_status=1;
+
 		wRegVal=Phy_GetRegW(
 			privateData,
 			PHY_BCR,keyCode);
@@ -3107,8 +3130,20 @@ void Phy_GetLinkMode(
 				}
 			}
 		}
+	} else {
+		old_link_status=link_status;
+		link_status=0;
 	}
+
+	if ( (privateData->dev->owner)  && (link_status != old_link_status)) {
+		if (kill_proc(privateData->dev->owner, SIGUSR2, 1) == -ESRCH) {
+			privateData->dev->owner = 0;
+
+		}
+	}
+
 	privateData->dwLinkSpeed=result;
+	btweb_globals.eth_link_status=result;
 }
 
 BOOLEAN Mac_Initialize(PPRIVATE_DATA privateData)

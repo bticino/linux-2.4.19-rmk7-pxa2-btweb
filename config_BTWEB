@@ -355,7 +355,8 @@ CONFIG_BLK_DEV_INITRD=y
 CONFIG_PACKET=y
 CONFIG_PACKET_MMAP=y
 # CONFIG_NETLINK_DEV is not set
-# CONFIG_NETFILTER is not set
+CONFIG_NETFILTER=y
+# CONFIG_NETFILTER_DEBUG is not set
 # CONFIG_FILTER is not set
 CONFIG_UNIX=y
 CONFIG_INET=y
@@ -373,6 +374,16 @@ CONFIG_IP_PIMSM_V2=y
 # CONFIG_ARPD is not set
 # CONFIG_INET_ECN is not set
 # CONFIG_SYN_COOKIES is not set
+
+#
+#   IP: Netfilter Configuration
+#
+# CONFIG_IP_NF_CONNTRACK is not set
+# CONFIG_IP_NF_QUEUE is not set
+# CONFIG_IP_NF_IPTABLES is not set
+# CONFIG_IP_NF_ARPTABLES is not set
+# CONFIG_IP_NF_COMPAT_IPCHAINS is not set
+# CONFIG_IP_NF_COMPAT_IPFWADM is not set
 # CONFIG_IPV6 is not set
 # CONFIG_KHTTPD is not set
 # CONFIG_ATM is not set
