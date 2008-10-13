@@ -131,6 +131,7 @@ struct btweb_globals {
 	unsigned long last_touch;
 	int rtc_invalid;
 	int usb_pxa_slave_connected;
+	int eth_link_status;
 };
 
 extern struct btweb_features btweb_features;
@@ -157,7 +158,9 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_H4684_IP_8	0x8
 #define BTWEB_CDP_HW	0x9
 #define BTWEB_INTERFMM	0xa
-#define BTWEB_MH500	0xb
+#define BTWEB_BMNE500	0xb
+#define BTWEB_MH200	0xb
+#define BTWEB_F452	0xb
 #define BTWEB_MEGATICKER	0xc
 
 /*
@@ -221,6 +224,8 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_CAMMOTOR_TILT_SET 55 /* Camera tilt set position */
 #define BTWEB_CAMMOTOR_PAN_SET  56 /* Camera pan set position */
 #define BTWEB_RX_INFRARED_HASH  57 /* Read infrared hash key */
+#define BTWEB_JFFS2 		58 /* Jffs2 status */
+#define BTWEB_ETH_LINK_STATUS   59 /* Ethernet link (autonegotation) status */
 
 
 #endif
