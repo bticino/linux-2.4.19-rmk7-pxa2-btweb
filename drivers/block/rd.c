@@ -413,6 +413,11 @@ static void __exit rd_cleanup (void)
 static int __init rd_init (void)
 {
 	int		i;
+	extern int rd_size_btweb;
+
+	if (rd_size_btweb)
+		rd_size=rd_size_btweb;
+
 
 	if (rd_blocksize > PAGE_SIZE || rd_blocksize < 512 ||
 	    (rd_blocksize & (rd_blocksize-1)))
@@ -441,6 +446,8 @@ static int __init rd_init (void)
 			       DEVFS_FL_DEFAULT, MAJOR_NR, 0,
 			       S_IFBLK | S_IRUSR | S_IWUSR,
 			       &rd_bd_op, NULL);
+
+	printk("RAMDISK: rd_size=%x\n",rd_size); /* !!!raf */
 
 	for (i = 0; i < NUM_RAMDISKS; i++)
 		register_disk(NULL, MKDEV(MAJOR_NR,i), 1, &rd_bd_op, rd_size<<1);

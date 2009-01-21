@@ -15,7 +15,8 @@ obj-n :=
 obj-  :=
 
 export-objs := generic.o irq.o dma.o sa1111.o \
-               usb_ctl.o usb_recv.o usb_send.o
+               usb_ctl.o usb_recv.o usb_send.o btweb.o \
+	       btweb-sysctl.o
 
 # Common support (must be linked before board specific support)
 obj-y += generic.o irq.o dma.o
@@ -28,6 +29,7 @@ obj-$(CONFIG_ARCH_LUBBOCK) += lubbock.o
 obj-$(CONFIG_ARCH_PXA_CERF) += cerf.o
 obj-$(CONFIG_ARCH_PXA_IDP) += idp.o
 obj-$(CONFIG_ARCH_TRIZEPS2) += trizeps2.o
+obj-$(CONFIG_MACH_BTWEB) += btweb.o btweb-sysctl.o btweb-flavors.o btweb-cammotors.o
 
 # Support for blinky lights
 leds-y := leds.o
@@ -46,9 +48,13 @@ obj-$(CONFIG_PXA_USB) += pxausb_core.o
 obj-$(CONFIG_PXA_USB_NETLINK) += usb-eth.o
 obj-$(CONFIG_PXA_USB_CHAR) += usb-char.o
 
+# DSP char devices (still images video acquisition board)
+obj-$(CONFIG_BTWEB_DSP) += btweb_dsp.o
+
 # Misc features
 obj-$(CONFIG_PM) += pm.o sleep.o
 obj-$(CONFIG_CPU_FREQ) += cpu-pxa.o
+obj-$(CONFIG_PXA_SSP) += ssp.o
 
 include $(TOPDIR)/Rules.make
 

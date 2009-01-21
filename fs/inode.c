@@ -75,13 +75,23 @@ struct inodes_stat_t inodes_stat;
 
 static kmem_cache_t * inode_cachep;
 
-#define alloc_inode() \
-	 ((struct inode *) kmem_cache_alloc(inode_cachep, SLAB_KERNEL))
-static void destroy_inode(struct inode *inode) 
+static struct inode *alloc_inode(struct super_block *sb)
+{
+	struct inode *inode;
+	if (sb->s_op && sb->s_op->alloc_inode)
+		return sb->s_op->alloc_inode(sb);
+	else
+		return kmem_cache_alloc(inode_cachep, SLAB_KERNEL);
+}
+
+static void destroy_inode(struct inode *inode)
 {
 	if (inode_has_buffers(inode))
 		BUG();
-	kmem_cache_free(inode_cachep, (inode));
+	if (inode->i_sb->s_op->destroy_inode)
+		inode->i_sb->s_op->destroy_inode(inode);
+	else
+		kmem_cache_free(inode_cachep, inode);
 }
 
 
@@ -90,27 +100,31 @@ static void destroy_inode(struct inode *inode)
  * once, because the fields are idempotent across use
  * of the inode, so let the slab aware of that.
  */
+void inode_init_once(struct inode *inode)
+{
+	memset(inode, 0, sizeof(*inode));
+	init_waitqueue_head(&inode->i_wait);
+	INIT_LIST_HEAD(&inode->i_hash);
+	INIT_LIST_HEAD(&inode->i_data.clean_pages);
+	INIT_LIST_HEAD(&inode->i_data.dirty_pages);
+	INIT_LIST_HEAD(&inode->i_data.locked_pages);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	INIT_LIST_HEAD(&inode->i_dirty_buffers);
+	INIT_LIST_HEAD(&inode->i_dirty_data_buffers);
+	INIT_LIST_HEAD(&inode->i_devices);
+	sema_init(&inode->i_sem, 1);
+	sema_init(&inode->i_zombie, 1);
+	spin_lock_init(&inode->i_data.i_shared_lock);
+}
+
+
 static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 {
 	struct inode * inode = (struct inode *) foo;
 
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR)
-	{
-		memset(inode, 0, sizeof(*inode));
-		init_waitqueue_head(&inode->i_wait);
-		INIT_LIST_HEAD(&inode->i_hash);
-		INIT_LIST_HEAD(&inode->i_data.clean_pages);
-		INIT_LIST_HEAD(&inode->i_data.dirty_pages);
-		INIT_LIST_HEAD(&inode->i_data.locked_pages);
-		INIT_LIST_HEAD(&inode->i_dentry);
-		INIT_LIST_HEAD(&inode->i_dirty_buffers);
-		INIT_LIST_HEAD(&inode->i_dirty_data_buffers);
-		INIT_LIST_HEAD(&inode->i_devices);
-		sema_init(&inode->i_sem, 1);
-		sema_init(&inode->i_zombie, 1);
-		spin_lock_init(&inode->i_data.i_shared_lock);
-	}
+		inode_init_once(inode);
 }
 
 /*
@@ -801,14 +815,14 @@ static void clean_inode(struct inode *inode)
  * lists.
  */
  
-struct inode * get_empty_inode(void)
+struct inode * get_empty_inode(struct super_block *sb)
 {
 	static unsigned long last_ino;
 	struct inode * inode;
 
 	spin_lock_prefetch(&inode_lock);
 	
-	inode = alloc_inode();
+	inode = alloc_inode(sb);
 	if (inode)
 	{
 		spin_lock(&inode_lock);
@@ -837,7 +851,7 @@ static struct inode * get_new_inode(struct super_block *sb, unsigned long ino, s
 {
 	struct inode * inode;
 
-	inode = alloc_inode();
+	inode = alloc_inode(sb);
 	if (inode) {
 		struct inode * old;
 
@@ -942,6 +956,37 @@ retry:
 	}
 	goto retry;
 	
+}
+
+/**
+ *     ilookup - search for an inode in the inode cache
+ *     @sb:         super block of file system to search
+ *     @ino:        inode number to search for
+ *
+ *     If the inode is in the cache, the inode is returned with an
+ *     incremented reference count.
+ *
+ *     Otherwise, %NULL is returned.
+ *
+ *     This is almost certainly not the function you are looking for.
+ *     If you think you need to use this, consult an expert first.
+ */
+struct inode *ilookup(struct super_block *sb, unsigned long ino)
+{
+	struct list_head * head = inode_hashtable + hash(sb,ino);
+	struct inode * inode;
+
+	spin_lock(&inode_lock);
+	inode = find_inode(sb, ino, head, NULL, NULL);
+	if (inode) {
+		__iget(inode);
+		spin_unlock(&inode_lock);
+		wait_on_inode(inode);
+		return inode;
+	}
+	spin_unlock(&inode_lock);
+
+	return inode;
 }
 
 struct inode *igrab(struct inode *inode)

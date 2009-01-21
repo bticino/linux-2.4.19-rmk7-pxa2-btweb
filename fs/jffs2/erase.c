@@ -31,7 +31,7 @@
  * provisions above, a recipient may use your version of this file
  * under either the RHEPL or the GPL.
  *
- * $Id: erase.c,v 1.24 2001/12/06 16:38:38 dwmw2 Exp $
+ * $Id: erase.c,v 1.1 2008/11/06 12:06:53 cvs Exp $
  *
  */
 #include <linux/kernel.h>
@@ -50,10 +50,16 @@ struct erase_priv_struct {
 static void jffs2_erase_callback(struct erase_info *);
 static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 
+extern int jffs2_my_status; /* the status of the jffs2 mounted  .. only one! : see arch/arm/mach-pxa/btweb-sysctl.c */
+
+
+
 void jffs2_erase_block(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	struct erase_info *instr;
 	int ret;
+
+	printk(KERN_DEBUG "jffs2_erase_block (%lu sec, jiff=%lu)\n", jiffies / HZ, jiffies);
 
 	instr = kmalloc(sizeof(struct erase_info) + sizeof(struct erase_priv_struct), GFP_KERNEL);
 	if (!instr) {
@@ -112,6 +118,8 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c)
 {
 	struct jffs2_eraseblock *jeb;
 
+	jffs2_my_status=3;
+
 	spin_lock_bh(&c->erase_completion_lock);
 	while (!list_empty(&c->erase_pending_list)) {
 
@@ -137,6 +145,9 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c)
 	}
 	spin_unlock_bh(&c->erase_completion_lock);
 	D1(printk(KERN_DEBUG "jffs2_erase_pending_blocks completed\n"));
+
+
+	jffs2_my_status=0;
 }
 
 

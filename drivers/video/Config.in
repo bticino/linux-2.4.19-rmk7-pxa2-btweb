@@ -60,6 +60,9 @@ if [ "$CONFIG_FB" = "y" ]; then
      fi
    fi
    dep_tristate '  CyberPro 2000/2010/5000 support' CONFIG_FB_CYBER2000 $CONFIG_PCI
+
+   tristate '  TVIA CyberPro 5202 frame buffer and grabbing (decoder SAA7114: I port) support' CONFIG_FB_CP5202_BT  $CONFIG_ARCH_PXA
+
    if [ "$CONFIG_APOLLO" = "y" ]; then
       define_bool CONFIG_FB_APOLLO y
    fi
@@ -224,6 +227,7 @@ if [ "$CONFIG_FB" = "y" ]; then
    if [ "$CONFIG_NINO" = "y" ]; then
       bool '  TMPTX3912/PR31700 frame buffer support' CONFIG_FB_TX3912
    fi
+   tristate '  STV8102 OLED frame buffer support' CONFIG_FB_OLED
    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
       tristate '  Virtual Frame Buffer support (ONLY FOR TESTING!)' CONFIG_FB_VIRTUAL
    fi

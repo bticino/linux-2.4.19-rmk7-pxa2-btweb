@@ -22,6 +22,8 @@
 
 #include <asm/mach/map.h>
 
+#undef DEBUG 
+
 /*
  * These are useful for identifing cache coherency
  * problems by allowing the cache or the cache and
@@ -253,6 +255,10 @@ static void __init create_mapping(struct map_desc *md)
 	virt   = md->virtual;
 	off    = md->physical - virt;
 	length = md->length;
+
+#ifdef DEBUG
+	printk(KERN_INFO "mm-armv.c: virt=%08lx phys=%08lx len=%08lx\n",md->virtual,md->physical,md->length);
+#endif
 
 	while ((virt & 0xfffff || (virt + off) & 0xfffff) && length >= PAGE_SIZE) {
 		alloc_init_page(virt, virt + off, md->domain, prot_pte);

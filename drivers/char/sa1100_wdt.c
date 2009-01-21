@@ -38,8 +38,28 @@
 static int timer_margin = TIMER_MARGIN;	/* in seconds */
 static int sa1100wdt_users;
 static int pre_margin;
-#ifdef MODULE
+static int wdt_force;
+
 MODULE_PARM(timer_margin,"i");
+MODULE_PARM(wdt_force, "i"); /* force activation at init time */
+
+#ifndef MODULE
+/* kernel command-line management */
+static int __init wdt_set_margin(char *str)
+{
+	int par;
+	if (get_option(&str,&par)) timer_margin = par;
+        return 1;
+}
+static int __init wdt_set_force(char *str)
+{
+	int par;
+	if (get_option(&str,&par)) wdt_force = par;
+	return 1;
+}
+
+__setup("wdt_margin=", wdt_set_margin);
+__setup("wdt_force=", wdt_set_force);
 #endif
 
 static void sa1100dog_ping( void)
@@ -141,11 +161,7 @@ static struct file_operations sa1100dog_fops=
 static struct miscdevice sa1100dog_miscdev=
 {
 	WATCHDOG_MINOR,
-#if defined(CONFIG_SA1100_WATCHDOG)
-	"SA1100_watchdog",
-#elif defined(CONFIG_PXA_WATCHDOG)
 	"PXA_watchdog",
-#endif
 	&sa1100dog_fops
 };
 
@@ -158,7 +174,15 @@ static int __init sa1100dog_init(void)
 	if (ret)
 		return ret;
 
-	printk("SA1100/PXA Watchdog Timer: timer margin %d sec\n", timer_margin);
+	if (wdt_force) {
+		sa1100dog_ping();
+		OSSR = OSSR_M3;
+		OWER = OWER_WME;
+		OIER |= OIER_E3;
+	}
+
+	printk("SA1100/PXA Watchdog Timer: timer margin %d sec,"
+	       " currently %sactive\n", timer_margin, wdt_force ? "" : "in");
 
 	return 0;
 }
@@ -166,6 +190,12 @@ static int __init sa1100dog_init(void)
 static void __exit sa1100dog_exit(void)
 {
 	misc_deregister(&sa1100dog_miscdev);
+	if (wdt_force) {
+		OSMR3 = OSCR + pre_margin;
+#ifndef CONFIG_WATCHDOG_NOWAYOUT
+		OIER &= ~OIER_E3;
+#endif
+	}
 }
 
 module_init(sa1100dog_init);

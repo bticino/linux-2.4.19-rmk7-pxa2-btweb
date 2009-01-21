@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.99 2002/06/19 09:19:57 jocke Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.1 2007/01/09 08:47:12 cvs Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -145,16 +145,24 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 			((unsigned char *)extp)[i] = 
 				cfi_read_query(map, (base+((adr+i)*ofs_factor)));
 		}
+
+                if (extp->MajorVersion != '1' ||
+                    (extp->MinorVersion < '0' || extp->MinorVersion > '2')) {
+                        printk(KERN_WARNING "  Unknown IntelExt Extended Query "
+                               "version %c.%c. Only supporting CFI basic command set\n",  extp->MajorVersion,
+                               extp->MinorVersion);
+                }
 		
 		if (extp->MajorVersion != '1' || 
-		    (extp->MinorVersion < '0' || extp->MinorVersion > '2')) {
+		    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
 			printk(KERN_WARNING "  Unknown IntelExt Extended Query "
 			       "version %c.%c.\n",  extp->MajorVersion,
 			       extp->MinorVersion);
 			kfree(extp);
 			return NULL;
 		}
-		
+
+
 		/* Do some byteswapping if necessary */
 		extp->FeatureSupport = le32_to_cpu(extp->FeatureSupport);
 		extp->BlkStatusRegMask = le16_to_cpu(extp->BlkStatusRegMask);

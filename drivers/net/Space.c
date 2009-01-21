@@ -83,6 +83,8 @@ extern int sonic_probe(struct net_device *);
 extern int SK_init(struct net_device *);
 extern int seeq8005_probe(struct net_device *);
 extern int smc_init( struct net_device * );
+extern int Smsc911x_init(struct net_device *dev);
+
 extern int sgiseeq_probe(struct net_device *);
 extern int atarilance_probe(struct net_device *);
 extern int sun3lance_probe(struct net_device *);
@@ -249,6 +251,9 @@ static struct devprobe isa_probes[] __initdata = {
 #endif
 #ifdef CONFIG_SMC9194
 	{smc_init, 0},
+#endif
+#ifdef CONFIG_SMC911X
+        {Smsc911x_init, 0},
 #endif
 #ifdef CONFIG_SEEQ8005 
 	{seeq8005_probe, 0},

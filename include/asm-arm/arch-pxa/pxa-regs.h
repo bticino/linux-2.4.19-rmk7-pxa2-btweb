@@ -127,8 +127,8 @@ typedef void            (*ExcpHndlr) (void) ;
 #define DRCMR12		__REG(0x40000130)  /* Request to Channel Map Register for AC97 audio transmit Request */
 #define DRCMR13		__REG(0x40000134)  /* Request to Channel Map Register for SSP receive Request */
 #define DRCMR14		__REG(0x40000138)  /* Request to Channel Map Register for SSP transmit Request */
-#define DRCMR15		__REG(0x4000013c)  /* Reserved */
-#define DRCMR16		__REG(0x40000140)  /* Reserved */
+#define DRCMR15		__REG(0x4000013c)  /* Request to Channel Map Register for NSSP receive Request */
+#define DRCMR16		__REG(0x40000140)  /* Request to Channel Map Register for NSSP transmit Request */
 #define DRCMR17		__REG(0x40000144)  /* Request to Channel Map Register for ICP receive Request */
 #define DRCMR18		__REG(0x40000148)  /* Request to Channel Map Register for ICP transmit Request */
 #define DRCMR19		__REG(0x4000014c)  /* Request to Channel Map Register for STUART receive Request */
@@ -166,6 +166,8 @@ typedef void            (*ExcpHndlr) (void) ;
 #define DRCMRTXPCDR	DRCMR12
 #define DRCMRRXSSDR	DRCMR13
 #define DRCMRTXSSDR	DRCMR14
+#define DRCMRRXSSDR2	DRCMR15
+#define DRCMRTXSSDR2	DRCMR16
 #define DRCMRRXICDR	DRCMR17
 #define DRCMRTXICDR	DRCMR18
 #define DRCMRRXSTRBR	DRCMR19
@@ -926,6 +928,11 @@ typedef void            (*ExcpHndlr) (void) ;
 #define GPIO78_nCS_2		78	/* chip select 2 */
 #define GPIO79_nCS_3		79	/* chip select 3 */
 #define GPIO80_nCS_4		80	/* chip select 4 */
+#define GPIO81_NSCLK            81      /* NSSP clock */
+#define GPIO82_NSFRM            82      /* NSSP Frame */
+#define GPIO83_NSTXD            83      /* NSSP transmit */
+#define GPIO84_NSRXD            84      /* NSSP receive */
+
 
 /* GPIO alternate function mode & direction */
 
@@ -1033,6 +1040,14 @@ typedef void            (*ExcpHndlr) (void) ;
 #define GPIO78_nCS_2_MD		(78 | GPIO_ALT_FN_2_OUT)
 #define GPIO79_nCS_3_MD		(79 | GPIO_ALT_FN_2_OUT)
 #define GPIO80_nCS_4_MD		(80 | GPIO_ALT_FN_2_OUT)
+#define GPIO81_NSSP_CLK_OUT     (81 | GPIO_ALT_FN_1_OUT)
+#define GPIO81_NSSP_CLK_IN      (81 | GPIO_ALT_FN_1_IN)
+#define GPIO82_NSSP_FRM_OUT     (82 | GPIO_ALT_FN_1_OUT)
+#define GPIO82_NSSP_FRM_IN      (82 | GPIO_ALT_FN_1_IN)
+#define GPIO83_NSSP_TX          (83 | GPIO_ALT_FN_1_OUT)
+#define GPIO83_NSSP_RX          (83 | GPIO_ALT_FN_2_IN)
+#define GPIO84_NSSP_TX          (84 | GPIO_ALT_FN_1_OUT)
+#define GPIO84_NSSP_RX          (84 | GPIO_ALT_FN_2_IN)
 
 
 /*
@@ -1078,6 +1093,29 @@ typedef void            (*ExcpHndlr) (void) ;
 #define SSSR		__REG(0x41000008)  /* SSP Status Register */
 #define SSITR		__REG(0x4100000C)  /* SSP Interrupt Test Register */
 #define SSDR		__REG(0x41000010)  /* (Write / Read) SSP Data Write Register/SSP Data Read Register */
+/* NSSP pxa255 port */
+#define SSCR0_P2        __REG(0x41400000)  /* SSP Port 2 Control Register 0 */
+#define SSCR1_P2        __REG(0x41400004)  /* SSP Port 2 Control Register 1 */
+#define SSSR_P2         __REG(0x41400008)  /* SSP Port 2 Status Register */
+#define SSITR_P2        __REG(0x4140000C)  /* SSP Port 2 Interrupt Test Register */
+#define SSDR_P2         __REG(0x41400010)  /* (Write / Read) SSP Port 2 Data Write Register/SSP Data Read Register */
+#define SSTO_P1         __REG(0x41000028)  /* SSP Port 1 Time Out Register */
+#define SSPSP_P2        __REG(0x4140002C)  /* SSP Port 2 Programmable Serial Protocol */
+
+#define SSSR_TNF        (1 << 2)        /* Transmit FIFO Not Full */
+#define SSSR_RNE        (1 << 3)        /* Receive FIFO Not Empty */
+#define SSSR_BSY        (1 << 4)        /* SSP Busy */
+#define SSSR_TFS        (1 << 5)        /* Transmit FIFO Service Request */
+#define SSSR_RFS        (1 << 6)        /* Receive FIFO Service Request */
+#define SSSR_ROR        (1 << 7)        /* Receive FIFO Overrun */
+#define SSSR_TFL0       (1 << 8)        /* First bit tx fifo */
+#define SSSR_TFL1       (1 << 9)        /* Second bit tx fifo */
+#define SSSR_TFL2       (1 << 10        /* Third bit tx fifo */
+#define SSSR_TFL3       (1 << 11)       /* Fourth bit tx fifo */
+#define SSSR_RFL0       (1 << 12        /* First bit rx fifo */
+#define SSSR_RFL1       (1 << 13)       /* Second bit rx fifo */
+#define SSSR_RFL2       (1 << 14)       /* Third bit rx fifo */
+#define SSSR_RFL3       (1 << 15)       /* Fourth bit rx fifo */
 
 
 /*
@@ -1129,6 +1167,8 @@ typedef void            (*ExcpHndlr) (void) ;
 #define CKEN2_AC97	(1 << 2)	/* AC97 Unit Clock Enable */
 #define CKEN1_PWM1	(1 << 1)	/* PWM1 Clock Enable */
 #define CKEN0_PWM0	(1 << 0)	/* PWM0 Clock Enable */
+#define CKEN9_NSSP      (1 << 9)        /* NSSP (SSP2) Clock Enable */
+
 
 #define OSCC_OON	(1 << 1)	/* 32.768kHz OON (write-once only bit) */
 #define OSCC_OOK	(1 << 0)	/* 32.768kHz OOK (read-only bit) */

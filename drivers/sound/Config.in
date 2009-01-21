@@ -131,6 +131,12 @@ if [ "$CONFIG_ARCH_SA1100" = "y" ]; then
    dep_tristate '    Generic DAC on the SA11x0 SSP port' CONFIG_SOUND_SA1100SSP $CONFIG_SOUND_SA1100
 fi
 
+if [ "$CONFIG_MACH_BTWEB" = "y" ]; then
+   tristate '  Btweb I2S audio support' CONFIG_SOUND_BTWEB_I2S
+fi
+
+dep_tristate 'PXA SSP Audio PCM Bus' CONFIG_PXA_NSSP_PCM  $CONFIG_ARCH_PXA
+
 dep_tristate '  OSS sound modules' CONFIG_SOUND_OSS $CONFIG_SOUND
 
 if [ "$CONFIG_SOUND_OSS" = "y" -o "$CONFIG_SOUND_OSS" = "m" ]; then

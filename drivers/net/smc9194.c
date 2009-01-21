@@ -93,8 +93,8 @@ static const char version[] =
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_ARCH_SA1100
 #include <asm/hardware.h>
+#ifdef CONFIG_ARCH_SA1100
 #include <asm/arch/assabet.h>
 #endif
 
@@ -305,7 +305,7 @@ static void smc_shutdown(struct net_device *dev);
  . specified in the input to the device.  */
 static int smc_findirq(struct net_device *dev);
 
-#ifndef CONFIG_ASSABET_NEPONSET
+#if !defined(CONFIG_ASSABET_NEPONSET) && !defined(CONFIG_MACH_BTWEB)
 /*
  * These functions allow us to handle IO addressing as we wish - this
  * ethernet controller can be connected to a variety of busses.  Some
@@ -417,7 +417,7 @@ static inline void smc_outs(u_int base, u_int reg, u8 *data, u_int len)
 		smc_outw((x), INT_MASK);		\
 	}
 
-#else
+#else /* neponset or btweb */
 
 #undef SMC_IO_EXTENT
 #define SMC_IO_EXTENT	(16 << 2)
@@ -998,7 +998,72 @@ int __init smc_init(struct net_device *dev)
 		if (ret)
 			iounmap(addr);
 	}
+#elif defined(CONFIG_MACH_BTWEB)
+	if (1 /* no check here, the bootloader has to be ported */) {
+		unsigned int *addr;
+		unsigned char ecor;
+		unsigned long flags;
 
+		printk("smc9194.c: BTWEB ether setup\n");
+		/* NCR_0 |= NCR_ENET_OSC_EN; */
+		dev->irq = IRQ_GPIO(btweb_features.eth_irq);
+		set_GPIO_IRQ_edge(btweb_features.eth_irq, GPIO_FALLING_EDGE);
+
+		/*
+		 * Map the attribute space.  This is overkill, but clean.
+		 */
+		addr = ioremap(0x0c000000 + (1 << 25), 64 * 1024 * 4);
+		if (!addr)
+			return -ENOMEM;
+
+		/*
+		 * Reset the device.  We must disable IRQs around this.
+		 */
+		local_irq_save(flags);
+		ecor = readl(addr + ECOR) & ~ECOR_RESET;
+		writel(ecor | ECOR_RESET, addr + ECOR);
+		udelay(100);
+
+		/*
+		 * The device will ignore all writes to the enable bit while
+		 * reset is asserted, even if the reset bit is cleared in the
+		 * same write.  Must clear reset first, then enable the device.
+		 */
+		writel(ecor, addr + ECOR);
+		writel(ecor | ECOR_ENABLE, addr + ECOR);
+
+		/*
+		 * Force byte mode.
+		 */
+		writel(readl(addr + ECSR) | ECSR_IOIS8, addr + ECSR);
+		local_irq_restore(flags);
+
+		iounmap(addr);
+
+		/*
+		 * Wait for the chip to wake up.
+		 */
+		mdelay(1);
+
+		/*
+		 * Map the real registers.
+		 */
+		addr = ioremap(0x0c000000, 8 * 1024);
+		if (!addr)
+			return -ENOMEM;
+
+		/* HACK HACK HACK -- must reset registers */
+		{
+			/* addr is int ptr, so this adds 0xc00 */
+			int ioaddr = (int)(addr + 0x300); SMC_SELECT_BANK(1);
+			smc_outw(0x3000, (int)(addr+0x300), CONFIG);
+			smc_outw(0x1867, (int)(addr+0x300), BASE);
+		}
+
+		ret = smc_probe(dev, (int)addr+0x300);
+		if (ret)
+			iounmap(addr);
+	}
 #elif defined(CONFIG_ISA)
 	int i;
 	int base_addr = dev->base_addr;
@@ -1111,7 +1176,7 @@ static int __init smc_probe_chip(struct net_device *dev, int ioaddr)
 	if ((temp & 0xFF00) != 0x3300)
 		return -ENODEV;
 
-#ifndef CONFIG_ASSABET_NEPONSET
+#if !defined(CONFIG_ASSABET_NEPONSET) && !defined(CONFIG_MACH_BTWEB)
 	/* well, we've already written once, so hopefully another time won't
  	   hurt.  This time, I need to switch the bank register to bank 1,
 	   so I can access the base address register */
@@ -1240,8 +1305,10 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 			"contact author.\n", dev->name, ioaddr,
 			revision_register);
 
+#ifndef CONFIG_MACH_BTWEB
 		retval = -ENODEV;
 		goto err_out;
+#endif
 	}
 
 	/* at this point I'll assume that the chip is an SMC9xxx.

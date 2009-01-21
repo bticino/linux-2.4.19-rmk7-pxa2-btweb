@@ -19,31 +19,187 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 
+#include <linux/time.h>
+
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/dma.h>
+#include <linux/ac97_codec.h>
+
 
 #include "pxa-audio.h"
 
+#define SNDCTL_BT_GETDELAY	       _SIOWR('P',89, int) // usato per il GUA
+#define SNDCTL_BT_INCGAIN          _SIOWR('P',88, int)
+#define SNDCTL_BT_DECGAIN          _SIOWR('P',87, int)
+#define SNDCTL_BT_LINGETDELAY      _SIOWR('P',86, int) // usato per il LINPHONE
+
+										// these to set the volumes !
+#define SNDCTL_BT_SETREC_GAIN       _SIOWR('P',85, int)
+#define SNDCTL_BT_SETLINE     		_SIOWR('P',84, int)
+#define SNDCTL_BT_SETPCM     		_SIOWR('P',83, int)
+
+#undef BT_DEBUG
+			// PARM: x attivare scritte di debug, meglio farne a meno !
 
 #define AUDIO_NBFRAGS_DEFAULT	8
-#define AUDIO_FRAGSIZE_DEFAULT	8192
 
-#define MAX_DMA_SIZE		4096
-#define DMA_DESC_SIZE		sizeof(pxa_dma_desc)
+/* To reduce driver audio fragment size by Carlos */
+#define AUDIO_FRAGSIZE_DEFAULT 640	// riduce la latenza e cosi'svuota ogni 20 ms
+//#define AUDIO_FRAGSIZE_DEFAULT 2048    // by Carlos
+//#define AUDIO_FRAGSIZE_DEFAULT 8192    /* ORIG 8192 */
 
+#define MAX_DMA_SIZE		4096 // orig.
+//#define MAX_DMA_SIZE		1280 // provato, nn da benefici
+#define DMA_DESC_SIZE		sizeof(pxa_dma_desc) // 16 
 
 /*
  * This function frees all buffers
  */
 #define audio_clear_buf pxa_audio_clear_buf
 
+
+MODULE_AUTHOR("Jaroslav Kysela");
+MODULE_DESCRIPTION("Yamaha YMF7xx PCI Audio");
+MODULE_LICENSE("GPL");
+
+int frame_count ;
+int frame_rx ;
+
+//static int ii = 0;
+struct timeval tim_rec0, tim_pl0, tim_pl1;
+unsigned int time_irq_rx0, count_irq_tx, diff_dma_txrx0, diff_dma_tx01;
+//int t_usec, spk_loss=0, time_pl_begin=0, t_usec_old=0;
+// only to debug !!
+
+
+extern struct ac97_codec pxa_ac97_codec1;
+
+DECLARE_MUTEX(CAR_mutex_1);
+#define ADDR_BASE_SEC  0x40500300	// mi riservo lo spazio di mem del codec secondario
+
+void pxa_ac97_wait1(struct ac97_codec *codec )
+{
+// !!! parm funzione sdoppiata per accedere a entrambi i codec
+
+	volatile u32 *ioaddr;
+	int i=1;
+	u16 val=0;
+	u32 addr_cod_base = ADDR_BASE_SEC ;
+
+	down(&CAR_mutex_1);
+	if(!(CAR & CAR_CAIP)) {
+
+		ioaddr = (volatile u32 *)ioremap( addr_cod_base + (0x0026 << 1), 4);
+		CAR |= CAR_CAIP;
+		while(i==1) {
+			val = *ioaddr;
+			while(!(GSR & GSR_SDONE)) {
+				udelay(1);	// nn definita ???
+			}
+			GSR |= GSR_SDONE;
+			if(GSR & GSR_RDCS) {
+				GSR |= GSR_RDCS;
+			}
+			val = (u16)(*ioaddr & 0x0000FFFF);
+			while(!(GSR & GSR_SDONE)) {
+				udelay(1);
+			}
+			GSR |= GSR_SDONE;
+			if((val & 0x000F) == 0x000F) {
+				i = 0;
+			}
+		}
+		CAR &= ~CAR_CAIP;
+		iounmap(ioaddr);
+	}
+	else {
+		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
+	}
+	up(&CAR_mutex_1);
+}
+
+
+u16 pxa_ac97_read1(struct ac97_codec *codec, u8 reg )
+{
+// !!! parm funzione sdoppiata per accedere a entrambi i codec
+	u16 val = -1;
+	u32 addr;
+	volatile u32 *ioaddr;
+	u32 addr_cod_base = ADDR_BASE_SEC ;
+
+	down(&CAR_mutex_1);
+	if (!(CAR & CAR_CAIP)) {
+ 		addr = ADDR_BASE_SEC + (reg << 1) ;
+//	printk (" read 1 at add %X, val %X \n", addr, val);
+		ioaddr = (volatile u32 *)ioremap( addr, 4);
+		CAR |= CAR_CAIP;
+		val = *ioaddr;
+		while(!(GSR & GSR_SDONE)) {
+			udelay(1);
+		}
+		GSR |= GSR_SDONE;
+		if(GSR & GSR_RDCS) {
+			GSR |= GSR_RDCS;
+		}
+		val = (u16)(*ioaddr & 0x0000FFFF);
+		while(!(GSR & GSR_SDONE)) {
+			udelay(1);
+		}
+		GSR |= GSR_SDONE;
+		CAR &= ~CAR_CAIP;
+		iounmap(ioaddr);
+	} else {
+		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
+	}
+	up(&CAR_mutex_1);
+	//printk("%s(0x%02x) = 0x%04x\n", __FUNCTION__, reg, val);
+	return val;
+}
+
+void pxa_ac97_write1(struct ac97_codec *codec, u8 reg, u16 val )
+{
+// !!! parm funzione sdoppiata per accedere a entrambi i codec
+	volatile u32 *ioaddr, addr;
+	u32 addr_cod_base = ADDR_BASE_SEC ;
+
+	down(&CAR_mutex_1);
+	if (!(CAR & CAR_CAIP)) {
+		addr = addr_cod_base + (reg << 1 );
+// printk ("pxa_ac97_write 1 addr %X val %X \n", addr, val);
+		ioaddr = (volatile u32 *)ioremap( addr , 4);
+		GSR |= GSR_CDONE;
+		CAR |= CAR_CAIP;
+		*ioaddr = val;
+		while(!(GSR & GSR_CDONE)) {
+			udelay(1);
+		}
+		GSR |= GSR_CDONE;
+		CAR &= ~CAR_CAIP;
+		iounmap(ioaddr);
+	} else {
+		printk(KERN_CRIT __FUNCTION__": CAR_CAIP already set\n");
+	}
+	up(&CAR_mutex_1);
+//	printk("%s(0x%02x, 0x%04x)\n", __FUNCTION__, reg, val);
+}
+
+struct ac97_codec pxa_ac97_codec1 = {
+	codec_wait: pxa_ac97_wait1,
+	codec_read:	pxa_ac97_read1,
+	codec_write: pxa_ac97_write1,
+};
+
+
+
 void pxa_audio_clear_buf(audio_stream_t * s)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int frag;
+
+//printk("pxa audio clear buf\n");
 
 	if (!s->buffers)
 		return;
@@ -86,14 +242,25 @@ static int audio_setup_buf(audio_stream_t * s)
 	char *dma_buf = NULL;
 	dma_addr_t dma_buf_phys = 0;
 
+// definite per DEBUG queste variabili
+	frame_count=0, frame_rx=0;
+	time_irq_rx0=0, count_irq_tx=0, diff_dma_txrx0=0 , diff_dma_tx01=0;
+
+//printk("audio setup buf \n");
+
 	if (s->buffers)
 		return -EBUSY;
 
 	/* Our buffer structure array */
 	s->buffers = kmalloc(sizeof(audio_buf_t) * s->nbfrags, GFP_KERNEL);
+
+//printk(" size of audiobuft %d , nbfrags %d \n", sizeof(audio_buf_t),  s->nbfrags);
+// sizeof(audio_buf_t) = 16 ,   s->nbfrags = 8
+
 	if (!s->buffers)
 		goto err;
 	memzero(s->buffers, sizeof(audio_buf_t) * s->nbfrags);
+// spazio allocato 256
 
 	/* 
 	 * Our DMA descriptor array:
@@ -101,15 +268,24 @@ static int audio_setup_buf(audio_stream_t * s)
 	 * descriptor per MAX_DMA_SIZE byte data blocks.
 	 */
 	nb_desc = (1 + (s->fragsize + MAX_DMA_SIZE - 1)/MAX_DMA_SIZE) * s->nbfrags;
+
 	dma_desc = consistent_alloc(GFP_KERNEL,
 				    nb_desc * DMA_DESC_SIZE,
 				    &dma_desc_phys,
-				    0);
+					0);		// !!! parm: cambiato per compilare, messo uguale all'originale
+
+//printk ("dma_desc_phys %X %X \n", 	&dma_desc_phys, dma_desc_phys );
+
+//printk(" nb_desc %d space alloc %d \n", nb_desc, nb_desc * DMA_DESC_SIZE );
+// nb_desc 16, space alloc 5120
+
 	if (!dma_desc)
 		goto err;
 	s->descs_per_frag = nb_desc / s->nbfrags;
+// 2 descrittori x frammento
 	s->buffers->dma_desc = dma_desc;
 	s->dma_desc_phys = dma_desc_phys;
+
 	for (i = 0; i < nb_desc - 1; i++)
 		dma_desc[i].ddadr = dma_desc_phys + (i + 1) * DMA_DESC_SIZE;
 	dma_desc[i].ddadr = dma_desc_phys;
@@ -126,11 +302,12 @@ static int audio_setup_buf(audio_stream_t * s)
 		 */
 		if (!buf_size) {
 			buf_size = (s->nbfrags - frag) * s->fragsize;
+//printk ( " buf_size %d \n", buf_size);
 			do {
 				dma_buf = consistent_alloc(GFP_KERNEL,
 							   buf_size, 
 							   &dma_buf_phys,
-							   0);
+								0); 	// !!! parm: cambiato per compilare, messo uguale all'originale
 				if (!dma_buf)
 					buf_size -= s->fragsize;
 			} while (!dma_buf && buf_size);
@@ -176,6 +353,20 @@ static int audio_setup_buf(audio_stream_t * s)
 	s->bytecount = 0;
 	s->fragcount = 0;
 	sema_init(&s->sem, (s->output) ? s->nbfrags : 0);
+//printk("audio setup buf end\n");
+
+/*
+printk ("setup DTADR(9) %X, DSADR(8) %X", DTADR(9), DSADR(8) );
+do_gettimeofday(&tim_pl );
+t_usec = tim_pl.tv_usec;
+if ( t_usec < t_usec_old)
+	t_usec = t_usec + 1000000;
+printk ("time %d usec \n", t_usec);
+*/
+
+//audio_clear_buf(s);
+// !!!Parm prova per fare 1 flush 
+
 	return 0;
 
 err:
@@ -184,6 +375,13 @@ err:
 	return -ENOMEM;
 }
 
+int rd_open=0, wr_open=0;
+int dma_ch_os, dma_ch_is;
+
+#define DRV_FOR_ALL
+//#define DRV_FOR_LINPHONE
+//#define DRV_FOR_VOCAL
+
 /*
  * Our DMA interrupt handler
  */
@@ -191,6 +389,106 @@ static void audio_dma_irq(int ch, void *dev_id, struct pt_regs *regs)
 {
 	audio_stream_t *s = dev_id;
 	u_int dcsr;
+//printk ("irq dma \n");
+
+#ifdef BT_DEBUG
+	if ( time_irq_rx0 ==0 ) 
+		printk ( "first irq tx %d \n", count_irq_tx );
+	if ( count_irq_tx ==0 ) 
+		printk ( "first irq rx %d \n", time_irq_rx0 );
+#endif
+
+    /*
+if ( ch == 9 ) // solo x capire se prima che un'irq finisca nn ne parta un altro!
+	{	rd_open = 1;
+	if ( wr_open == 1)
+		printk (" wr irq non finito \n");
+	}
+if ( ch == 8 )
+	{ 	wr_open = 1;
+	if ( rd_open == 1)
+		printk (" rd irq non finito \n");
+	}
+*/
+//printk ("audio_dma_irq ch %d dev_ptr %X \n", ch, dev_id );
+//if (  time_irq_rx0==0 )
+//	printk ( "first irq rx time %d time add start %d, ch %d \n", time_irq_rx0 , time_add_start, ch );
+
+
+#ifdef DRV_FOR_VOCAL
+	if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
+		{
+		do_gettimeofday(&tim_pl );
+		time_irq_rx0 = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
+#ifdef BT_DEBUG
+		printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+#endif
+		}
+
+	if ( ( ch==dma_ch_os ) && ( count_irq_tx==0) )
+		{
+		do_gettimeofday(&tim_pl );
+		count_irq_tx = (tim_pl.tv_sec*1000000) + tim_pl.tv_usec;
+#ifdef BT_DEBUG
+		printk ( "Irq tx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+#endif
+	//printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
+	
+	//	if ( t_usec < t_usec_old)
+	//		t_usec = t_usec + 1000000;
+	}
+#endif
+
+#ifdef DRV_FOR_LINPHONE
+
+if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
+	{
+	if ( count_irq_tx==0 )
+		{
+		do_gettimeofday(&tim_pl_old );
+//		printk ( "Irq tx 0 %d s %d us \n", tim_pl_old.tv_sec, tim_pl_old.tv_usec );
+		}
+	else
+		{
+		do_gettimeofday(&tim_pl );
+//		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
+		int diff_dma_tx= (tim_pl.tv_sec - tim_pl_old.tv_sec)*1000000 + (tim_pl.tv_usec - tim_pl_old.tv_usec) ;
+		time_add_start = diff_dma_tx;
+//		printk ("Irq TX1-TX0 %d \n",diff_dma_tx );
+		}
+	count_irq_tx++;
+//printk ( " first irq tx time %d time add start %d\n", count_irq_tx , time_add_start);
+	}
+#endif
+
+#ifdef DRV_FOR_ALL
+if ( ( ch==dma_ch_is ) && ( time_irq_rx0==0) )
+	{
+	do_gettimeofday(&tim_rec0 );
+	time_irq_rx0 = (tim_rec0.tv_sec*1000000) + tim_rec0.tv_usec;
+//	printk ( " Irq rx 0 %d s %d ms \n", tim_pl.tv_sec, tim_pl.tv_usec/1000 );
+//	printk ( " first irq rx time %d time add start %d\n", time_irq_rx0 , time_add_start);
+	}
+
+if ( ( ch==dma_ch_os ) && ( count_irq_tx<2 ) )
+	{
+	if ( count_irq_tx==0)
+		{
+		do_gettimeofday(&tim_pl0 );
+//		printk ( "Irq tx 0 %d s %d us \n", tim_pl_old.tv_sec, tim_pl_old.tv_usec );
+		}
+	else
+		{
+		do_gettimeofday(&tim_pl1 );
+//		printk ( "Irq tx 1 %d s %d us \n", tim_pl.tv_sec, tim_pl.tv_usec );
+		diff_dma_tx01=(tim_pl1.tv_sec-tim_pl0.tv_sec)*1000000 + (tim_pl1.tv_usec-tim_pl0.tv_usec) ;
+#ifdef BT_DEBUG
+		printk ("Irq TX1-TX0 %d \n",diff_dma_tx01 );	// questo è un parametro importante
+#endif
+		}
+	count_irq_tx++;
+	}
+#endif
 
 	dcsr = DCSR(ch);
 	DCSR(ch) = dcsr & ~DCSR_STOPIRQEN;
@@ -227,11 +525,16 @@ static void audio_dma_irq(int ch, void *dev_id, struct pt_regs *regs)
 			    cur_dma_desc / (s->descs_per_frag * DMA_DESC_SIZE);
 		}
 
+/*	if ( frame_rx <2 )	{
+		printk ("irq ch %d frame rx %d frame tx %d dma_desc_size %d \n", ch, frame_rx , frame_count, DMA_DESC_SIZE );
+		printk ("   irq  cur dma desc %d descs per frag %d cur_dma_frag %d usr_frag %d\n", cur_dma_desc, s->descs_per_frag , cur_dma_frag, s->usr_frag);
+		}					*/
+
 		/* Account for possible wrap back of cur_dma_desc above */
 		if (cur_dma_frag >= s->nbfrags)
 			cur_dma_frag = s->nbfrags - 1;
 
-		while (s->dma_frag != cur_dma_frag) {
+		while (s->dma_frag != cur_dma_frag) { // esegue finche' s->dma_frag raggiunge cur_dma_frag
 			if (!s->mapped) {
 				/* 
 				 * This fragment is done - set the checkpoint
@@ -241,20 +544,32 @@ static void audio_dma_irq(int ch, void *dev_id, struct pt_regs *regs)
 				s->buffers[s->dma_frag].dma_desc->ddadr |= DDADR_STOP;
 				up(&s->sem);
 			}
+//if ( frame_rx <2 )
+//	printk ("    irq s->dma_frag %d s->nbfrags %d \n", s->dma_frag , s->nbfrags);
+
 			if (++s->dma_frag >= s->nbfrags)
 				s->dma_frag = 0;
 
 			/* Accounting */
 			s->bytecount += s->fragsize;
+//if ( frame_rx <2 )
+//	printk ("     irq s->bytecount %d s->fragsize %d \n", s->bytecount, s->fragsize);
+
 			s->fragcount++;
 		}
 
 		/* ... and for polling processes */
 		wake_up(&s->frag_wq);
 	}
-
+/*				// x capire se nn si innesta un irq sull'altro 
+if ( ch == 9 )
+	rd_open =0;
+if ( ch == 8 )
+	wr_open =0;
+*/
 	if ((dcsr & DCSR_STOPIRQEN) && (dcsr & DCSR_STOPSTATE))
 		wake_up(&s->stop_wq);
+
 }
 
 /*
@@ -262,6 +577,7 @@ static void audio_dma_irq(int ch, void *dev_id, struct pt_regs *regs)
  */
 static int audio_set_fragments(audio_stream_t *s, int val)
 {
+//printk ("audio_set_fragments \n");
 	if (s->mapped || DCSR(s->dma_ch) & DCSR_RUN)
 		return -EBUSY;
 	if (s->buffers)
@@ -279,8 +595,10 @@ static int audio_set_fragments(audio_stream_t *s, int val)
 		s->nbfrags = 256 * 1024 / s->fragsize;
 	if (audio_setup_buf(s))
 		return -ENOMEM;
+//printk ("audio_set_fragments end \n");
 	return val|(s->nbfrags << 16);
 }
+
 
 
 /*
@@ -294,6 +612,41 @@ static int audio_write(struct file *file, const char *buffer,
 	audio_state_t *state = (audio_state_t *)file->private_data;
 	audio_stream_t *s = state->output_stream;
 	int chunksize, ret = 0;
+
+audio_stream_t *is = state->input_stream;
+
+		// stampe in fondo
+
+				//      ----------- stampe sull'Output audio
+/*	do_gettimeofday(&tim_pl );
+	t_usec = tim_pl.tv_usec;
+	if ( t_usec < t_usec_old)
+		t_usec = t_usec + 1000000;
+
+	if ( frame_count == 0 )
+		time_pl_begin = tim_pl.tv_usec;
+
+	if (frame_count < 20 )
+		{
+		printk (" inizio buffer play %d usec %d diff frame %d \n", t_usec, (t_usec - t_usec_old), frame_count );
+		t_usec_old = t_usec;
+	
+		if ( t_usec > time_pl_begin + (frame_count*20000 ) )
+			{
+			spk_loss = t_usec - ( time_pl_begin + (frame_count*20000 ) );
+			printk ("          WR perdo %d ms\n", spk_loss);
+			time_pl_begin += spk_loss;
+	//		printf (" time_begin ora %f \n", time_begin);
+			}
+		}
+//	else 
+//		frame_count = 10;
+*/
+//audio_buf_cnt (int ch, void *dev_id, struct pt_regs *regs);
+
+//if ( frame_count < 10 ) 
+//	audio_buf_cnt (9, (audio_stream_t*)is, ( struct pt_regs *) NULL); // riferito all'input stream
+//frame_count++;
 
 	if (ppos != &file->f_pos)
 		return -ESPIPE;
@@ -350,11 +703,19 @@ static int audio_write(struct file *file, const char *buffer,
 		if (++s->usr_frag >= s->nbfrags)
 			s->usr_frag = 0;
 	}
+//printk ("audio write end\n");
+
+
+	// ogni buffer conta 2048 byte
+frame_count++;
+
 
 	if ((buffer - buffer0))
 		ret = buffer - buffer0;
 	return ret;
 }
+
+
 
 
 static int audio_read(struct file *file, char *buffer,
@@ -364,6 +725,38 @@ static int audio_read(struct file *file, char *buffer,
 	audio_state_t *state = file->private_data;
 	audio_stream_t *s = state->input_stream;
 	int chunksize, ret = 0;
+
+//printk ("audio read frame count %d ", frame_rx );
+	frame_rx++;
+
+#ifdef DRV_FOR_VOCAL
+if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( time_add_start == 0 ) )
+	{
+	time_add_start = ( count_irq_tx - time_irq_rx0 ) + 4000;
+	if ( count_irq_tx  < ( time_irq_rx0 - 4000 ) )
+		{
+		printk ( "occhio !! prima l'irq di TX sulla scheda, time_add_start sarebbe %d\n", time_add_start );
+		time_add_start = 1; // cosi' sfugge al controllo sullo zero
+		}
+	printk ("time to add to begin %d \n", time_add_start);
+	}
+#endif
+
+
+#ifdef DRV_FOR_ALL
+					// ma questo pezzo forse serve solo x il VOCAL in realtà
+if ( (time_irq_rx0!=0) && (count_irq_tx!=0) && ( diff_dma_txrx0 == 0 ) )
+	{
+	diff_dma_txrx0 = ( count_irq_tx - time_irq_rx0 ) + 4000;
+	if ( count_irq_tx  < ( time_irq_rx0 - 4000 ) )
+		{
+#ifdef BT_DEBUG
+		printk ( "Warning!! prima l'irq di TX sulla scheda, time_add_start sarebbe %d\n", diff_dma_txrx0 );
+#endif
+		diff_dma_txrx0 = 1; // cosi' sfugge al controllo sullo zero
+		}
+	}
+#endif
 
 	if (ppos != &file->f_pos)
 		return -ESPIPE;
@@ -392,7 +785,6 @@ static int audio_read(struct file *file, char *buffer,
 			if (down_interruptible(&s->sem))
 				break;
 		}
-
 		/* Grab data from current buffer */
 		chunksize = s->fragsize - b->offset;
 		if (chunksize > count)
@@ -408,7 +800,6 @@ static int audio_read(struct file *file, char *buffer,
 			up(&s->sem);
 			break;
 		}
-
 		/* 
 		 * Make this buffer available for DMA again.
 		 * We unlock this fragment's checkpoint descriptor and
@@ -423,9 +814,9 @@ static int audio_read(struct file *file, char *buffer,
 		if (++s->usr_frag >= s->nbfrags)
 			s->usr_frag = 0;
 	}
-
 	if ((buffer - buffer0))
 		ret = buffer - buffer0;
+
 	return ret;
 }
 
@@ -438,6 +829,8 @@ static int audio_sync(struct file *file)
 	pxa_dma_desc *final_desc;
 	u_long dcmd_save = 0;
 	DECLARE_WAITQUEUE(wait, current);
+//printk ("audio sync \n");
+
 
 	if (!(file->f_mode & FMODE_WRITE) || !s->buffers || s->mapped)
 		return 0;
@@ -488,6 +881,8 @@ static int audio_sync(struct file *file)
 		final_desc->ddadr &= ~DDADR_STOP;
 		b->dma_desc->ddadr |= DDADR_STOP;
 	}
+//printk ("audio sync end\n");
+
 	return 0;
 }
 
@@ -499,6 +894,7 @@ static unsigned int audio_poll(struct file *file,
 	audio_stream_t *is = state->input_stream;
 	audio_stream_t *os = state->output_stream;
 	unsigned int mask = 0;
+//printk ("audio_poll \n");
 
 	if (file->f_mode & FMODE_READ) {
 		/* Start audio input if not already active */
@@ -531,6 +927,13 @@ static unsigned int audio_poll(struct file *file,
 	return mask;
 }
 
+void pxa_ac97_wait1(struct ac97_codec *codec );
+u16 pxa_ac97_read1(struct ac97_codec *codec, u8 reg );
+void pxa_ac97_write1(struct ac97_codec *codec, u8 reg, u16 val );
+
+EXPORT_SYMBOL(pxa_ac97_write1);
+EXPORT_SYMBOL(pxa_ac97_read1);
+EXPORT_SYMBOL(pxa_ac97_codec1);
 
 static int audio_ioctl( struct inode *inode, struct file *file,
 			uint cmd, ulong arg)
@@ -541,22 +944,80 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 	long val;
 
 	switch (cmd) {
+	case SNDCTL_BT_SETREC_GAIN:
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, (int) arg );
+#ifdef BT_DEBUG
+		printk( "ac97: set rec gain to %X\n", arg);
+#endif 
+		return 0;
+	case SNDCTL_BT_SETLINE:
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_MASTER_VOL_STEREO, (int) arg );
+#ifdef BT_DEBUG
+		printk( "ac97: set lineout to %X\n", arg);
+#endif 
+		return 0;
+
+	case SNDCTL_BT_SETPCM:
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_PCMOUT_VOL, (int) arg );
+#ifdef BT_DEBUG
+		printk( "ac97: set pcm vol to %X\n", arg);
+#endif 
+		return 0;
+
+/* ------------ from ac97.h  ------------------
+#define  AC97_MASTER_VOL_STEREO  0x0002		// Line Out
+#define  AC97_MASTER_VOL_MONO    0x0006     // TAD Output
+#define  AC97_PCMOUT_VOL         0x0018
+#define  AC97_RECORD_GAIN        0x001c
+#define  AC97_MIC_VOL            0x000e     // MIC Input (mono)
+*/
+
+// !!! parm / added to calc the begin delay
+	case SNDCTL_BT_GETDELAY:	// used with GUA
+		val = diff_dma_txrx0;
+		return put_user(val, (int *) arg);
+
+	case SNDCTL_BT_LINGETDELAY:	// used with Linphone
+		val = diff_dma_tx01;
+//		printk( "bt get delay val %d\n", val);
+		return put_user(val, (int *) arg);
+
+	case SNDCTL_BT_INCGAIN:		// nn + usato 
+//		printk( "bt inc gain\n");
+//		equ_level--;
+		val = pxa_ac97_read1( &pxa_ac97_codec1, AC97_RECORD_GAIN );
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, val+1 );
+							// uno dei pochi reg a ragionare in diretta, senza attenuazione
+		return put_user( 0, (int *) arg);
+
+	case SNDCTL_BT_DECGAIN:		// nn + usato 
+//		printk( "bt dec gain\n");
+//		equ_level++;
+		val = pxa_ac97_read1( &pxa_ac97_codec1, AC97_RECORD_GAIN );
+		pxa_ac97_write1( &pxa_ac97_codec1, AC97_RECORD_GAIN, val-1 );
+							// uno dei pochi reg a ragionare in diretta, senza attenuazione
+		return put_user(0, (int *) arg);
+
 	case OSS_GETVERSION:
+		printk("OSS get version \n");
 		return put_user(SOUND_VERSION, (int *)arg);
 
 	case SNDCTL_DSP_GETBLKSIZE:
+//printk("sndctl_dsp_getblksize \n");
 		if (file->f_mode & FMODE_WRITE)
 			return put_user(os->fragsize, (int *)arg);
 		else
 			return put_user(is->fragsize, (int *)arg);
 
 	case SNDCTL_DSP_GETCAPS:
+//		printk("sndctl_dsp_getcaps \n");
 		val = DSP_CAP_REALTIME|DSP_CAP_TRIGGER|DSP_CAP_MMAP;
 		if (is && os)
 			val |= DSP_CAP_DUPLEX;
 		return put_user(val, (int *)arg);
 
 	case SNDCTL_DSP_SETFRAGMENT:
+//		printk("sndctl_dsp_setfragments \n");
 		if (get_user(val, (long *) arg))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
@@ -578,15 +1039,19 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 		return 0;
 
 	case SNDCTL_DSP_SYNC:
+//		printk("sndctl_dsp_sync \n");
 		return audio_sync(file);
 
 	case SNDCTL_DSP_SETDUPLEX:
+//		printk("sndctl_dsp_setduplex \n");
 		return 0;
 
 	case SNDCTL_DSP_POST:
+//		printk("sndctl_dsp_post \n");
 		return 0;
 
 	case SNDCTL_DSP_GETTRIGGER:
+//		printk("sndctl_dsp_gettrigger \n");
 		val = 0;
 		if (file->f_mode & FMODE_READ && DCSR(is->dma_ch) & DCSR_RUN)
 			val |= PCM_ENABLE_INPUT;
@@ -595,6 +1060,7 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 		return put_user(val, (int *)arg);
 
 	case SNDCTL_DSP_SETTRIGGER:
+//		printk("sndctl_dsp_settrigger \n");
 		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
@@ -630,6 +1096,7 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 	    {
 		audio_buf_info inf = { 0, };
 		audio_stream_t *s = (cmd == SNDCTL_DSP_GETOSPACE) ? os : is;
+//printk("sndctl_dsp_getiospace \n");
 
 		if ((s == is && !(file->f_mode & FMODE_READ)) ||
 		    (s == os && !(file->f_mode & FMODE_WRITE)))
@@ -648,9 +1115,11 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 	case SNDCTL_DSP_GETIPTR:
 	    {
 		count_info inf = { 0, };
+
 		audio_stream_t *s = (cmd == SNDCTL_DSP_GETOPTR) ? os : is;
 		dma_addr_t ptr;
 		int bytecount, offset, flags;
+//printk("sndctl_dsp_getioptr\n");
 
 		if ((s == is && !(file->f_mode & FMODE_READ)) ||
 		    (s == os && !(file->f_mode & FMODE_WRITE)))
@@ -680,10 +1149,12 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 	    }
 
 	case SNDCTL_DSP_NONBLOCK:
+//printk("sndctl_dsp_nonblock \n");
 		file->f_flags |= O_NONBLOCK;
 		return 0;
 
 	case SNDCTL_DSP_RESET:
+//printk("sndctl_dsp_reset\n");
 		if (file->f_mode & FMODE_WRITE) 
 			audio_clear_buf(os);
 		if (file->f_mode & FMODE_READ)
@@ -691,6 +1162,7 @@ static int audio_ioctl( struct inode *inode, struct file *file,
 		return 0;
 
 	default:
+//printk("default \n");
 		return state->client_ioctl(inode, file, cmd, arg);
 	}
 
@@ -704,6 +1176,9 @@ static int audio_mmap(struct file *file, struct vm_area_struct *vma)
 	audio_stream_t *s;
 	unsigned long size, vma_addr;
 	int i, ret;
+
+printk ("audio mmap \n");
+
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -742,12 +1217,15 @@ static int audio_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-
+#if 0
 static int audio_release(struct inode *inode, struct file *file)
 {
+
 	audio_state_t *state = file->private_data;
+//printk ("audio release \n");
 
 	down(&state->sem);
+//	time_add_start = 0; // the vlaue is read from GUA with ioctl
 
 	if (file->f_mode & FMODE_READ) {
 		audio_clear_buf(state->input_stream);
@@ -767,14 +1245,45 @@ static int audio_release(struct inode *inode, struct file *file)
 	up(&state->sem);
 	return 0;
 }
+#endif
+int pxa_audio_release(struct inode *inode, struct file *file)
+{
+        audio_state_t *state = file->private_data;
+
+        down(&state->sem);
+
+        if (file->f_mode & FMODE_READ) {
+                audio_clear_buf(state->input_stream);
+                *state->input_stream->drcmr = 0;
+                pxa_free_dma(state->input_stream->dma_ch);
+                state->rd_ref = 0;
+        }
+
+        if (file->f_mode & FMODE_WRITE) {
+                audio_sync(file);
+                audio_clear_buf(state->output_stream);
+                *state->output_stream->drcmr = 0;
+                pxa_free_dma(state->output_stream->dma_ch);
+                state->wr_ref = 0;
+        }
+
+        up(&state->sem);
+        return 0;
+}
+
+
+
+
 
 
 int pxa_audio_attach(struct inode *inode, struct file *file,
 			 audio_state_t *state)
 {
+
 	audio_stream_t *is = state->input_stream;
 	audio_stream_t *os = state->output_stream;
 	int err;
+//printk ("pxa_audio_attach\n");
 
 	down(&state->sem);
 
@@ -792,15 +1301,24 @@ int pxa_audio_attach(struct inode *inode, struct file *file,
 
 	/* request DMA channels */
 	if (file->f_mode & FMODE_WRITE) {
-		err = pxa_request_dma(os->name, DMA_PRIO_LOW, 
+		err = pxa_request_dma(os->name, DMA_PRIO_MEDIUM,
 					  audio_dma_irq, os);
 		if (err < 0)
 			goto out;
-		os->dma_ch = err;
+	os->dma_ch = err;
+	dma_ch_os = err; // per renderlo visibile al DMA int.
+#ifdef BT_DEBUG
+	printk ("Audio OUT dma ch %d\n", err );
+#endif
 	}
 	if (file->f_mode & FMODE_READ) {
-		err = pxa_request_dma(is->name, DMA_PRIO_LOW,
+		err = pxa_request_dma(is->name, DMA_PRIO_MEDIUM,
 					  audio_dma_irq, is);
+/*						// messo per prova questo sotto, pare non contare!
+if (file->f_mode & FMODE_READ) {
+		err = pxa_request_dma(is->name, DMA_PRIO_MEDIUM,
+					  audio_dma_irq, is);
+*/
 		if (err < 0) {
 			if (file->f_mode & FMODE_WRITE) {
 				*os->drcmr = 0;
@@ -808,16 +1326,25 @@ int pxa_audio_attach(struct inode *inode, struct file *file,
 			}
 			goto out;
 		}
-		is->dma_ch = err;
+	is->dma_ch = err;
+	dma_ch_is = err; // per renderlo visibile al DMA int.
+#ifdef BT_DEBUG
+	printk ("Audio IN dma ch %d\n", err );
+#endif
 	}
 
 	file->private_data	= state;
+#if 0
 	file->f_op->release	= audio_release;
+#else
+        if (!file->f_op->release)
+                file->f_op->release     = pxa_audio_release;
+#endif
 	file->f_op->write	= audio_write;
 	file->f_op->read	= audio_read;
 	file->f_op->mmap	= audio_mmap;
 	file->f_op->poll	= audio_poll;
-	file->f_op->ioctl	= audio_ioctl;
+	file->f_op->ioctl	= audio_ioctl;        
 	file->f_op->llseek	= no_llseek;
 
 	if ((file->f_mode & FMODE_WRITE)) {
@@ -849,5 +1376,6 @@ out:
 }
 
 EXPORT_SYMBOL(pxa_audio_attach);
+EXPORT_SYMBOL(pxa_audio_release);
 EXPORT_SYMBOL(pxa_audio_clear_buf);
 

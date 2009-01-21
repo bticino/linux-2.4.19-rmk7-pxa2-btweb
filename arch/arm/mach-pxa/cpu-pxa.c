@@ -59,7 +59,7 @@ typedef struct
 
 #define PXA250_REV_A1		0x1
 #define PXA250_REV_B2		0x4
-#define PXA25x_MIN_FREQ		99000
+#define PXA25x_MIN_FREQ		199100
 
 //#define PXA25x_ALLOW_OVERCLOCK
 

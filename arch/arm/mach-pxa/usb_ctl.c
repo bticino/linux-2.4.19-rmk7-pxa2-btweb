@@ -557,6 +557,10 @@ initialize_descriptors(void)
 static void
 soft_connect_hook( int enable )
 {
+	if (enable)
+		 GPSR(40) = GPIO_bit(40);
+	else
+		 GPCR(40) = GPIO_bit(40);
 }
 
 /* disable the UDC at the source */
@@ -767,3 +771,4 @@ EXPORT_SYMBOL( pxa_usb_get_descriptor_ptr );
 EXPORT_SYMBOL( pxa_usb_set_string_descriptor );
 EXPORT_SYMBOL( pxa_usb_get_string_descriptor );
 EXPORT_SYMBOL( pxa_usb_kmalloc_string_descriptor );
+EXPORT_SYMBOL( pxa_set_configured_callback );

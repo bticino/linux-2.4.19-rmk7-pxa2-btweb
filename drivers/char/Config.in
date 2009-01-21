@@ -130,10 +130,21 @@ if [ "$CONFIG_PARPORT" != "n" ]; then
    dep_tristate 'Support for user-space parallel port device drivers' CONFIG_PPDEV $CONFIG_PARPORT
 fi
 
+dep_tristate '  ADS7846 touchscreen support' CONFIG_ADS7846_TOUCHSCREEN $CONFIG_ARCH_PXA
+dep_tristate '  BIGBUF memory allocation (max 256kb cached and good for dma)' CONFIG_BIGBUF $CONFIG_ARCH_PXA
+dep_tristate '  BIGBUF1 memory allocation (max 256kb cached and good for dma)' CONFIG_BIGBUF1 $CONFIG_ARCH_PXA
+dep_tristate '  BTIO - Io debounce reader (BtPXA based)' CONFIG_BTIO $CONFIG_ARCH_PXA
+dep_tristate '  PXA_SSP_LEGERITY - PXA SPI communication channel to Legerity Codec' CONFIG_PXA_SSP_LEGERITY $CONFIG_ARCH_PXA
+
 source drivers/i2c/Config.in
 
 if [ "$CONFIG_I2C" != "n" ]; then
     dep_tristate '  DS1307 RTC' CONFIG_I2C_DS1307 $CONFIG_I2C
+    dep_tristate '  PCF8563 RTC (as in PXA BtWeb)' CONFIG_I2C_PCF8563 $CONFIG_I2C
+    dep_tristate '  TDA9885 MC44BS (as in PXA BtWeb)' CONFIG_I2C_TDA9885_MC44BS $CONFIG_I2C
+    dep_tristate '  24256 NVRAM (as in PXA BtWeb)' CONFIG_I2C_24256 $CONFIG_I2C
+    dep_tristate '  TC74 Thermometer (as in PXA BtWeb)' CONFIG_I2C_TC74 $CONFIG_I2C
+    dep_tristate '  BTCFG - CONFIGURATORS READER (as in PXA BtWeb)' CONFIG_I2C_BTCFG $CONFIG_I2C
 fi
 
 source drivers/l3/Config.in
@@ -156,6 +167,7 @@ if [ "$CONFIG_MOUSE" != "n" ]; then
    tristate '  C&T 82C710 mouse port support (as on TI Travelmate)' CONFIG_82C710_MOUSE
    tristate '  PC110 digitizer pad support' CONFIG_PC110_PAD
    tristate '  MK712 touch screen support' CONFIG_MK712_MOUSE
+
 fi
 endmenu
 
@@ -213,6 +225,11 @@ if [ "$CONFIG_WATCHDOG" != "n" ]; then
    tristate '  ZF MachZ Watchdog' CONFIG_MACHZ_WDT
 fi
 endmenu
+
+if [ "$CONFIG_ARM" = "y" ]; then
+   tristate "/dev/gpio support" CONFIG_DEVGPIO
+fi
+
 
 if [ "$CONFIG_ARCH_NETWINDER" = "y" ]; then
    tristate 'NetWinder thermometer support' CONFIG_DS1620

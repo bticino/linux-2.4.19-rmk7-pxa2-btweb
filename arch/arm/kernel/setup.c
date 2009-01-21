@@ -330,6 +330,8 @@ parse_cmdline(struct meminfo *mi, char **cmdline_p, char *from)
 
 				phys_initrd_start = start;
 				phys_initrd_size = size;
+
+				printk("phys_initrd_start=%x,phys_initrd_size=%x\n",phys_initrd_start,phys_initrd_size); /* !!!raf */
 			}
 		}
 		c = *from++;
@@ -348,6 +350,8 @@ setup_ramdisk(int doload, int prompt, int image_start, unsigned int rd_sz)
 {
 #ifdef CONFIG_BLK_DEV_RAM
 	extern int rd_size, rd_image_start, rd_prompt, rd_doload;
+
+	printk("setup_ramdisk: image_start=%x, prompt=%x, doload=%x, rd_sz=%x\n",image_start,prompt,doload,rd_sz); 
 
 	rd_image_start = image_start;
 	rd_prompt = prompt;
@@ -666,8 +670,10 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
 	conswitchp = &vga_con;
+	printk("kernel: CONFIG_VGA_CONSOLE\n");
 #elif defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
+	printk("kernel: CONFIG_DUMMY_CONSOLE\n");
 #endif
 #endif
 }

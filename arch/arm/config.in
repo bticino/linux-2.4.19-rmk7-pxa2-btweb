@@ -148,6 +148,7 @@ dep_bool '  Intel DBPXA250 Development Platform' CONFIG_ARCH_LUBBOCK $CONFIG_ARC
 dep_bool '  Accelent Xscale IDP' CONFIG_ARCH_PXA_IDP $CONFIG_ARCH_PXA
 dep_bool '  Intrinsyc CerfBoard' CONFIG_ARCH_PXA_CERF $CONFIG_ARCH_PXA
 dep_bool '  Trizeps-II MT6N' CONFIG_ARCH_TRIZEPS2 $CONFIG_ARCH_PXA
+dep_bool '  Bticino BtWeb device (PXA based)' CONFIG_MACH_BTWEB $CONFIG_ARCH_PXA
 
 if [ "$CONFIG_ARCH_PXA_CERF" = "y" ]; then
    define_bool CONFIG_PXA_CERF y
@@ -180,6 +181,8 @@ fi
 dep_tristate 'PXA USB function support' CONFIG_PXA_USB $CONFIG_ARCH_PXA
 dep_tristate '  Support for PXA USB network link function' CONFIG_PXA_USB_NETLINK $CONFIG_PXA_USB
 dep_tristate '  Support for PXA USB character device emulation' CONFIG_PXA_USB_CHAR $CONFIG_PXA_USB
+dep_tristate 'PXA DSP function support' CONFIG_BTWEB_DSP $CONFIG_ARCH_PXA
+
 
 endmenu
 
@@ -489,6 +492,7 @@ if [ "$CONFIG_FOOTBRIDGE_HOST" = "y" -o \
      "$CONFIG_ARCH_EBSA110" = "y" -o \
      "$CONFIG_ARCH_CDB89712" = "y" -o \
      "$CONFIG_ARCH_EDB7211" = "y" -o \
+     "$CONFIG_MACH_BTWEB" = "y" -o \
      "$CONFIG_ARCH_SA1100" = "y" ]; then
    define_bool CONFIG_ISA y
 else

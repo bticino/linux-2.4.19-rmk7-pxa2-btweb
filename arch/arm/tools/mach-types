@@ -311,3 +311,5 @@ ixdp2401		ARCH_IXDP2401		IXDP2401		299
 ixdp2801		ARCH_IXDP2801		IXDP2801		300
 zodiac			ARCH_ZODIAC		ZODIAC			301
 armmodul		ARCH_ARMMODUL		ARMMODUL		302
+btweb_old               MACH_BTWEB              BTWEB_O                 530
+btweb			MACH_BTWEB		BTWEB			670

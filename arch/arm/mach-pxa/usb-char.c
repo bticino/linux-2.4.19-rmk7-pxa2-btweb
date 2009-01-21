@@ -55,6 +55,7 @@
 #include <linux/poll.h>
 #include <linux/circ_buf.h>
 #include <linux/timer.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
@@ -94,7 +95,6 @@ static const char pszMe[] = "usbchr: ";
 
 static wait_queue_head_t wq_read;
 static wait_queue_head_t wq_write;
-static wait_queue_head_t wq_poll;
 
 /* Serialze multiple writers onto the transmit hardware
 .. since we sleep the writer during transmit to stay in
@@ -153,9 +153,7 @@ static int usbc_ioctl( struct inode *pInode, struct file *pFile,
                        unsigned int nCmd, unsigned long argument );
 static int      usbc_close( struct inode *pInode, struct file *pFile );
 
-#ifdef CONFIG_SA1100_EXTENEX1
-static void     extenex_configured_notify_proc( void );
-#endif
+static void     configured_notify( void );
 //////////////////////////////////////////////////////////////////////////////
 // Private Helpers
 //////////////////////////////////////////////////////////////////////////////
@@ -170,6 +168,7 @@ static char * what_the_f( int e )
 	 case -ENODEV:
 		  p = "ENODEV - usb not in config state";
 		  break;
+#if 0 /* those don't do damage */
 	 case -EBUSY:
 		  p = "EBUSY - another request on the hardware";
 		  break;
@@ -179,6 +178,7 @@ static char * what_the_f( int e )
 	 case -EINTR:
 		  p = "EINTR - interrupted\n";
 		  break;
+#endif
 	 case -EPIPE:
 		  p = "EPIPE - zero length xfer\n";
 		  break;
@@ -218,21 +218,20 @@ static void twiddle_descriptors( void )
 	 pDesc->b.ep2.wMaxPacketSize = make_word_c( TX_PACKET_SIZE );
 	 pDesc->b.ep2.bmAttributes   = USB_EP_BULK;
 
-         if ( machine_is_extenex1() ) {
-#ifdef CONFIG_SA1100_EXTENEX1
-		  pDesc->dev.idVendor = make_word_c( 0xC9F );
-		  pDesc->dev.idProduct = 1;
-		  pDesc->dev.bcdDevice = make_word_c( 0x0001 );
+         if ( 1 ) {
+		  pDesc->dev.idVendor = make_word_c( 0x0C9F );
+		  pDesc->dev.idProduct = 0x0453; /* revision 1.00 */
+		  pDesc->dev.bcdDevice = make_word_c( 0x0100 );
 		  pDesc->b.cfg.bmAttributes = USB_CONFIG_SELFPOWERED;
 		  pDesc->b.cfg.MaxPower = 0;
 
-		  pString = pxa_usb_kmalloc_string_descriptor( "Extenex" );
+		  pString = pxa_usb_kmalloc_string_descriptor( "BTicino" );
 		  if ( pString ) {
 			   pxa_usb_set_string_descriptor( 1, pString );
 			   pDesc->dev.iManufacturer = 1;
 		  }
 
-		  pString = pxa_usb_kmalloc_string_descriptor( "Handheld Theater" );
+		  pString = pxa_usb_kmalloc_string_descriptor( "F453AV" );
 		  if ( pString ) {
 			   pxa_usb_set_string_descriptor( 2, pString );
 			   pDesc->dev.iProduct = 2;
@@ -249,8 +248,7 @@ static void twiddle_descriptors( void )
 			   pxa_usb_set_string_descriptor( 4, pString );
 			   pDesc->b.intf.iInterface = 4;
 		  }
-		  pxa_set_configured_callback( extenex_configured_notify_proc );
-#endif
+		  pxa_set_configured_callback( configured_notify );
 	 }
 }
 
@@ -313,7 +311,6 @@ rx_done_callback_packet_buffer( int flag, int size )
 		  rx_ring.in = (rx_ring.in + size) & (RBUF_SIZE-1);
 
 		  wake_up_interruptible( &wq_read );
-		  wake_up_interruptible( &wq_poll );
 
 		  last_rx_result = 0;
 
@@ -323,7 +320,6 @@ rx_done_callback_packet_buffer( int flag, int size )
 		  charstats.cnt_rx_errors++;
 		  last_rx_result = flag;
 		  wake_up_interruptible( &wq_read );
-		  wake_up_interruptible( &wq_poll );
 	 }
 	 else  /* init, start a read */
 		  kick_start_rx();
@@ -351,7 +347,6 @@ static void tx_done_callback( int flags, int size )
 	 last_tx_result = flags;
 	 sending = 0;
 	 wake_up_interruptible( &wq_write );
-	 wake_up_interruptible( &wq_poll );
 }
 
 
@@ -499,7 +494,8 @@ static ssize_t usbc_read( struct file *pFile, char *pUserBuffer,
 	 remove_wait_queue( &wq_read, &wait );
 
 	 if ( retval < 0 )
-		  printk( "%sread error %d - %s\n", pszMe, retval, what_the_f( retval ) );
+		  printk(KERN_DEBUG  "%s read error %d - %s\n", pszMe, retval,
+			 what_the_f( retval ) );
 	 return retval;
 }
 
@@ -590,7 +586,8 @@ static unsigned int usbc_poll( struct file *pFile, poll_table * pWait )
 
 	 PRINTK( KERN_DEBUG "%poll()\n", pszMe );
 
-	 poll_wait( pFile, &wq_poll, pWait );
+	 poll_wait( pFile, &wq_read, pWait );
+	 poll_wait( pFile, &wq_write, pWait );
 
 	 if ( CIRC_CNT( rx_ring.in, rx_ring.out, RBUF_SIZE ) )
 		  retval |= POLLIN | POLLRDNORM;
@@ -646,14 +643,10 @@ static int usbc_close( struct inode *pInode, struct file * pFile )
     return 0;
 }
 
-#ifdef CONFIG_SA1100_EXTENEX1
-#include "../../../drivers/char/ex_gpio.h"
-void extenex_configured_notify_proc( void )
+static void configured_notify( void )
 {
-	 if ( exgpio_play_string( "440,1:698,1" ) == -EAGAIN )
-		  printk( "%sWanted to BEEP but ex_gpio not open\n", pszMe );
+	printk("usb char configured\n");
 }
-#endif
 //////////////////////////////////////////////////////////////////////////////
 // Initialization
 //////////////////////////////////////////////////////////////////////////////
@@ -689,7 +682,6 @@ int __init usbc_init( void )
 	 // initialize wait queues
 	 init_waitqueue_head( &wq_read );
 	 init_waitqueue_head( &wq_write );
-	 init_waitqueue_head( &wq_poll );
 
 	 // initialize tx timeout timer
 	 init_timer( &tx_timer );
@@ -704,10 +696,11 @@ int __init usbc_init( void )
 
 void __exit usbc_exit( void )
 {
+	misc_deregister(&usbc_misc_device);
 }
 
 EXPORT_NO_SYMBOLS;
-
+MODULE_LICENSE("GPL");
 module_init(usbc_init);
 module_exit(usbc_exit);
 

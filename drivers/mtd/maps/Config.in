@@ -1,6 +1,6 @@
 # drivers/mtd/maps/Config.in
 
-# $Id: Config.in,v 1.32 2002/05/02 23:20:57 ahennessy Exp $
+# $Id: Config.in,v 1.1 2006/05/23 12:22:37 cvs Exp $
 
 mainmenu_option next_comment
 
@@ -72,6 +72,7 @@ fi
 
 if [ "$CONFIG_ARM" = "y" ]; then
    dep_tristate '  CFI Flash device mapped on Lubbock board' CONFIG_MTD_LUBBOCK $CONFIG_MTD_CFI $CONFIG_ARCH_LUBBOCK $CONFIG_MTD_PARTITIONS
+   dep_tristate '  CFI Flash device mapped on PXA BtWeb' CONFIG_MTD_BTWEB $CONFIG_MTD_CFI $CONFIG_MACH_BTWEB $CONFIG_MTD_PARTITIONS
    dep_tristate '  CFI Flash device mapped on Nora' CONFIG_MTD_NORA $CONFIG_MTD_CFI
    dep_tristate '  CFI Flash device mapped on ARM Integrator/P720T' CONFIG_MTD_ARM_INTEGRATOR $CONFIG_MTD_CFI
    dep_tristate '  Cirrus CDB89712 evaluation board mappings' CONFIG_MTD_CDB89712 $CONFIG_MTD_CFI $CONFIG_ARCH_CDB89712

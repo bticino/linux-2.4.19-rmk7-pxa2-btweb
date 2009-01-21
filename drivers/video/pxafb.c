@@ -50,10 +50,26 @@
 #include <video/fbcon-cfb16.h>
 #include <video/lcdctrl.h> /* brightness, contrast, etc. control */
 
+#include <asm/hardware.h> /* for btweb_globals when ARCH_BTWEB is set */
+
+/* FIXME */
+#if 1
+void btweb_backlight(int onoff)
+{
+      int  btsys_lcd = onoff;
+        if (btsys_lcd)
+                GPSR(12) =
+                        GPIO_bit(12);
+        else
+                GPCR(12) =
+                        GPIO_bit(12);
+}
+#endif
+
 /*
  * debugging?
  */
-#define DEBUG 0
+#undef DEBUG
 /*
  * Complain if VAR is out of range.
  */
@@ -62,6 +78,22 @@
 #undef ASSABET_PAL_VIDEO
 
 #include "pxafb.h"
+
+u_int lcd_hsw=LCD_HORIZONTAL_SYNC_PULSE_WIDTH;
+u_int lcd_vsw=LCD_VERTICAL_SYNC_PULSE_WIDTH;
+u_int lcd_blw=LCD_BEGIN_OF_LINE_WAIT_COUNT;
+u_int lcd_bfw=LCD_BEGIN_FRAME_WAIT_COUNT;
+u_int lcd_elw=LCD_END_OF_LINE_WAIT_COUNT;
+u_int lcd_efw=LCD_END_OF_FRAME_WAIT_COUNT;
+u_int lcd_ppl=LCD_XRES;
+u_int lcd_lpf=LCD_YRES;
+u_int lcd_dpc=LCD_DPC;
+u_int lcd_bpp=LCD_BPP;
+u_int lcd_oep=LCD_OEP;
+u_int lcd_pcp=LCD_PCP;
+u_int lcd_hsp=LCD_HSP;
+u_int lcd_vsp=LCD_VSP;
+u_int lcd_pcd=LCD_PCD;
 
 void (*pxafb_blank_helper)(int blank);
 EXPORT_SYMBOL(pxafb_blank_helper);
@@ -95,13 +127,57 @@ static struct pxafb_mach_info pxa_fb_info __initdata = {
 	right_margin:	LCD_END_OF_LINE_WAIT_COUNT,
 	lower_margin:	LCD_END_OF_FRAME_WAIT_COUNT,
 	sync:		LCD_SYNC,
-	lccr0:		LCD_LCCR0,
-	lccr3:		LCD_LCCR3
+	lccr0:		LCD_LCCR0
+#ifdef LCD_LCCR3
+				,
+	lccr3:		 LCD_LCCR3
+#endif
+
 };
 
 static struct pxafb_mach_info * __init
 pxafb_get_machine_info(struct pxafb_info *fbi)
 {
+ u_int lccr3_bpp=0;
+
+
+        DPRINTK("Configuring PXA LCD machine info\n");
+        DPRINTK("lcd_vsw=%d\n",lcd_vsw);
+        DPRINTK("lcd_blw=%d\n",lcd_blw);
+        DPRINTK("lcd_bfw=%d\n",lcd_bfw);
+        DPRINTK("lcd_elw=%d\n",lcd_elw);
+        DPRINTK("lcd_efw=%d\n",lcd_efw);
+        DPRINTK("lcd_ppl=%d\n",lcd_ppl);
+        DPRINTK("lcd_lpf=%d\n",lcd_lpf);
+        DPRINTK("lcd_dpc=%d\n",lcd_dpc);
+        DPRINTK("lcd_bpp=%d\n",lcd_bpp);
+        DPRINTK("lcd_oep=%d\n",lcd_oep);
+        DPRINTK("lcd_pcp=%d\n",lcd_pcp);
+        DPRINTK("lcd_hsp=%d\n",lcd_hsp);
+        DPRINTK("lcd_vsp=%d\n",lcd_vsp);
+        DPRINTK("lcd_dpc=%d\n",lcd_dpc);
+
+/* DIRECTLY in lccr3	pixclock:       LCD_PIXCLOCK,   clock period in ps */
+	pxa_fb_info.bpp = lcd_bpp;
+        pxa_fb_info.xres = lcd_ppl;
+        pxa_fb_info.yres = lcd_lpf;
+        pxa_fb_info.hsync_len = lcd_hsw; /* LCD_HORIZONTAL_SYNC_PULSE_WIDTH */
+        pxa_fb_info.vsync_len = lcd_vsw; /* LCD_VERTICAL_SYNC_PULSE_WIDTH */
+        pxa_fb_info.left_margin = lcd_blw; /* LCD_BEGIN_OF_LINE_WAIT_COUNT */
+        pxa_fb_info.upper_margin = lcd_bfw; /* LCD_BEGIN_FRAME_WAIT_COUNT */
+        pxa_fb_info.right_margin = lcd_elw; /* LCD_END_OF_LINE_WAIT_COUNT */
+        pxa_fb_info.lower_margin = lcd_efw; /* LCD_END_OF_FRAME_WAIT_COUNT */
+/* DIRECTLY in lccr3    sync:           LCD_SYNC, */
+/* DEFAULT        lccr0:          LCD_LCCR0 */
+        switch (lcd_bpp) {
+                case 1:  lccr3_bpp=0; break;
+                case 2:  lccr3_bpp=1; break;
+                case 4:  lccr3_bpp=2; break;
+                case 8:  lccr3_bpp=3; break;
+                case 16: lccr3_bpp=4; break;
+        }
+        pxa_fb_info.lccr3 = (lcd_dpc<<27)+(lccr3_bpp<<24)+(lcd_oep<<23)+(lcd_pcp<<22)+(lcd_hsp<<21)+(lcd_vsp<<20) /* +(0x18<<8) */ +lcd_pcd;
+
 	return &pxa_fb_info;
 }
 
@@ -673,8 +749,34 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	struct pxafb_lcd_reg new_regs;
 //	u_int pcd = get_pcd(var->pixclock);
 	u_long flags;
+	u_int lccr3_bpp=0;
 
+#if 0 
 	DPRINTK("Configuring PXA LCD\n");
+        DPRINTK("lcd_vsw=%d\n",lcd_vsw);
+        DPRINTK("lcd_blw=%d\n",lcd_blw);
+        DPRINTK("lcd_bfw=%d\n",lcd_bfw);
+        DPRINTK("lcd_elw=%d\n",lcd_elw);
+        DPRINTK("lcd_efw=%d\n",lcd_efw);
+        DPRINTK("lcd_ppl=%d\n",lcd_ppl);
+        DPRINTK("lcd_lpf=%d\n",lcd_lpf);
+        DPRINTK("lcd_dpc=%d\n",lcd_dpc);
+        DPRINTK("lcd_bpp=%d\n",lcd_bpp);
+        DPRINTK("lcd_oep=%d\n",lcd_oep);
+        DPRINTK("lcd_pcp=%d\n",lcd_pcp);
+        DPRINTK("lcd_hsp=%d\n",lcd_hsp);
+        DPRINTK("lcd_vsp=%d\n",lcd_vsp);
+	DPRINTK("lcd_dpc=%d\n",lcd_dpc);
+#endif
+
+        switch (lcd_bpp) {
+	        case 1:  lccr3_bpp=0; break;
+	        case 2:  lccr3_bpp=1; break;
+	        case 4:  lccr3_bpp=2; break;
+	        case 8:  lccr3_bpp=3; break;
+	        case 16: lccr3_bpp=4; break;
+        }
+        DPRINTK("lccr3_bpp=%d\n",lccr3_bpp);
 
 	DPRINTK("var: xres=%d hslen=%d lm=%d rm=%d\n",
 		var->xres, var->hsync_len,
@@ -741,6 +843,28 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 		LCCR2_BegFrmDel(var->upper_margin) +
 		LCCR2_EndFrmDel(var->lower_margin);
 	new_regs.lccr3 = fbi->lccr3;
+#elif defined (CONFIG_MACH_BTWEB)
+        new_regs.lccr0 = fbi->lccr0;
+
+        new_regs.lccr1 =
+                LCCR1_DisWdth(var->xres) +
+                LCCR1_HorSnchWdth(var->hsync_len) +
+                LCCR1_BegLnDel(var->left_margin) +
+                LCCR1_EndLnDel(var->right_margin);
+        new_regs.lccr2 =
+                LCCR2_DisHght(var->yres) +
+                LCCR2_VrtSnchWdth(var->vsync_len) +
+                LCCR2_BegFrmDel(var->upper_margin) +
+                LCCR2_EndFrmDel(var->lower_margin);
+//        new_regs.lccr3 = 0x04501808|LCCR3_VSP|LCCR3_HSP & (~LCCR3_PCP);
+
+	new_regs.lccr3 = fbi->lccr3;
+#elif defined (CONFIG_MACH_BTWEB_OLD) /* H4684 not ip */
+        new_regs.lccr0 = fbi->lccr0;
+	new_regs.lccr1 = 0x010100EF;
+	new_regs.lccr2 = 0x0601053F;
+	new_regs.lccr3 = 0x0450180a; //fbi->lccr3;
+
 #else
 	// FIXME using hardcoded values for now
 	new_regs.lccr0 = fbi->lccr0;
@@ -873,11 +997,18 @@ static void pxafb_backlight_on(struct pxafb_info *fbi)
 {
 	DPRINTK("backlight on\n");
 
-#ifdef CONFIG_ARCH_PXA_IDP
+#ifdef CONFIG_ARCH_PXA_IDP 
 	if(machine_is_pxa_idp()) {	
 		FB_BACKLIGHT_ON();
 	}
 #endif
+#ifdef CONFIG_MACH_BTWEB
+	if(machine_is_btweb()) {
+		btweb_backlight(1);
+	}
+#endif
+	
+
 }
 
 /*
@@ -892,6 +1023,11 @@ static void pxafb_backlight_off(struct pxafb_info *fbi)
 #ifdef CONFIG_ARCH_PXA_IDP
 	if(machine_is_pxa_idp()) {
 		FB_BACKLIGHT_OFF();
+	}
+#endif
+#ifdef CONFIG_MACH_BTWEB
+	if(machine_is_btweb()) {
+		btweb_backlight(0);
 	}
 #endif
 	
@@ -919,8 +1055,13 @@ static void pxafb_power_up_lcd(struct pxafb_info *fbi)
 static void pxafb_power_down_lcd(struct pxafb_info *fbi)
 {
 	DPRINTK("LCD power off\n");
-	CKEN &= ~CKEN16_LCD;
 
+#ifdef CONFIG_MACH_BTWEB
+	/* We can't disable it in btweb */
+	return;
+#endif
+
+	CKEN &= ~CKEN16_LCD;
 	if(machine_is_pxa_cerf()) {
 		lcdctrl_disable();
 	}
@@ -1020,6 +1161,11 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 
 	DPRINTK("Disabling LCD controller\n");
 
+#ifdef CONFIG_MACH_BTWEB
+	/* We can't disable it in btweb */
+	return;
+#endif
+
 	/* FIXME add power down GPIO stuff here */
 
 	add_wait_queue(&fbi->ctrlr_wait, &wait);
@@ -1058,6 +1204,9 @@ static void pxafb_handle_irq(int irq, void *dev_id, struct pt_regs *regs)
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 {
 	u_int old_state;
+
+	/* Investigating crazy lcd effects */
+        DPRINTK("pxafb: set_ctrlr_state with state=%d (old_state=%d)\n",state,fbi->state);
 
 	down(&fbi->ctrlr_sem);
 
@@ -1343,6 +1492,26 @@ int __init pxafb_init(void)
 	struct pxafb_info *fbi;
 	int ret;
 
+#ifdef CONFIG_MACH_BTWEB
+	/* not all of our computer have the display */
+	switch(btweb_globals.flavor) {
+		case BTWEB_H4684_IP:
+		case BTWEB_H4684_IP_8:
+		case BTWEB_PE:
+                case BTWEB_MEGATICKER:
+			ret = 0;
+			break;
+		default:
+			printk("pxafb_init: unknown device type, "
+				"assuming one without lcd display\n");
+			ret = -ENODEV;
+			break;
+	}
+	if (ret) return ret;
+
+        printk("pxafb_init: start\n");
+#endif
+
 	fbi = pxafb_init_fbinfo();
 	ret = -ENOMEM;
 	if (!fbi)
@@ -1406,5 +1575,48 @@ failed:
 module_init(pxafb_init);
 #endif
 
-MODULE_DESCRIPTION("loadable framebuffer driver for PXA");
+/* Configure lcd parameters: maybe G084SN05 */
+MODULE_PARM (lcd_hsw, "i");
+MODULE_PARM_DESC(lcd_hsw, "lcd_hsw");
+MODULE_PARM (lcd_vsw, "i");
+MODULE_PARM_DESC(lcd_vsw, "lcd_vsw");
+MODULE_PARM (lcd_blw, "i");
+MODULE_PARM_DESC(lcd_blw, "lcd_blw");
+MODULE_PARM (lcd_bfw, "i");
+MODULE_PARM_DESC(lcd_bfw, "lcd_bfw");
+MODULE_PARM (lcd_elw, "i");
+MODULE_PARM_DESC(lcd_elw, "lcd_elw");
+MODULE_PARM (lcd_efw, "i");
+MODULE_PARM_DESC(lcd_efw, "lcd_efw");
+MODULE_PARM (lcd_ppl, "i");
+MODULE_PARM_DESC(lcd_ppl, "lcd_ppl");
+MODULE_PARM (lcd_lpf, "i");
+MODULE_PARM_DESC(lcd_lpf, "lcd_lpf");
+MODULE_PARM (lcd_dpc, "i");
+MODULE_PARM_DESC(lcd_dpc, "lcd_dpc");
+MODULE_PARM (lcd_bpp, "i");
+MODULE_PARM_DESC(lcd_bpp, "lcd_bpp");
+MODULE_PARM (lcd_oep, "i");
+MODULE_PARM_DESC(lcd_oep, "lcd_oep");
+MODULE_PARM (lcd_pcp, "i");
+MODULE_PARM_DESC(lcd_pcp, "lcd_pcp");
+MODULE_PARM (lcd_hsp, "i");
+MODULE_PARM_DESC(lcd_hsp, "lcd_hsp");
+MODULE_PARM (lcd_vsp, "i");
+MODULE_PARM_DESC(lcd_vsp, "lcd_vsp");
+MODULE_PARM (lcd_pcd, "i");
+MODULE_PARM_DESC(lcd_pcd, "lcd_pcd");
+
+
+#if 0  /* lcd tx09d40vm3caa-1 */
+#define LCD_HORIZONTAL_SYNC_PULSE_WIDTH	6 /* 5 */ 
+#define LCD_VERTICAL_SYNC_PULSE_WIDTH	4 /* 3 */
+#define LCD_BEGIN_OF_LINE_WAIT_COUNT	6 /*5*/
+#define LCD_BEGIN_FRAME_WAIT_COUNT 	4
+#define LCD_END_OF_LINE_WAIT_COUNT	18
+#define LCD_END_OF_FRAME_WAIT_COUNT	20
+240x320
+#endif
+
+MODULE_DESCRIPTION("loadable and configurable framebuffer driver for PXA");
 MODULE_LICENSE("GPL");

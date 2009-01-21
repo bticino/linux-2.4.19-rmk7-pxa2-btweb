@@ -31,7 +31,7 @@
 /*
  * Set this to zero to remove all the debug statements via dead code elimination.
  */
-//#define DEBUG		1
+/* #define DEBUG 1 */
 
 #if DEBUG
 static unsigned int i2c_debug = DEBUG;
@@ -163,11 +163,21 @@ static inline int i2c_pxa_set_ctrl_byte(struct i2c_algo_pxa_data * adap, struct 
 {
 	u16 flags = msg->flags;
 	u8 addr;
+
+#ifdef DEBUG
+	printk(KERN_INFO "i2c_pxa_set_ctrl_byte: addr=%X,flags=%X\n",msg->addr,flags);
+#endif
+
 	addr = (u8) ( (0x7f & msg->addr) << 1 );
 	if (flags & I2C_M_RD )
 		addr |= 1;
 	if (flags & I2C_M_REV_DIR_ADDR )
 		addr ^= 1;
+
+#ifdef DEBUG
+        printk(KERN_INFO "i2c_pxa_set_ctrl_byte: write_byte: %X\n",addr);
+#endif
+
 	adap->write_byte(addr);
 	return 0;
 }
@@ -186,6 +196,37 @@ static int i2c_pxa_do_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], 
 	if (timeout) {
 		return I2C_RETRY;
 	}
+
+#if 0 
+	/* If only i2c ack polling the SCL remains low: so I reset the i2c controller 
+	   This works but it's not so nice to do run-time: its better don't arrive here
+	   with 0 length writes		
+	*/
+	if (msgs[0].len == 0) {
+#ifdef DEBUG
+		printk("i2c_pxa_do_xfer: ctrl-byte\n");
+#endif
+                pmsg = &msgs[0];
+		ret = i2c_pxa_set_ctrl_byte(adap,pmsg);
+		adap->start();
+		adap->transfer(0, I2C_TRANSMIT, 0);
+		if ((adap->wait_for_interrupt(I2C_TRANSMIT) != BUS_ERROR)) {
+#ifdef DEBUG
+			printk("OK");
+#endif
+			adap->reset(); /* in scannig is abort, but here leaves SCL down */
+			return 0;
+		} else {
+#ifdef DEBUG
+			printk("ERR\n");
+                        adap->reset(); /* in scannig is stop, but I don't believe that it works */
+			return -EIO;
+#endif
+		}
+		udelay(100);
+	}
+#endif
+
 
 	for (i = 0;ret >= 0 && i < num; i++) {
 		int last = i + 1 == num;
@@ -234,7 +275,7 @@ static int i2c_pxa_do_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], 
 		}
 #endif
 
-		/* Read */
+		/* Read */ 
 		if (pmsg->flags & I2C_M_RD) {
 			/* read bytes into buffer*/
 			ret = i2c_pxa_readbytes(i2c_adap, pmsg->buf, pmsg->len, last);
@@ -257,6 +298,15 @@ static int i2c_pxa_do_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], 
 			}
 #endif
 		}
+#if DEBUG > 3
+		{
+			int idx;
+			for(idx=0;idx<ret;idx++){
+				printk(KERN_INFO"%02x ",pmsg->buf[idx]);
+			}
+			printk(KERN_INFO"\n");
+		}
+#endif
 	}
 
 	if (ret<0){
@@ -327,6 +377,9 @@ int i2c_pxa_add_bus(struct i2c_adapter *i2c_adap)
 						i2c_adap->name);
 				return -EIO;
 			}
+#ifdef DEBUF
+			printk(KERN_INFO "write_byte:%X\n",i); 
+#endif			
 			adap->write_byte(i);
 			adap->start();
 			adap->transfer(0, I2C_TRANSMIT, 0);

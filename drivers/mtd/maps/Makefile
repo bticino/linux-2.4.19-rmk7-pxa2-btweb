@@ -1,7 +1,7 @@
 #
 # linux/drivers/maps/Makefile
 #
-# $Id: Makefile,v 1.25 2002/05/02 23:20:57 ahennessy Exp $
+# $Id: Makefile,v 1.1 2006/05/23 12:22:37 cvs Exp $
 
 O_TARGET	:= mapslink.o
 
@@ -16,6 +16,7 @@ obj-$(CONFIG_MTD_ELAN_104NC)    += elan-104nc.o
 obj-$(CONFIG_MTD_EPXA)          += epxa-flash.o
 obj-$(CONFIG_MTD_IQ80310)	+= iq80310.o
 obj-$(CONFIG_MTD_LUBBOCK)	+= lubbock.o
+obj-$(CONFIG_MTD_BTWEB)		+= btweb.o
 obj-$(CONFIG_MTD_PXA_CERF)	+= pxa_cerf.o
 obj-$(CONFIG_MTD_TRIZEPS2)	+= trizeps2.o
 obj-$(CONFIG_MTD_L440GX)	+= l440gx.o

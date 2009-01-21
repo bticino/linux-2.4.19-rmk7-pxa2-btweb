@@ -873,6 +873,9 @@ struct seq_file;
  * without the big kernel lock held in all filesystems.
  */
 struct super_operations {
+	struct inode *(*alloc_inode)(struct super_block *sb);
+	void (*destroy_inode)(struct inode *);
+
 	void (*read_inode) (struct inode *);
   
   	/* reiserfs kludge.  reiserfs needs 64 bits of information to
@@ -1336,9 +1339,11 @@ extern struct dentry * lookup_hash(struct qstr *, struct dentry *);
 #define user_path_walk(name,nd)	 __user_walk(name, LOOKUP_FOLLOW|LOOKUP_POSITIVE, nd)
 #define user_path_walk_link(name,nd) __user_walk(name, LOOKUP_POSITIVE, nd)
 
+extern void inode_init_once(struct inode *);
 extern void iput(struct inode *);
 extern void force_delete(struct inode *);
 extern struct inode * igrab(struct inode *);
+extern struct inode * ilookup(struct super_block *, unsigned long);
 extern ino_t iunique(struct super_block *, ino_t);
 
 typedef int (*find_inode_t)(struct inode *, unsigned long, void *);
@@ -1349,11 +1354,11 @@ static inline struct inode *iget(struct super_block *sb, unsigned long ino)
 }
 
 extern void clear_inode(struct inode *);
-extern struct inode * get_empty_inode(void);
+extern struct inode * get_empty_inode(struct super_block *sb);
 
 static inline struct inode * new_inode(struct super_block *sb)
 {
-	struct inode *inode = get_empty_inode();
+	struct inode *inode = get_empty_inode(sb);
 	if (inode) {
 		inode->i_sb = sb;
 		inode->i_dev = sb->s_dev;

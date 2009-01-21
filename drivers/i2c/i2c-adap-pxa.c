@@ -36,7 +36,7 @@
 /*
  * Set this to zero to remove all debug statements via dead code elimination.
  */
-//#define DEBUG       1
+/* #define DEBUG       1 */
 
 #if DEBUG
 static unsigned int i2c_debug = DEBUG;
@@ -295,7 +295,6 @@ static int i2c_pxa_resource_init( void)
 		return -ENODEV;
 	}else{
 		irq = IRQ_I2C;
-		enable_irq(irq);
 	}
 	return 0;
 }
@@ -304,7 +303,6 @@ static void i2c_pxa_resource_release( void)
 {
 	if( irq > 0)
 	{
-		disable_irq(irq);
 		free_irq(irq,0);
 		irq=0;
 	}

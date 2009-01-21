@@ -27,6 +27,9 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#ifdef CONFIG_ARM
+#include <asm/hardware.h>
+#endif
 
 #include <linux/kbd_kern.h>
 #include <linux/vt_kern.h>

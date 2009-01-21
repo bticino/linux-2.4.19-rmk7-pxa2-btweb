@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.		     */
 /* ------------------------------------------------------------------------- */
 
-/* $Id: i2c-id.h,v 1.52 2002/07/10 13:28:44 abz Exp $ */
+/* $Id: i2c-id.h,v 1.1 2006/07/18 14:09:05 cvs Exp $ */
 
 #ifndef I2C_ID_H
 #define I2C_ID_H
@@ -91,13 +91,14 @@
 #define I2C_DRIVERID_SP5055	44     /* Satellite tuner		*/
 #define I2C_DRIVERID_STV0030	45     /* Multipurpose switch		*/
 #define I2C_DRIVERID_SAA7108	46     /* video decoder, image scaler   */
-#define I2C_DRIVERID_DS1307	47     /* DS1307 real time clock	*/
+//#define I2C_DRIVERID_DS1307	47     /* DS1307 real time clock	*/
 #define I2C_DRIVERID_ADV717x	48     /* ADV 7175/7176 video encoder	*/
 #define I2C_DRIVERID_ZR36067	49     /* Zoran 36067 video encoder	*/
 #define I2C_DRIVERID_ZR36120	50     /* Zoran 36120 video encoder	*/
 #define I2C_DRIVERID_24LC32A	51		/* Microchip 24LC32A 32k EEPROM	*/
 
 
+#define I2C_DRIVERID_BTCFG      82     /* bticino configurators reader*/
 
 #define I2C_DRIVERID_DS1307	46	/* real time clock: DS1307	*/
 #define I2C_DRIVERID_24LC64	47	/* EEprom 24LC64		*/

@@ -14,11 +14,12 @@ export-objs		:= hcd.o usb.o ov511.o pwc-uncompress.o
 
 # Multipart objects.
 
-list-multi		:= usbcore.o hid.o pwc.o
+list-multi		:= usbcore.o hid.o pwc.o ohci116x.o
 usbcore-objs		:= usb.o usb-debug.o hub.o
 hid-objs		:= hid-core.o
 pwc-objs		:= pwc-if.o pwc-misc.o pwc-ctrl.o pwc-uncompress.o
-
+qc-objs			:= qc-driver.o qc-hdcs.o qc-pb0100.o qc-vv6410.o qc-formats.o qc-mjpeg.o qc-memory.o
+ohci116x-objs		:= hc_isp116x.o hc_isp116x_rh.o hc_simple116x.o pxa-dmaWork.o
 
 # Optional parts of multipart objects.
 
@@ -53,6 +54,7 @@ endif
 obj-$(CONFIG_USB_UHCI)		+= usb-uhci.o
 obj-$(CONFIG_USB_UHCI_ALT)	+= uhci.o
 obj-$(CONFIG_USB_OHCI)		+= usb-ohci.o usb-ohci-pci.o
+obj-$(CONFIG_USB_ISP116x)       += ohci116x.o
 obj-$(CONFIG_USB_OHCI_SA1111)	+= usb-ohci.o usb-ohci-sa1111.o
 
 ifneq ($(CONFIG_USB_EHCI_HCD),n)
@@ -72,6 +74,7 @@ obj-$(CONFIG_USB_AUDIO)		+= audio.o
 obj-$(CONFIG_USB_EMI26)		+= emi26.o
 obj-$(CONFIG_USB_IBMCAM)	+= ibmcam.o usbvideo.o ultracam.o
 obj-$(CONFIG_USB_PWC)		+= pwc.o
+obj-$(CONFIG_USB_QC)		+= quickcam.o
 obj-$(CONFIG_USB_DC2XX)		+= dc2xx.o
 obj-$(CONFIG_USB_MDC800)	+= mdc800.o
 obj-$(CONFIG_USB_USS720)	+= uss720.o
@@ -93,10 +96,12 @@ obj-$(CONFIG_USB_BLUETOOTH)	+= bluetooth.o
 obj-$(CONFIG_USB_USBNET)	+= usbnet.o
 obj-$(CONFIG_USB_AUERSWALD)	+= auerswald.o
 obj-$(CONFIG_USB_BRLVGER)	+= brlvger.o
+obj-$(CONFIG_USB_USBIDE)	+= usbide.o
 
 # Object files in subdirectories
-mod-subdirs	:= serial hcd
+mod-subdirs	:= serial hcd gadget
 
+subdir-$(CONFIG_USB_GADGET)	+= gadget
 subdir-$(CONFIG_USB_SERIAL)	+= serial
 subdir-$(CONFIG_USB_STORAGE)	+= storage
 
@@ -115,8 +120,17 @@ include $(TOPDIR)/Rules.make
 usbcore.o: $(usbcore-objs)
 	$(LD) -r -o $@ $(usbcore-objs)
 
+usbide.o: usbide-core.o prolific.o
+	$(LD) -r -o $@ usbide-core.o prolific.o
+
 hid.o: $(hid-objs)
 	$(LD) -r -o $@ $(hid-objs)
 
 pwc.o: $(pwc-objs)
 	$(LD) -r -o $@ $(pwc-objs)
+
+quickcam.o: $(qc-objs)
+	$(LD) -r -o $@ $(qc-objs)
+
+ohci116x.o: $(ohci116x-objs)
+	$(LD) -r -o $@ $(ohci116x-objs)

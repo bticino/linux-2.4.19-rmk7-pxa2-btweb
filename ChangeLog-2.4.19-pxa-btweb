@@ -1,0 +1,385 @@
+Explanation
+-----------
+Changes from Rubini cvs module named bt-kernels/linux-2.4.19-rmk7-pxa2-btweb
+(checkout of "May 23 12:33")
+to developing (stable) version btweb-X_Y_Z (CVS TAG):
+
+STABLE VERSION
+TAG=btweb-2_2_0
+
+UNSTABLE VERSION (shuold work anyway)
+TAG=btweb-2_3_0_1
+
+
+The extraversion is "-rmk7-pxa2-btweb-X_Y_Z"
+
+
+Beginning of developing notes
+-----------------------------
+2.4.19-rmk7-pxa2-btweb-2_3_5:
+- MH500 support (hardware identical to MH200)
+  MH500 hardware not recognized, but first bytes of cmdline
+  passed from u-boot must contain "MACHINE=MH500"
+  arch/arm/mach-pxa/btweb-flavors.c
+  Now lan91c96 (CONFIG_SMC9194) and smsc911x (CONFIG_SMC911X) supported.
+   
+- PEMONO: cammotor setting to x,y position
+  arch/arm/mach-pxa/btweb-cammotors.c
+
+- INTMM: reading from infrared pic uses different sysctl
+  arch/arm/mach-pxa/btweb-sysctl.c
+
+- ANY PRODUCT:
+  reading from gpio extended to any gpio
+  drivers/char/btIoDebounce.c
+
+- PABX288: interrupt mode for spi codec legerity mode added:
+  not enabled because is better to poll, through mmap,
+  the status of interrupt pin and use particular efficient polled
+  mode by legerity api.
+  drivers/char/pxa-ssp-legerity.c
+
+- ANY PRODUCT: mtd mapping modified to cover u-boot redundant
+  environment sectors: environment are written twice, in order
+  to allow the modification from linux and be more safe.
+  MH500 new mapping
+  "extra" partition now is bigger -- 10MB 
+  ac97 debug messages deleted  
+  tvia debug messages deleted
+
+  
+
+2.4.19-rmk7-pxa2-btweb-2_3_4:
+- PEMONO speed set to 200Mhz
+- PABX288 gpios verified
+- INTMM oledfb added: i2c frmae buffer driver
+  drivers/video/oledfb.c
+- PEMONO disabled Tvia analog outputs (not used)
+  tvia5202/tviafb_core.c
+- 
+
+2.4.19-rmk7-pxa2-btweb-2_3_3:
+- infrared communication bug fix (INTMM)
+  arch/arm/mach-pxa/btweb-sysctl.c;
+  arch/arm/mach-pxa/btweb-flavors.c
+- spi cfg codec legerity completed
+  drivers/char/pxa-ssp-legerity.c
+- pixel ratio compensation,
+  support for bi-directional video flow
+  drivers/video/tvia5202/*
+- 
+
+2.4.19-rmk7-pxa2-btweb-2_3_2:
+- added support for i2c communication to pic for infrared communication (INTMM)
+  arch/arm/mach-pxa/btweb-sysctl.c;
+  arch/arm/mach-pxa/btweb-flavors.c
+- added support for Telephony Legerity Codecs 
+   (spi configuration - ssp port, pcm tdm bus - nssp port)
+- bug fix to time management:
+  drivers/char/pcf8563.c
+- reading mac address for using as serial number
+  drivers/net/smsc911x.c, 
+  arch/arm/mach-pxa/btweb-sysctl.c;
+- set smsc91 speed accepted to any (LINK_MODE)
+  drivers/net/smsc911x.c,
+- deleted some debug messages
+  drivers/sound/ac97_codec.c
+
+2.4.19-rmk7-pxa2-btweb-2_3_1:
+The final part of EXTRAVERSION is the cvs tag: btweb_x_y_z.
+
+
+2.4.19-rmk7-pxa2-btweb-2_3_0_1:
+
+NOTE
+Quite complete management of the following new products:
+PE MONO
+PI 
+H4684_IP
+H4684_IP_8
+INTMM
+It should continue to work with:
+F453AV
+346890
+
+- lcd portable: parameters for different than old lcd (H4684) are now configurable:		
+  drivers/video/pxafb*
+  	Raffaele Recalcati & Davide Bonfanti
+
+- Tvia is not configured for some products
+  drivers/video/tviafb_core.c
+	Raffaele Recalcati
+
+- touchscreen: max_error parameter has been added for different touchscreens
+  drivers/char/ads7846.c
+        Raffaele Recalcati & Davide Bonfanti
+
+- Oled frame buffer: i2c frame buffer for STV8102 lcd via i2c 
+  drivers/video/oledfb.c
+	Bernardo Innocenti (Develer)
+
+- Hal Customizing: HAL for Gpio and i2c devices and pwm
+  Now a reading process from /proc/sys/dev/btweb goes really to hardware.
+  arch/arm/mach-pxa/*
+        Raffaele Recalcati & Davide Bonfanti
+  
+- Mtd for P30 flash: allow only CFI basic even if P30 could accept extended commands
+  driver/mtd/chip/*001*
+        Raffaele Recalcati
+
+- i2c: correction for scanning in force mode (not actually used)
+  drivers/i2c/i2c-core.c
+	Bernardo Innocenti (Develer)
+
+2.4.19-rmk7-pxa2-btweb-2_2_0:
+Kernel numeration is now is bigger than H4684,MH200,F452X products (2_0_X)
+
+- config-F453AV-346890 is the new file for the two products
+
+- Multi-Hardware inizialization: the goal si to inizialize only minimum gpios in u-boot
+and during kernel init fix the other depending on the product.
+  Supported: F453AV,346890.
+Also RAM dimension and PXA FREQUENCY is set by the kernel (at the moment u-boot will
+already set 64MB,400Mhz):
+  arch/arm/mach-pxa/*.c *.h
+  drivers/video/tvia5202/tviafb_core.c
+
+- I2C problem workaround:
+  The controller goes in wrong state if writing only control byte.
+  Fixed avoiding write/read of 0 length to eeprom and introducing check inside
+  core,algo and adap levels:
+  drivers/char/24256.c
+  drivers/i2c/*.c
+
+- RTC invalid problem:
+  When starting up with rtc_invalid was possible that fixing from user-space to
+  "old millennium midnight" the rearming watch dog didn't work.
+  The driver now fix itself to "old millennium midnight".
+
+- Reading AUX botton for F453AV,346890 devices
+  Set CONFIG_BTIO in the config: 
+  added the file "drivers/char/btIoDebounce.c"
+  include/linux/miscdevice.h
+
+- Less verbosity somwhere:
+  drivers/video/tvia5202/tvia5202-capture.c
+  drivers/video/tvia5202/tviafb_core.c
+
+  
+
+
+
+2.4.19-rmk7-pxa2-btweb-1_0_13:
+
+Kernel has been adapted to the new hw (MASTER B).
+It also works with MASTER A.
+
+- Solved take_over_console problem - now it is possible to run QT
+  /drivers/video/tvia5202/*
+
+- Added usb_pxa_slave_connected in proc/sys/dev/btweb to know if
+  pxa slave is recognized by host
+  /drivers/usb/gadget/*
+  arch/arm/mach-pxa/btweb-sysctl.c
+
+- Fixing some problem for i2c communication with pic for reading configurator and setting I/O
+                                                                                                                        (Davide Bonfanti)
+  /include/../btweb.h
+
+- Separating I2C video modulator(MC44BS) from
+  demodulator(TDA9885) devices configuration                            				(Davide Bonfanti,Raffaele Recalcati)
+TODO: TO BE FINISHED
+
+- Video Tvia5202													(Raffaele Recalcati)
+  /drivers/video/tvia5202/tviafb_core.c 
+  VGA port now is enabled and works together with CVBS out
+TODO: TO BE DISABLED for INTERF2FIP, to be fix 640x480 instead of 720x576
+  /drivers/video/tvia5202/saa7114.c
+  The AI21 input coming from upside connector works
+
+- New gpioS added for demotulating hifi and video							 (Davide Bonfanti,Raffaele Recalcati)
+  arch/arm/mach-pxa/btweb.c
+  Changed also irq for pcmcia and for usb slave enumeration startup
+
+- New script added for transformin zImage in u-boot image 								(Davide Bonfanti)
+  make-Image
+
+- gadget driver backported from 2.6.17									(Alessandro Rubini,Raffaele Recalcati)
+  In /drivers/usb/gadget:  M=Modified,A=Added,N=not working
+  A backport-26.h
+  A config.c
+  A epautoconf.c
+  MN ether.c not 
+  MN file_storage.c
+  M  gadget_chips.h
+  M  gserial.c
+  A  gserial_new.c
+  MN inode.c
+  M  Makefile
+  M  ndis.h
+  MN net2280.c
+  MN net2280.h
+  M  pxa2xx_udc.c
+  M  pxa2xx_udc.h 
+  A  rndis.c
+  A  rndis.h
+  A  udc.h
+  A  usb_cdc.h
+
+- pcmcia testing													(Davide Bonfanti)
+  config-F453AV-1_0_13
+
+- Changed Makefile for extraversion 1_0_13							
+
+
+2.4.19-rmk7-pxa2-btweb-1_0_12:
+
+- New i2c communication with pic for reading configurator and setting I/O
+															(Davide Bonfanti)
+  /drivers/char/btcfg.c
+  /drivers/char/Makefile
+  /drivers/char/Config.in
+  /include/linux/i2c-id.h 
+  /include/linux/miscdevice.h
+
+- Sound alsa 												(Enrico PArmeggiani)
+  /drivers/sound/pxa-audio.c
+  allocating dma channels as medium level, not to overpose to video channels
+
+- Video tvia5202
+  /drivers/video/tviafb_core.c
+  Now it is possible to change video direction without rebooting
+
+
+2.4.19-rmk7-pxa2-btweb-1_0_11:
+
+- New usb master for pxa									(Raffaele Recalcati)
+  /drivers/usb/hc_isp116x.c
+  /drivers/usb/hc_isp116x.h
+  /drivers/usb/hc_simple116x.c
+  /drivers/usb/pxa-dmaWork.c
+  /drivers/usb/pxa-dmaWork.h
+
+- Get off some useless modules 								(Raffaele Recalcati)
+  config-F453AV-1_0_11
+
+- Trying to have a multiplatform kernel						(Raffaele Recalcati)
+  arch/arm/mach-pxa/btweb.c
+
+- Ethernet driver smc9118									(Raffaele Recalcati)
+  smsc911x-readme.txt added
+
+- F453AV platform added - GPIO virtualisation in /proc		(Raffaele Recalcati)
+  arch/arm/mach-pxa/btweb-sysctl.c
+  include/asm-arm-arch-pxa/btweb.h
+
+- Video Mod/Demod: enabling/disabling power at insmod/rmmod	(Raffaele Recalcati)
+  drivers/char/tda9885_mc44bs.c
+  
+- F453AV mtd partition										(Raffaele Recalcati)
+  driver/mtd/maps/btweb.c
+
+
+2.4.19-rmk7-pxa2-btweb-1_0_10:
+
+(The code is the same of 1_0_9_new with usb gadget added)
+
+- The ".config" file for F453AV								(Raffaele Recalcati)
+  config-F453AV-1_0_10
+
+- Platform F453AV and gpio fix to be integrated 
+  in uboot (TODO)
+  arch/arm/mach-pxa/btweb.c									(Raffaele Recalcati)
+
+- F452V Dsp video added (even if not used)					(Rubini)
+  arch/arm/config.in 
+  arch/arm/mach-pxa/btweb_dsp.c
+  arch/arm/mach-pxa/Makefile
+
+- Tracing ramdisk boot to avoid problem booting larger ones	(Raffaele Recalcati)
+  arch/arm/kernel/setup.c
+  arch/arm/mm/init.c
+  drivers/block/rd.c
+  init/do_mounts.c 
+
+- The touchscreen driver set to be less reactive (H4684)	(Davide Bonfanti)
+  drivers/char/ads7846.c
+
+- Allocating fixed but cacheable buffer for dma
+  and m-jpeg video purposes:								(Alessandro Rubini)
+  drivers/char/bigbuf.c (declared in btweb.c)
+  drivers/char/bigbuf1.c
+
+- Managing I2C video modulator(MC44BS) and 
+  demodulator(TDA9885) devices configuration				(Raffaele Recalcati)
+  drivers/char/Config.in
+  drivers/char/Makefile
+  drivers/char/tda9885_mc44bs.c
+  
+- Back to 100Khz I2C pxa interface							(Raffaele Recalcati)
+
+- SMSC9118 ethernet driver: LEDs status made working		(Raffaele Recalcati)
+  drivers/net/smsc911x.c
+
+- Pxa pcmcia port driver (TODO: to be cleaned)				(Enrico Parmeggiani)
+  drivers/pcmcia/bt_cerf.c
+  drivers/pcmcia/bt_cerf.h
+  drivers/pcmcia/pxa/Makefile
+  drivers/pcmcia/pxa/pxa.c
+  drivers/pcmcia/pxa/pxa.h
+
+- Sound alsa pxa with primary and secondary codec			(Enrico Parmeggiani)
+  (TODO: to be cleaned)
+  drivers/sound/ac97_codec.c
+  drivers/sound/pxa-ac97.c
+  drivers/sound/pxa-audio.c
+
+- Usb host interrupt enabled								(Raffaele Recalcati)
+  drivers/usb/hc_isp116x.c
+
+- TODO verify video compilation								(Raffaele Recalcati)
+  drivers/video/Config.in
+
+- TODO decide extraversion 									(Raffaele Recalcati)
+  Makefile
+
+- take_over_console not called due to frame buffer			(Raffaele Recalcati)
+  errors (TODO to be fixed)
+  drivers/video/fbmem.c
+  
+- From Advantech PCM7230 Tvia5202 driver					(Raffaele Recalcati)
+  to BTicino F453AV Tvia5202 driver							(Carlos Perez)
+  drivers/video/tvia5202/igsmode_5202.c
+  drivers/video/tvia5202/igstv_5202.c
+  drivers/video/tvia5202/Makefile
+  drivers/video/tvia5202/saa7114.c
+  drivers/video/tvia5202/saa7114.h
+  drivers/video/tvia5202/tvia5202-alpha.c
+  drivers/video/tvia5202/tvia5202-alpha.h
+  drivers/video/tvia5202/tvia5202-capture.c
+  drivers/video/tvia5202/tvia5202-capture.h
+  drivers/video/tvia5202/tvia5202-def.h
+  drivers/video/tvia5202/tvia5202-dvideo.c
+  drivers/video/tvia5202/tvia5202-dvideo.h
+  drivers/video/tvia5202/tvia5202-i2c.c
+  drivers/video/tvia5202/tvia5202-i2c.h
+  drivers/video/tvia5202/tvia5202-ioctl.h
+  drivers/video/tvia5202/tvia5202-ks127tbl.h
+  drivers/video/tvia5202/tvia5202-misc.c
+  drivers/video/tvia5202/tvia5202-misc.h
+  drivers/video/tvia5202/tvia5202-overlay.c
+  drivers/video/tvia5202/tvia5202-overlay.h
+  drivers/video/tvia5202/tvia5202-synclock.c
+  drivers/video/tvia5202/tvia5202-synclock.h
+  drivers/video/tvia5202/tvia5202-synctbl.h
+  drivers/video/tvia5202/tviafb_core.c
+  drivers/video/tvia5202/tviafb.h
+  drivers/video/tvia5202/tvia.h
+
+- Added usb gadget from 2.4.27-vrs1-pxa1
+  drivers/usb/Config.in
+  drivers/usb/Makefile
+  drivers/usb/gadget/*
+
+
+# End of file

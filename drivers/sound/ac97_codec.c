@@ -52,15 +52,25 @@
 #include <linux/ac97_codec.h>
 #include <asm/uaccess.h>
 
+
+//#define DEBUG 2
+		// valori che rotrovo in aumix in decimale !
+#define PCM_OUT_LEV  0x4B4B // scrive nel reg 18
+#define MONO_OUT_LEV 0x5151 // scrive nel reg 6 del Codec, phout secondo aumix
+
+#define LEVEL_MIC_IN 0x1313 // reg 0E del codec
+#define IN_GAIN		 0x2800  // reg 1C, questo lo modifico nell'EQU del GUA
+			// 23 esa -> 35 dec
+			// 28 esa -> 40 dec
+
+
 static int ac97_read_mixer(struct ac97_codec *codec, int oss_channel);
 static void ac97_write_mixer(struct ac97_codec *codec, int oss_channel, 
 			     unsigned int left, unsigned int right);
 static void ac97_set_mixer(struct ac97_codec *codec, unsigned int oss_mixer, unsigned int val );
 static int ac97_recmask_io(struct ac97_codec *codec, int rw, int mask);
 static int ac97_mixer_ioctl(struct ac97_codec *codec, unsigned int cmd, unsigned long arg);
-
 static int ac97_init_mixer(struct ac97_codec *codec);
-
 static int wolfson_init00(struct ac97_codec * codec);
 static int wolfson_init03(struct ac97_codec * codec);
 static int wolfson_init04(struct ac97_codec * codec);
@@ -204,16 +214,16 @@ static struct mixer_defaults {
 	{SOUND_MIXER_VOLUME,	0x4343},
 	{SOUND_MIXER_BASS,	0x4343},
 	{SOUND_MIXER_TREBLE,	0x4343},
-	{SOUND_MIXER_PCM,	0x4343},
+	{SOUND_MIXER_PCM,	PCM_OUT_LEV }, // !! PCM out
 	{SOUND_MIXER_SPEAKER,	0x4343},
-	{SOUND_MIXER_LINE,	0x4343},
-	{SOUND_MIXER_MIC,	0x0000},
+	{SOUND_MIXER_LINE,	LEVEL_MIC_IN}, // !!! INPUT MIC
+	{SOUND_MIXER_MIC,	0x4343},
 	{SOUND_MIXER_CD,	0x4343},
 	{SOUND_MIXER_ALTPCM,	0x4343},
-	{SOUND_MIXER_IGAIN,	0x4343},
+	{SOUND_MIXER_IGAIN,	IN_GAIN}, // !! INPUT GAIN
 	{SOUND_MIXER_LINE1,	0x4343},
 	{SOUND_MIXER_PHONEIN,	0x4343},
-	{SOUND_MIXER_PHONEOUT,	0x4343},
+	{SOUND_MIXER_PHONEOUT,	MONO_OUT_LEV}, // mono out !
 	{SOUND_MIXER_VIDEO,	0x4343},
 	{-1,0}
 };
@@ -224,17 +234,17 @@ static struct ac97_mixer_hw {
 	int scale;
 } ac97_hw[SOUND_MIXER_NRDEVICES]= {
 	[SOUND_MIXER_VOLUME]	=	{AC97_MASTER_VOL_STEREO,64},
-	[SOUND_MIXER_BASS]	=	{AC97_MASTER_TONE,	16},
-	[SOUND_MIXER_TREBLE]	=	{AC97_MASTER_TONE,	16},
-	[SOUND_MIXER_PCM]	=	{AC97_PCMOUT_VOL,	32},
-	[SOUND_MIXER_SPEAKER]	=	{AC97_PCBEEP_VOL,	16},
-	[SOUND_MIXER_LINE]	=	{AC97_LINEIN_VOL,	32},
-	[SOUND_MIXER_MIC]	=	{AC97_MIC_VOL,		32},
-	[SOUND_MIXER_CD]	=	{AC97_CD_VOL,		32},
-	[SOUND_MIXER_ALTPCM]	=	{AC97_HEADPHONE_VOL,	64},
-	[SOUND_MIXER_IGAIN]	=	{AC97_RECORD_GAIN,	16},
-	[SOUND_MIXER_LINE1]	=	{AC97_AUX_VOL,		32},
-	[SOUND_MIXER_PHONEIN]	= 	{AC97_PHONE_VOL,	32},
+	[SOUND_MIXER_BASS]	=	{AC97_MASTER_TONE,	16},  // !!! parm, era 16 orginale
+	[SOUND_MIXER_TREBLE]	=	{AC97_MASTER_TONE,	16},  // !!! parm, era 16 orginale
+	[SOUND_MIXER_PCM]	=	{AC97_PCMOUT_VOL,	32},  // !!! parm, era 32 orginale
+	[SOUND_MIXER_SPEAKER]	=	{AC97_PCBEEP_VOL,	32}, // !!! parm, era 16 orginale
+	[SOUND_MIXER_LINE]	=	{AC97_LINEIN_VOL,	32},  // !!! parm, era 32 orginale
+	[SOUND_MIXER_MIC]	=	{AC97_MIC_VOL,		32},  // !!! parm, era 32 orginale
+	[SOUND_MIXER_CD]	=	{AC97_CD_VOL,		32}, // !!! parm, era 32
+	[SOUND_MIXER_ALTPCM]	=	{AC97_HEADPHONE_VOL,	64},  // !!! parm, era 64 orginale
+	[SOUND_MIXER_IGAIN]	=	{AC97_RECORD_GAIN,	16},  // !!! parm, era 16 orginale
+	[SOUND_MIXER_LINE1]	=	{AC97_AUX_VOL,		32},  // !!! parm, era 32 orginale
+	[SOUND_MIXER_PHONEIN]	= 	{AC97_PHONE_VOL,	32},  // !!! parm, era 32 orginale
 	[SOUND_MIXER_PHONEOUT]	= 	{AC97_MASTER_VOL_MONO,	64},
 	[SOUND_MIXER_VIDEO]	=	{AC97_VIDEO_VOL,	32},
 };
@@ -281,6 +291,7 @@ static int ac97_read_mixer(struct ac97_codec *codec, int oss_channel)
 	int scale;
 	struct ac97_mixer_hw *mh = &ac97_hw[oss_channel];
 
+//	printk ("ac97_read_mixer \n");
 	val = codec->codec_read(codec , mh->offset);
 
 	if (val & AC97_MUTE) {
@@ -324,10 +335,10 @@ static int ac97_read_mixer(struct ac97_codec *codec, int oss_channel)
 	}
 
 #ifdef DEBUG
-	printk("ac97_codec: read OSS mixer %2d (%s ac97 register 0x%02x), "
-	       "0x%04x -> 0x%04x\n",
-	       oss_channel, codec->id ? "Secondary" : "Primary",
-	       mh->offset, val, ret);
+//	printk("ac97_codec: read OSS mixer %2d (%s ac97 register 0x%02x), "
+//	       "0x%04x -> 0x%04x\n",
+//	       oss_channel, codec->id ? "Secondary" : "Primary",
+//	       mh->offset, val, ret);
 #endif
 
 	return ret;
@@ -341,6 +352,7 @@ static void ac97_write_mixer(struct ac97_codec *codec, int oss_channel,
 	u16 val = 0;
 	int scale;
 	struct ac97_mixer_hw *mh = &ac97_hw[oss_channel];
+//printk ("ac97_write_mixer \n");
 
 #ifdef DEBUG
 	printk("ac97_codec: wrote OSS mixer %2d (%s ac97 register 0x%02x), "
@@ -418,14 +430,14 @@ static void ac97_write_mixer(struct ac97_codec *codec, int oss_channel,
 		    it lets us avoid the 0xf 'bypass'.. */
 	}
 #ifdef DEBUG
-	printk(" 0x%04x", val);
+	printk(" 0x%04x ", val);
 #endif
 
 	codec->codec_write(codec, mh->offset, val);
 
 #ifdef DEBUG
 	val = codec->codec_read(codec, mh->offset);
-	printk(" -> 0x%04x\n", val);
+	printk("-> 0x%04x\n", val); // !!! per compattare i debug
 #endif
 }
 
@@ -433,6 +445,7 @@ static void ac97_write_mixer(struct ac97_codec *codec, int oss_channel,
 static void ac97_set_mixer(struct ac97_codec *codec, unsigned int oss_mixer, unsigned int val ) 
 {
 	unsigned int left,right;
+//printk ("ac97_set_mixer \n");
 
 	/* cleanse input a little */
 	right = ((val >> 8)  & 0xff) ;
@@ -485,6 +498,7 @@ static int ac97_recmask_io(struct ac97_codec *codec, int rw, int mask)
 static int ac97_mixer_ioctl(struct ac97_codec *codec, unsigned int cmd, unsigned long arg)
 {
 	int i, val = 0;
+//printk("ac97_mixer_ioctl \n");
 
 	if (cmd == SOUND_MIXER_INFO) {
 		mixer_info info;
@@ -684,13 +698,15 @@ int ac97_probe_codec(struct ac97_codec *codec)
 	u16 audio, modem;
 	int i;
 
+// printk( "ac97 probe codec\n" );
+
 	/* probing AC97 codec, AC97 2.0 says that bit 15 of register 0x00 (reset) should 
 	 * be read zero.
 	 *
 	 * FIXME: is the following comment outdated?  -jgarzik 
 	 * Probing of AC97 in this way is not reliable, it is not even SAFE !!
 	 */
-	codec->codec_write(codec, AC97_RESET, 0L);
+	codec->codec_write(codec, AC97_RESET, 0);
 
 	/* also according to spec, we wait for codec-ready state */	
 	if (codec->codec_wait)
@@ -730,10 +746,14 @@ int ac97_probe_codec(struct ac97_codec *codec)
 	return ac97_init_mixer(codec);
 }
 
+
+
 static int ac97_init_mixer(struct ac97_codec *codec)
 {
 	u16 cap;
 	int i;
+
+//printk( "ac97 init mixer\n" );
 
 	cap = codec->codec_read(codec, AC97_RESET);
 
@@ -945,6 +965,8 @@ static int ad1886_init(struct ac97_codec * codec)
 
 static int eapd_control(struct ac97_codec * codec, int on)
 {
+printk ("eapd_control \n");
+
 	if(on)
 		codec->codec_write(codec, AC97_POWER_CONTROL,
 			codec->codec_read(codec, AC97_POWER_CONTROL)|0x8000);
@@ -961,6 +983,7 @@ static int eapd_control(struct ac97_codec * codec, int on)
 static int crystal_digital_control(struct ac97_codec *codec, int mode)
 {
 	u16 cv;
+printk ("crystal_digital_control mode %d \n", mode);
 
 	switch(mode)
 	{
@@ -1023,6 +1046,8 @@ unsigned int ac97_set_dac_rate(struct ac97_codec *codec, unsigned int rate)
 	u32 mast_vol, phone_vol, mono_vol, pcm_vol;
 	u32 mute_vol = 0x8000;	/* The mute volume? */
 
+//printk("ac97_set_dac_rate.\n");
+
 	if(rate != codec->codec_read(codec, AC97_PCM_FRONT_DAC_RATE))
 	{
 		/* Mute several registers */
@@ -1031,7 +1056,7 @@ unsigned int ac97_set_dac_rate(struct ac97_codec *codec, unsigned int rate)
 		phone_vol = codec->codec_read(codec, AC97_HEADPHONE_VOL);
 		pcm_vol = codec->codec_read(codec, AC97_PCMOUT_VOL);
 		codec->codec_write(codec, AC97_MASTER_VOL_STEREO, mute_vol);
-		codec->codec_write(codec, AC97_MASTER_VOL_MONO, mute_vol);
+//		codec->codec_write(codec, AC97_MASTER_VOL_MONO, mute_vol); // !!! parm
 		codec->codec_write(codec, AC97_HEADPHONE_VOL, mute_vol);
 		codec->codec_write(codec, AC97_PCMOUT_VOL, mute_vol);
 		

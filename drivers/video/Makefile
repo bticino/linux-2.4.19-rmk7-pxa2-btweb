@@ -15,7 +15,8 @@ export-objs    := fbmem.o fbcmap.o fbcon.o fbmon.o modedb.o \
 		  fbcon-iplan2p8.o fbcon-vga-planes.o fbcon-cfb16.o \
 		  fbcon-cfb2.o fbcon-cfb24.o fbcon-cfb32.o fbcon-cfb4.o \
 		  fbcon-cfb8.o fbcon-mac.o fbcon-mfb.o pxafb.o \
-		  cyber2000fb.o sa1100fb.o fbcon-hga.o fbgen.o
+		  cyber2000fb.o sa1100fb.o fbcon-hga.o fbgen.o \
+		  tviafb.o
 
 # Each configuration option enables a list of files.
 
@@ -88,7 +89,7 @@ obj-$(CONFIG_FB_PMAG_BA)          += pmag-ba-fb.o
 obj-$(CONFIG_FB_PMAGB_B)          += pmagb-b-fb.o
 obj-$(CONFIG_FB_MAXINE)           += maxinefb.o
 obj-$(CONFIG_FB_TX3912)           += tx3912fb.o
-
+obj-$(CONFIG_FB_OLED)             += oledfb.o fbgen.o
 
 subdir-$(CONFIG_FB_MATROX)	  += matrox
 ifeq ($(CONFIG_FB_MATROX),y)
@@ -108,6 +109,14 @@ endif
 subdir-$(CONFIG_FB_ATY)		  += aty
 ifeq ($(CONFIG_FB_ATY),y)
 obj-y				  += aty/atyfb.o
+endif
+
+##
+## Compilazione Moduli per Tvia nelle sub-directory
+##
+subdir-$(CONFIG_FB_CP5202_BT)    += tvia5202
+ifeq ($(CONFIG_FB_CP5202_BT),y)
+obj-y                             += tvia5202/tviafb.o
 endif
 
 obj-$(CONFIG_FB_SUN3)             += sun3fb.o

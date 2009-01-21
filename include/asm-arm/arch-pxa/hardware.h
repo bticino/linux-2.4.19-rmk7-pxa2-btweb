@@ -139,4 +139,8 @@ extern unsigned int get_clk_frequency_khz( int info);
 #include "cerf.h"
 //#endif
 
+//#ifdef CONFIG_ARCH_PXA_BTWEB
+#include "btweb.h"
+//#endif
+
 #endif  /* _ASM_ARCH_HARDWARE_H */

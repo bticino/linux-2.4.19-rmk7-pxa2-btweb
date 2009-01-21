@@ -20,7 +20,7 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
    All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c-core.c,v 1.64 2001/08/13 01:35:56 mds Exp $ */
+/* $Id: i2c-core.c,v 1.2 2007/01/09 08:47:12 cvs Exp $ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -761,6 +761,14 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg msgs[],int num)
 {
 	int ret;
 
+#if 1
+        /* Workaround in order to avoid i2c controller problem */
+	if (msgs[0].len == 0){
+		printk("i2c-core.o: i2c_transfer writing 0 bytes - exit doing nothing\n");
+		return 0;
+	}
+#endif
+
 	if (adap->algo->master_xfer) {
  	 	DEB2(printk("i2c-core.o: master_xfer: %s with %d msgs.\n",
 		            adap->name,num));
@@ -782,6 +790,14 @@ int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 	int ret;
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
+
+#if 1
+	/* Workaround in order to avoid i2c controller problem - see i2c-transfer in this file and see i2c_pxa_do_xfer in i2c_algo_pxa.c */
+	if (count == 0){
+		printk(KERN_INFO "i2c-core.o: master_send writing 0 bytes - exiting doing nothing\n");
+		return 0;
+	}
+#endif
 
 	if (client->adapter->algo->master_xfer) {
 		msg.addr   = client->addr;
@@ -812,6 +828,15 @@ int i2c_master_recv(struct i2c_client *client, char *buf ,int count)
 	struct i2c_adapter *adap=client->adapter;
 	struct i2c_msg msg;
 	int ret;
+
+#if 1
+        /* Workaround in order to avoid i2c controller problem -  see i2c-transfer in this file and see also i2c_pxa_do_xfer in i2c_algo_pxa.c */
+        if (count == 0){
+                printk(KERN_INFO "i2c-core.o: master_recv reading 0 bytes - exit doing nothing\n");
+                return 0;
+        }
+#endif
+
 	if (client->adapter->algo->master_xfer) {
 		msg.addr   = client->addr;
 		msg.flags = client->flags & I2C_M_TEN;
@@ -888,7 +913,8 @@ int i2c_probe(struct i2c_adapter *adapter,
 		   at all */
 		found = 0;
 
-		for (i = 0; !found && (address_data->force[i] != I2C_CLIENT_END); i += 3) {
+		/* Modified from  i+=3 to i+=2 to avoid problem in force mode */
+		for (i = 0; !found && (address_data->force[i] != I2C_CLIENT_END); i += 2) {
 			if (((adap_id == address_data->force[i]) || 
 			     (address_data->force[i] == ANY_I2C_BUS)) &&
 			     (addr == address_data->force[i+1])) {
@@ -981,6 +1007,8 @@ int i2c_probe(struct i2c_adapter *adapter,
 
 		/* OK, so we really should examine this address. First check
 		   whether there is some client here at all! */
+		/* This function sends a 0 len write to i2c:
+		   this is not good because leaves SCL down */
 		if (i2c_smbus_xfer(adapter,addr,0,0,0,I2C_SMBUS_QUICK,NULL) >= 0)
 			if ((err = found_proc(adapter,addr,0,-1)))
 				return err;

@@ -11,7 +11,8 @@ obj-y				:= pxa.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_ARCH_PXA_IDP)	+= pxa_idp.o
 obj-$(CONFIG_ARCH_TRIZEPS2)	+= trizeps2.o
-obj-$(CONFIG_ARCH_PXA_CERF)	+= ../sa1100_cerf.o
+obj-$(CONFIG_ARCH_PXA_CERF)     += ../sa1100_cerf.o
+obj-$(CONFIG_MACH_BTWEB)	+= ../bt_cerf.o
 
 obj-m				:= $(O_TARGET)
 

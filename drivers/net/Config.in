@@ -110,6 +110,7 @@ if [ "$CONFIG_NET_ETHERNET" = "y" ]; then
       dep_tristate '    SMC Ultra support' CONFIG_ULTRA $CONFIG_ISA
       dep_tristate '    SMC Ultra32 EISA support' CONFIG_ULTRA32 $CONFIG_EISA
       dep_tristate '    SMC 9194 support' CONFIG_SMC9194 $CONFIG_ISA
+      dep_tristate '    SMC 9118 support' CONFIG_SMC911X $CONFIG_ISA
       tristate     '    SMC 91C9x/91C1xx support' CONFIG_SMC91X
    fi
    bool '  Racal-Interlan (Micom) NI cards' CONFIG_NET_VENDOR_RACAL
