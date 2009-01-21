@@ -1,15 +1,8 @@
-Istruction to create F453AV kernel :
-
-1) Create linux-2.4.19-rmk7-pxa2 kernel tree and rename to for example
-   linux-btweb
-2) Checkout this cvs module somewhere
-3) Cancel every CVS dir inside
-4) cp -a this-cvs-module-dir/* linux-btweb
-5) Cancel this-cvs-module-dir and use linux-btweb
-6) Compiling the kernel and modules:
+Istruction to create BTWEB kernel :
 
 export CROSS_COMPILE=/opt/snapgear-toolchain/bin/arm-linux-
 export ARCH=arm
-cp config-F453AV-1_0_11 .config
+cp config_BTWEB .config
 make CROSS_COMPILE=$CROSS_COMPILE ARCH=$ARCH oldconfig dep zImage modules
 make INSTALL_MOD_PATH=/where-you-want-modules modules_install
+
