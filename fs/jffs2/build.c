@@ -42,9 +42,11 @@
 
 int jffs2_build_inode_pass1(struct jffs2_sb_info *, struct jffs2_inode_cache *);
 int jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *, struct jffs2_inode_cache *);
-
+extern int jffs2_my_status;
 
 #define for_each_inode(i, c, ic) for (i=0; i<INOCACHE_HASHSIZE; i++) for (ic=c->inocache_list[i]; ic; ic=ic->next) 
+
+
 
 /* Scan plan:
  - Scan physical nodes. Build map of inodes/dirents. Allocate inocaches as we go
@@ -222,7 +224,7 @@ int jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c, struct jffs2_inod
 	struct jffs2_raw_node_ref *raw;
 	struct jffs2_full_dirent *fd;
 	int ret = 0;
-
+	
 	if(!ic->scan) {
 		D1(printk(KERN_DEBUG "ino #%u was already removed\n", ic->ino));
 		return 0;
@@ -261,5 +263,6 @@ int jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c, struct jffs2_inod
 	ic->scan = NULL;
 	//	jffs2_del_ino_cache(c, ic);
 	//	jffs2_free_inode_cache(ic);
+	jffs2_my_status = 0;
 	return ret;
 }

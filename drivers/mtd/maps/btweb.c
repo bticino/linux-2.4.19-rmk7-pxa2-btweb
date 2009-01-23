@@ -309,12 +309,12 @@ static struct mtd_partition btweb_partitions_mh500[] = {
 		offset:		0x00200000,
 	},{
 		name:		"btweb_app",	/* mtd5 */
-		size:		0x00100000,
+		size:		0x001E0000,
 		offset:		0x00600000
 	},{
 		name:		"btweb_app_copy",	/* mtd6 */
-		size:		0x00100000,
-		offset:		0x00700000
+		size:		0x00020000,
+		offset:		0x007E0000
 	},{
 		name:		"u-boot-env",	/* mtd10 */
 		size:		0x00020000,
