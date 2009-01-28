@@ -126,7 +126,8 @@ int jffs2_build_filesystem(struct jffs2_sb_info *c)
 		kfree(scan);
 	}
 	D1(printk(KERN_DEBUG "Pass 3 complete\n"));
-
+	jffs2_my_status = 0;
+	D1(printk(KERN_DEBUG "jffs2_my_status=0\n"));
 	return ret;
 }
 	
@@ -263,6 +264,6 @@ int jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c, struct jffs2_inod
 	ic->scan = NULL;
 	//	jffs2_del_ino_cache(c, ic);
 	//	jffs2_free_inode_cache(ic);
-	jffs2_my_status = 0;
+	
 	return ret;
 }
