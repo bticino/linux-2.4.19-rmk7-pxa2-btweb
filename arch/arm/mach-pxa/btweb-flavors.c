@@ -70,7 +70,13 @@ Moreover: GPIO63, GPIO64, GPIO69 (hw revisions)
 
 int rd_size_btweb = 0;          /* Size of the RAM disks: it will overwrite cmdline settings if set  */
 #define BTWEB_H4684_IP_RAMDISK_KB 19000
+#define BTWEB_F453AV_V2_RAMDISK_KB 20736
 int bt_demo = 0;
+
+int init_start_btweb = 0;
+int init_size_btweb = 0;
+#define INITRD_F453AV_START     0xA09a0000
+#define INITRD_F453AV_SIZE      0x7C0000
 
 #define ATAG_OFFSET_MACHINE_TAG 0x1C /* 0x24 */
 #define ATAG_OFFSET_START	0xc0000100
@@ -121,6 +127,7 @@ struct btweb_flavor {
 static int init_common(void); /* initialization for all devices */
 /* device oriented inizializations */
 static int init_f453av_346890(struct btweb_flavor *fla, int rev); 
+static int init_f453av_v2(struct btweb_flavor *fla, int rev);
 static int init_interfmm(struct btweb_flavor *fla, int rev);
 static int init_h4684ip(struct btweb_flavor *fla, int rev); 
 static int init_h4684ip_8(struct btweb_flavor *fla, int rev);
@@ -142,7 +149,7 @@ struct btweb_gpio {
 /* Generic settings for the various implementations */
 static struct btweb_flavor fltab[] __initdata = {
 	{0x0,0x0, BTWEB_F453,      "F453",      64, 400, NULL,  NULL},
-	{0x1,0x1, BTWEB_F453AV,    "F453AV",    64, 400, &feat, &init_f453av_346890},
+	{0x1,0x1, BTWEB_F453AV,    "F453AV",    64, 400, &feat, &init_f453av_v2},
 	{0x2,0x2, BTWEB_2F,	   "2F",        64, 400, &feat, &init_f453av_346890},
 	{0x3,0x3, BTWEB_PBX288exp, "PBX288EXP", 64, 400, &feat, &init_pbx288exp},
 	{0x4,0x4, BTWEB_PBX288,    "PBX288",    64, 400, NULL,  NULL},
@@ -726,6 +733,48 @@ static int init_f453av_346890(struct btweb_flavor *fla, int rev) {
 	return 0;
 
 }
+
+static int init_f453av_v2(struct btweb_flavor *fla, int rev) {
+
+        printk("Customizing %s, revision is %d\n",fla->name,rev);
+
+        btweb_features.tvia_reset = 45;
+        btweb_features.eth_reset = 3;
+        btweb_features.eth_irq = 22;
+        btweb_features.e2_wp = 10;
+        btweb_features.rtc_irq = 8;
+        btweb_features.led = 40;
+        btweb_features.usb_irq = 21;
+        btweb_features.pic_reset = 44;
+        btweb_features.mdcnfg = 0x19C9;
+        btweb_features.ctrl_video = 1;
+        btweb_features.virt_conf = 2;
+        btweb_features.abil_mod_video = 35;
+        btweb_features.abil_dem_video = 16;
+        btweb_features.abil_mod_hifi = 41;
+        btweb_features.abil_dem_hifi = 12;
+        btweb_features.abil_fon = 54;
+        btweb_features.cf_irq = 11;
+        btweb_features.usb_soft_enum_n = 27;
+        btweb_features.usb_pxa_slave_connected = 0;
+
+        /* setting fixed ramdisk_size */
+        rd_size_btweb = BTWEB_F453AV_V2_RAMDISK_KB;
+        printk("Preparing ramdisk fix size: %dKb\n",rd_size_btweb );
+
+        init_start_btweb = INITRD_F453AV_START;
+        init_size_btweb = INITRD_F453AV_SIZE;
+        printk("Preparing initrd fixed size and start\n");
+
+        /* This enables the STUART for Pic Antintrusione*/
+        CKEN |= CKEN5_STUART;
+        set_GPIO_mode(GPIO46_STRXD_MD);
+        set_GPIO_mode(GPIO47_STTXD_MD);
+
+        return 0;
+
+}
+
 static int init_interfmm(struct btweb_flavor *fla, int rev) {
 
 	printk("Customizing %s, revision is %d\n",fla->name,rev);

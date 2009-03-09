@@ -58,6 +58,8 @@ extern int _stext, _text, _etext, _edata, _end;
 #ifdef CONFIG_XIP_KERNEL
 extern int _endtext, _sdata;
 #endif
+extern int init_start_btweb; /* initrd start */
+extern int init_size_btweb; /* initrd size */
 
 
 unsigned int processor_id;
@@ -287,7 +289,8 @@ static void __init
 parse_cmdline(struct meminfo *mi, char **cmdline_p, char *from)
 {
 	char c = ' ', *to = command_line;
-	int usermem = 0, len = 0;
+	int usermem = 0, len = 0; 
+        int initrd_found = 0;
 
 	for (;;) {
 		if (c == ' ' && !memcmp(from, "mem=", 4)) {
@@ -330,6 +333,7 @@ parse_cmdline(struct meminfo *mi, char **cmdline_p, char *from)
 
 				phys_initrd_start = start;
 				phys_initrd_size = size;
+                                initrd_found = 1;
 
 				printk("phys_initrd_start=%x,phys_initrd_size=%x\n",phys_initrd_start,phys_initrd_size); /* !!!raf */
 			}
@@ -341,6 +345,13 @@ parse_cmdline(struct meminfo *mi, char **cmdline_p, char *from)
 			break;
 		*to++ = c;
 	}
+
+        if (init_start_btweb && init_size_btweb){
+            phys_initrd_start = init_start_btweb;
+            phys_initrd_size = init_size_btweb;
+            printk("Setting initrd start and size");
+        }
+
 	*to = '\0';
 	*cmdline_p = command_line;
 }
