@@ -339,6 +339,60 @@ static struct mtd_partition btweb_partitions_mh500[] = {
 };
 ////
 
+// btweb custom partitions for OMIZZY
+static struct mtd_partition btweb_partitions_lgr03617[] = {
+        {
+                name:           "Bootloader",   /* mtd0 */
+                size:           0x00040000,
+                offset:         0,
+        },{
+                name:           "conf",
+                size:           0x00060000,     /* mtd1 */
+                offset:         0x00040000,
+        },{
+                name:           "conf_copy",    /* mtd2 */
+                size:           0x00060000,
+                offset:         0x000a0000,
+        },{
+                name:           "Kernel",       /* mtd3 */
+                size:           0x00100000,
+                offset:         0x00100000,
+        },{
+                name:           "btweb_only",   /* mtd4 */
+                size:           0x00600000,
+                offset:         0x00200000,
+        },{
+                name:           "btweb_app",    /* mtd5 */
+                size:           0x001c0000,
+                offset:         0x00800000
+        },{
+                name:           "btweb_app_copy",       /* mtd6 */
+                size:           0x00020000,
+                offset:         0x00A20000
+        },{
+                name:           "u-boot-env",   /* mtd7 */
+                size:           0x00020000,
+                offset:         0x00fc0000
+        },{
+                name:           "u-boot-env-maybe",     /* mtd8 */
+                size:           0x00020000,
+                offset:         0x00fe0000
+        },{
+                name:           "zImage1",      /* mtd9 */
+                size:           0x00100000,
+                offset:         0x009e0000
+        },{
+                name:           "btweb_only1",  /* mtd10 */
+                size:           0x00400000,
+                offset:         0x00ae0000,
+        },{
+                name:           "extra",        /* mtd11 */
+                size:           0x00140000,
+                offset:         0x00ee0000
+        }
+};
+////
+
 static struct mtd_partition btweb_custom_1[] = {
 	{
 		name:		"Bootloader", 		/* mtd0 */
@@ -443,7 +497,10 @@ static int __init init_btweb(void)
 		printk(KERN_NOTICE "btweb_custom_1 flash partition\n");
 		parts = btweb_custom_1;
 		nb_parts = NB_OF(btweb_custom_1);
-
+        } else if (btweb_globals.flavor==BTWEB_LGR03617) {
+                printk(KERN_NOTICE "Mtd BTWEB partitions for OMIZZY\n");
+                parts = btweb_partitions_lgr03617;
+                nb_parts = NB_OF(btweb_partitions_lgr03617);
 	} else {
 		printk(KERN_NOTICE "Mtd BTWEB partitions\n");
 		parts = btweb_partitions;

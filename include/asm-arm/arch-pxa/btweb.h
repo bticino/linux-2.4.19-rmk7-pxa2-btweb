@@ -162,6 +162,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_MH200	0xb
 #define BTWEB_F452	0xb
 #define BTWEB_MEGATICKER	0xc
+#define BTWEB_LGR03617  0xd
 
 /*
  * Sysctl numbers (under /proc/sys/dev/)
