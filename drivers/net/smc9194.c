@@ -1494,7 +1494,6 @@ void smc9194_Phy_CheckLink(struct net_device *dev)
 	//saved_bank = smc_inw(ioaddr, BANK_SELECT);
 	//SMC_SELECT_BANK(0);
 	//status = smc_inw(ioaddr, EPH_STATUS);
-
 	LinkPollingTimer.expires=jiffies+HZ;
 	add_timer(&LinkPollingTimer);
 	if ((dev->owner) && (change)) {
