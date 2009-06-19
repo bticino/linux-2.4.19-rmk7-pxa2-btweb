@@ -88,6 +88,8 @@ static const char version[] =
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
+#include <linux/timer.h>
+
 #include <asm/bitops.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -97,6 +99,9 @@ static const char version[] =
 #ifdef CONFIG_ARCH_SA1100
 #include <asm/arch/assabet.h>
 #endif
+
+struct timer_list LinkPollingTimer;
+
 
 #include "smc9194.h"
 /*------------------------------------------------------------------------
@@ -170,6 +175,7 @@ static unsigned int smc_portlist[] __initdata = {
  .
  -------------------------------------------------------------------------*/
 #define CARDNAME "SMC9194"
+#define LINK_OFF (0x00UL)
 
 static const char *chip_ids[15] = { 
 	NULL,
@@ -600,7 +606,7 @@ static void smc_reset(struct net_device *dev)
 	   release successfully transmitted packets, to make the best
 	   use out of our limited memory */
 	SMC_SELECT_BANK(1);
-	smc_outw(smc_inw(ioaddr, CONTROL) | CTL_AUTO_RELEASE, ioaddr, CONTROL);
+	smc_outw(smc_inw(ioaddr, CONTROL) | CTL_AUTO_RELEASE | CTL_LE_ENABLE, ioaddr, CONTROL);
 
 	/* Reset the MMU */
 	SMC_SELECT_BANK(2);
@@ -1478,6 +1484,30 @@ static void smc_set_port(struct net_device *dev)
 	smc_outw(val, ioaddr, TCR);
 }
 
+static int link_status=0;
+static int change=0;
+
+void smc9194_Phy_CheckLink(struct net_device *dev)
+{
+	//struct smc_local *smc = dev->priv;
+	//u_int ioaddr = dev->base_addr;
+	//word saved_bank;
+	//saved_bank = smc_inw(ioaddr, BANK_SELECT);
+	//SMC_SELECT_BANK(0);
+	//status = smc_inw(ioaddr, EPH_STATUS);
+
+	LinkPollingTimer.expires=jiffies+HZ;
+	add_timer(&LinkPollingTimer);
+	if ((dev->owner) && (change)) {
+		change=0;
+		if (kill_proc(dev->owner, SIGUSR2, 1) == -ESRCH) {
+			dev->owner = 0;
+		}
+	}
+	btweb_globals.eth_link_status=link_status;
+	//SMC_SELECT_BANK(saved_bank);
+}
+
 /*
  * Open and Initialize the board
  *
@@ -1522,8 +1552,22 @@ static int smc_open(struct net_device *dev)
 		address |= dev->dev_addr[i];
 		smc_outw(address, ioaddr, ADDR0 + i);
 	}
-	
+
 	netif_start_queue(dev);
+	/* start the polling timer for link check */
+	btweb_globals.eth_link_status=-1;
+	word eph_status;
+	SMC_SELECT_BANK(0);
+	eph_status = smc_inw(ioaddr, EPH_STATUS);
+	if (eph_status & ES_LINK_OK)  
+	link_status=1;
+	btweb_globals.eth_link_status=link_status;
+	init_timer(&LinkPollingTimer);
+	LinkPollingTimer.function=smc9194_Phy_CheckLink;
+	LinkPollingTimer.data=(struct net_device *) dev;
+	LinkPollingTimer.expires=jiffies+5*HZ;
+        add_timer(&LinkPollingTimer);
+	
 	return 0;
 }
 
@@ -1548,6 +1592,19 @@ static int smc_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	u32 etcmd;
 	int ret = -EINVAL;
 
+	switch (cmd) {
+	case SIOCDEVPRIVATE+3: {
+		printk("SIOCDEVPRIVATE+3\n");
+		dev->owner = current->pid;
+		return 0;
+	}
+	case SIOCDEVPRIVATE+4: {
+		printk("SIOCDEVPRIVATE+4\n");
+		dev->owner = 0;
+		return 0;
+	}
+	}
+	
 	if (cmd != SIOCETHTOOL)
 		return -EOPNOTSUPP;
 
@@ -1616,8 +1673,8 @@ static int smc_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				? -EFAULT : 0;
 		break;
 	}
-	}
 
+	}
 	return ret;
 }
 
@@ -1641,6 +1698,8 @@ static void smc_timeout(struct net_device *dev)
 	((struct smc_local *)dev->priv)->saved_skb = NULL;
 	netif_wake_queue(dev);
 }
+
+
 
 /*--------------------------------------------------------------------
  .
@@ -1668,6 +1727,8 @@ static void smc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 	/* state registers */
 	word	saved_bank;
 	word	saved_pointer;
+
+	word eph_status;
 
 
 
@@ -1747,12 +1808,35 @@ static void smc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 			lp->stats.rx_fifo_errors++;
 			smc_outb(IM_RX_OVRN_INT, ioaddr, INTERRUPT);
 		} else if (status & IM_EPH_INT) {
-			PRINTK(("%s: UNSUPPORTED: EPH INTERRUPT\n",
-				dev->name));
+
+			SMC_SELECT_BANK(0);
+			eph_status = smc_inw(ioaddr, EPH_STATUS);
+			//printk("interrupt: EPH_STATUS=%x \n",eph_status);
+			//eph_status = smc_inw(ioaddr, ES_LINK_OK);
+			//printk("interrupt: ES_LINK_OK=%x \n",eph_status);
+			if (eph_status & ES_LINK_OK) {  
+				link_status=1;
+				change=1;
+			} else {
+				link_status=0;
+				change=1;
+			}
+		
+			SMC_SELECT_BANK(1);
+			//printk("interrupt: CONTROL=%x \n",smc_inw(ioaddr, CONTROL));
+			smc_outw(smc_inw(ioaddr, CONTROL) & (~CTL_LE_ENABLE), ioaddr, CONTROL);
+			//printk("interrupt: CONTROL=%x \n",smc_inw(ioaddr, CONTROL));
+
+			SMC_SELECT_BANK(1);
+			smc_outw(smc_inw(ioaddr, CONTROL) | (CTL_LE_ENABLE), ioaddr, CONTROL);
+			//printk("interrupt: CONTROL=%x \n",smc_inw(ioaddr, CONTROL));
+
+			SMC_SELECT_BANK(2);
+			smc_outb(IM_EPH_INT, ioaddr, INTERRUPT);
+
 		} else if (status & IM_ERCV_INT) {
 			PRINTK(("%s: UNSUPPORTED: ERCV INTERRUPT\n",
 				dev->name));
-			smc_outb(IM_ERCV_INT, ioaddr, INTERRUPT);
 		}
 	} while (timeout --);
 
