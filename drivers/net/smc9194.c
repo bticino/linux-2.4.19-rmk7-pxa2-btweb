@@ -175,7 +175,6 @@ static unsigned int smc_portlist[] __initdata = {
  .
  -------------------------------------------------------------------------*/
 #define CARDNAME "SMC9194"
-#define LINK_OFF (0x00UL)
 
 static const char *chip_ids[15] = { 
 	NULL,
