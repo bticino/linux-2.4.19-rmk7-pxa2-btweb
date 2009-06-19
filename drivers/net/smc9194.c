@@ -1565,7 +1565,7 @@ static int smc_open(struct net_device *dev)
 	LinkPollingTimer.function=smc9194_Phy_CheckLink;
 	LinkPollingTimer.data=(struct net_device *) dev;
 	LinkPollingTimer.expires=jiffies+5*HZ;
-        add_timer(&LinkPollingTimer);
+	add_timer(&LinkPollingTimer);
 	
 	return 0;
 }
