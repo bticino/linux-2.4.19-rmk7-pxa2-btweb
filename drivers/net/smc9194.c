@@ -102,8 +102,9 @@ static const char version[] =
 
 struct timer_list LinkPollingTimer;
 
-
 #include "smc9194.h"
+
+BOOLEAN StopLinkPolling;
 /*------------------------------------------------------------------------
  .
  . Configuration options, for the experienced user to change.
@@ -1494,8 +1495,11 @@ void smc9194_Phy_CheckLink(struct net_device *dev)
 	//saved_bank = smc_inw(ioaddr, BANK_SELECT);
 	//SMC_SELECT_BANK(0);
 	//status = smc_inw(ioaddr, EPH_STATUS);
-	LinkPollingTimer.expires=jiffies+HZ;
-	add_timer(&LinkPollingTimer);
+	if(!(StopLinkPolling)) 
+	{
+		LinkPollingTimer.expires=jiffies+HZ;
+		add_timer(&LinkPollingTimer);
+	}
 	if ((dev->owner) && (change)) {
 		change=0;
 		if (kill_proc(dev->owner, SIGUSR2, 1) == -ESRCH) {
@@ -1557,6 +1561,7 @@ static int smc_open(struct net_device *dev)
 	word eph_status;
 	SMC_SELECT_BANK(0);
 	eph_status = smc_inw(ioaddr, EPH_STATUS);
+	StopLinkPolling=FALSE;
 	if (eph_status & ES_LINK_OK)  
 	link_status=1;
 	btweb_globals.eth_link_status=link_status;
@@ -1592,12 +1597,10 @@ static int smc_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	switch (cmd) {
 	case SIOCDEVPRIVATE+3: {
-		printk("SIOCDEVPRIVATE+3\n");
 		dev->owner = current->pid;
 		return 0;
 	}
 	case SIOCDEVPRIVATE+4: {
-		printk("SIOCDEVPRIVATE+4\n");
 		dev->owner = 0;
 		return 0;
 	}
@@ -1809,9 +1812,7 @@ static void smc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 
 			SMC_SELECT_BANK(0);
 			eph_status = smc_inw(ioaddr, EPH_STATUS);
-			//printk("interrupt: EPH_STATUS=%x \n",eph_status);
 			//eph_status = smc_inw(ioaddr, ES_LINK_OK);
-			//printk("interrupt: ES_LINK_OK=%x \n",eph_status);
 			if (eph_status & ES_LINK_OK) {  
 				link_status=1;
 				change=1;
@@ -1821,13 +1822,10 @@ static void smc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 			}
 		
 			SMC_SELECT_BANK(1);
-			//printk("interrupt: CONTROL=%x \n",smc_inw(ioaddr, CONTROL));
 			smc_outw(smc_inw(ioaddr, CONTROL) & (~CTL_LE_ENABLE), ioaddr, CONTROL);
-			//printk("interrupt: CONTROL=%x \n",smc_inw(ioaddr, CONTROL));
 
 			SMC_SELECT_BANK(1);
 			smc_outw(smc_inw(ioaddr, CONTROL) | (CTL_LE_ENABLE), ioaddr, CONTROL);
-			//printk("interrupt: CONTROL=%x \n",smc_inw(ioaddr, CONTROL));
 
 			SMC_SELECT_BANK(2);
 			smc_outb(IM_EPH_INT, ioaddr, INTERRUPT);
@@ -2039,11 +2037,17 @@ static void smc_tx(struct net_device * dev)
 static int smc_close(struct net_device *dev)
 {
 	netif_stop_queue(dev);
+
+        StopLinkPolling=TRUE;
+        del_timer_sync(&LinkPollingTimer);
+        dev->owner = 0;
+
 	/* clear everything */
 	smc_shutdown(dev);
 
 	/* Update the statistics here. */
 	return 0;
+
 }
 
 /*------------------------------------------------------------

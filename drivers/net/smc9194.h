@@ -30,7 +30,10 @@
 typedef unsigned char			byte;
 typedef unsigned short			word;
 typedef unsigned long int 		dword;
+typedef unsigned char 			BOOLEAN;
 
+#define TRUE    ((BOOLEAN)1)
+#define FALSE   ((BOOLEAN)0)
 
 /* Because of bank switching, the SMC91xxx uses only 16 I/O ports */
 
