@@ -146,7 +146,7 @@ extern void btweb_backlight(int onoff);
 /* All different */
 #define BTWEB_UNKNOWN	-2
 #define BTWEB_ANY	-1
-#define BTWEB_F453	0x0
+#define BTWEB_F453	0xe
 #define BTWEB_F453AV  	0x1
 #define BTWEB_F453AVA   0x1 /* master type "A", prototypes */
 #define BTWEB_2F	0x2
@@ -160,7 +160,6 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_INTERFMM	0xa
 #define BTWEB_BMNE500	0xb
 #define BTWEB_MH200	0xb
-#define BTWEB_F452	0xb
 #define BTWEB_MEGATICKER	0xc
 #define BTWEB_LGR03617  0xd
 

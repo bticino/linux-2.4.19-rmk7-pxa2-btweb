@@ -29,12 +29,12 @@ H4684/IP/8    0     1     0     0      0        64   400  // 0x3
 CDP/HW        0     1     0     0      1        64   400  // 0x3
 INTERFMM      0     1     0     1      0        64   400  // 0x3
 BMNE500
-F452
+F453
 MH200         0     1     0     1      1        64   400  // 0x3
 MEGATICKER    0     1     1     0      0        64   400  // 0x3
 
 OLD
-F452/MH200   0     0     1     x      x      64     // 0x4-0x7
+F453/MH200   0     0     1     x      x      64     // 0x4-0x7
 H4684        0     1     0     0      0      64   200  // 0x8
 PE-monob     0     1     0     0      1      32   200  // 0x9
 F453AV-proto 0     1     1     1      1      64   400  // 0xf
@@ -160,12 +160,12 @@ static struct btweb_flavor fltab[] __initdata = {
         {0x9,0x9, BTWEB_CDP_HW,    "CDP_HW",    64, 400, NULL,  NULL},
         {0xa,0xa, BTWEB_INTERFMM,  "INTERFMM",  64, 400, &feat, &init_interfmm},
         {0xb,0xb, BTWEB_BMNE500,   "BMNE500",   64, 200, &feat, &init_pxa255_gw},
-        {0xb,0xb, BTWEB_F452,      "F452",      64, 200, &feat, &init_pxa255_gw},
+        {0xe,0xe, BTWEB_F453,      "F453",      64, 200, &feat, &init_pxa255_gw},
         {0xb,0xb, BTWEB_MH200,     "MH200",     64, 200, &feat, &init_pxa255_gw},
         {0xc,0xc, BTWEB_MEGATICKER,"MEGATICKER",64, 400, &feat, &init_megaticker},
         {0xd,0xd, BTWEB_LGR03617,  "OMIZZY",    64, 200, &feat, &init_pxa255_gw},
 #if 0  /* Old Rubini */
-        {0x4,0x7, BTWEB_F452,   "F452",   64, 400, &feat_f452,   NULL},
+        {0x4,0x7, BTWEB_F453,   "F453",   64, 400, &feat_f452,   NULL},
         {0x8,0x8, BTWEB_H4684,  "H4684",  64, 400, &feat_h4684,  NULL},
         {0x9,0x9, BTWEB_PE_M,   "PE-M",   32, 400, NULL,         NULL},
 #endif
@@ -352,7 +352,7 @@ struct btweb_gpio gpios[] __initdata = {
                 }
         },
         {
-                .id = BTWEB_F452,
+                .id = BTWEB_F453,
                 .gpdr = { 0xF85B9C3D,0xFCFFBBF3,0x0001FFFF},
                 .gpsr = { 0x00028000,0x03FF8A80,0x0000C040},
                 .gpcr = { ~(0x00028000),~(0x03FF8A80) ,~(0x0000C040) },
@@ -464,9 +464,9 @@ int __init btweb_find_device(int *memsize)
 		printk(KERN_INFO "BMNE500 detected from cmdline: id forced to 0x%x\n",BTWEB_BMNE500);
 		id = BTWEB_BMNE500;
 	} else if ((*ram_iopage=='F')&&(*(ram_iopage+1)=='4')&&(*(ram_iopage+2)=='5')&& \
-		(*(ram_iopage+3)=='2'))  {
-		printk(KERN_INFO "F452 detected from cmdline: id forced to 0x%x\n",BTWEB_F452);
-		id = BTWEB_F452;
+		(*(ram_iopage+3)=='3'))  {
+		printk(KERN_INFO "F453 detected from cmdline: id forced to 0x%x\n",BTWEB_F453);
+		id = BTWEB_F453;
 	} else if ((*ram_iopage=='M')&&(*(ram_iopage+1)=='H')&&(*(ram_iopage+2)=='2')&& \
 		(*(ram_iopage+3)=='0'))  {
 		printk(KERN_INFO "MH200 detected from cmdline: id forced to 0x%x\n",BTWEB_MH200);
@@ -516,10 +516,10 @@ int __init btweb_find_device(int *memsize)
 	       btweb_globals.name, btweb_globals.hw_version);
 
 	if (((btweb_globals.flavor!=BTWEB_BMNE500) ||  \
-	    (btweb_globals.flavor!=BTWEB_F452) ||     \
-	    (btweb_globals.flavor!=BTWEB_MH200)) &&   \
-            (btweb_globals.flavor!=BTWEB_LGR03617))
-        {
+		(btweb_globals.flavor!=BTWEB_MH200)) &&   \
+		(btweb_globals.flavor!=BTWEB_LGR03617) &&
+		(btweb_globals.flavor!=BTWEB_F453))
+		{
 
 	/* setup GPIO */
 	for (gptr = gpios; gptr->id != id && gptr->id != BTWEB_ANY; gptr++)
@@ -561,7 +561,7 @@ int __init btweb_find_device(int *memsize)
 			/* no output */ : "r" (2) : "memory");
 	}	
 	} else {
-		printk(KERN_ALERT "F452 or MH200 or BMNE500 or LGR03617: not fixing GPIO\n");
+		printk(KERN_ALERT "F453 or MH200 or BMNE500 or LGR03617: not fixing GPIO\n");
 	}
 
 	/* set up features */
