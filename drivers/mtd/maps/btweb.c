@@ -160,6 +160,71 @@ static struct mtd_partition btweb_partitions[] = {
 
 };
 
+
+static struct mtd_partition btweb_partitions_2F[] = {
+        {
+                name:           "Bootloader",   /* mtd0 */
+                size:           0x00040000,
+                offset:         0,
+        },{
+                name:           "conf",
+                size:           0x00060000,     /* mtd1 */
+                offset:         0x00040000,
+        },{
+                name:           "conf_copy",    /* mtd2 */
+                size:           0x00060000,
+                offset:         0x000a0000,
+        },{
+                name:           "Kernel",       /* mtd3 */
+                size:           0x00120000,
+                offset:         0x00100000,
+        },{
+                name:           "btweb_only",   /* mtd4 */
+                size:           0x008a0000,
+                offset:         0x00220000,
+        },{
+                name:           "btweb_app",    /* mtd5 */
+                size:           0x004e0000,
+                offset:         0x00ac0000
+        },{
+                name:           "btweb_app_copy",       /* mtd6 */
+                size:           0x00020000,
+                offset:         0x00fa0000
+        },{
+                name:           "u-boot-env",   /* mtd7 */
+                size:           0x00020000,
+                offset:         0x00fc0000
+        },{
+                name:           "u-boot-env-maybe",     /* mtd8 */
+                size:           0x00020000,
+                offset:         0x00fe0000
+#ifdef BTWEB_FLASH_32M
+        },{
+                name:           "zImage1",      /* mtd9 */
+                size:           0x00120000,
+                offset:         0x01000000
+        },{
+                name:           "btweb_only1",  /* mtd10 */
+                size:           0x008a0000,
+                offset:         0x01120000,
+        },{
+                name:           "extra",        /* mtd11 */
+                size:           0x00640000,
+                offset:         0x019c0000
+
+        }
+#else
+        },{
+                name:           "extra",        /* mtd9 */
+                size:           0x00020000,
+                offset:         0x00fc0000
+
+        }
+#endif
+
+};
+
+
 static struct mtd_partition btweb_extra_partitions[] = {
 	{
 		name:		"Bootloader", 		/* mtd0 */
@@ -557,7 +622,11 @@ static int __init init_btweb(void)
                 printk(KERN_NOTICE "Mtd BTWEB partitions for OMIZZY\n");
                 parts = btweb_partitions_lgr03617;
                 nb_parts = NB_OF(btweb_partitions_lgr03617);
-	} else {
+	} else if (btweb_globals.flavor==BTWEB_2F) {
+                printk(KERN_NOTICE "Mtd BTWEB partitions for INTERF2FIP\n");
+                parts = btweb_partitions_2F;
+                nb_parts = NB_OF(btweb_partitions_2F);
+        } else {
 		printk(KERN_NOTICE "Mtd BTWEB partitions\n");
 		parts = btweb_partitions;
 		nb_parts = NB_OF(btweb_partitions);
