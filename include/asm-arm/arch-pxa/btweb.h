@@ -160,6 +160,7 @@ extern void btweb_backlight(int onoff);
 #define BTWEB_INTERFMM	0xa
 #define BTWEB_BMNE500	0xb
 #define BTWEB_MH200	0xb
+#define BTWEB_MH200N	0xf
 #define BTWEB_MEGATICKER	0xc
 #define BTWEB_LGR03617  0xd
 
