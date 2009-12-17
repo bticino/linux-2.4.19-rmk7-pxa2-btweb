@@ -3,6 +3,26 @@ Istruction to create BTWEB kernel :
 export CROSS_COMPILE=/opt/snapgear-toolchain/bin/arm-linux-
 export ARCH=arm
 cp config_BTWEB .config
-make CROSS_COMPILE=$CROSS_COMPILE ARCH=$ARCH oldconfig dep zImage modules
-make INSTALL_MOD_PATH=/where-you-want-modules modules_install
+sudoenv make CROSS_COMPILE=$CROSS_COMPILE ARCH=$ARCH oldconfig dep zImage modules
+sudoenv make INSTALL_MOD_PATH=/where-you-want-modules modules_install
+
+Where:
+
+ For Ubuntu 8.04, if you use sudo to compile, please remember
+ that environment will be not save for the compilation, so
+ use "sudo env" followed by the command.
+ "sudoenv" is better anyway.
+ The "sudoenv" script is made by the following 4 lines.
+
+#!/bin/bash
+# the env command doesn't spit quotes for variable with blanks. Fix it
+E=$(env | grep -v _= | sed -e 's/=/="/' -e 's/$/"/' | tr '\n' ' ')
+sudo sh -c "$E $*"
+
+than 
+
+chmod +x sudoenv 
+sudo cp sudoenv /usr/local/bin/sudoenv
+
+
 
