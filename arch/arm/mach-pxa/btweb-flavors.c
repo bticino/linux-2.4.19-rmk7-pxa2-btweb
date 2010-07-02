@@ -745,7 +745,8 @@ static int init_f453av_346890(struct btweb_flavor *fla, int rev) {
 	printk("Customizing %s, revision is %d\n",fla->name,rev);
 
         btweb_features.tvia_reset = 45;
-        btweb_features.eth_reset = 3;
+        //soft reset not managed in this platform
+        //btweb_features.eth_reset = 3;
         btweb_features.eth_irq = 22;
         btweb_features.e2_wp = 10;
         btweb_features.rtc_irq = 8;
@@ -779,7 +780,8 @@ static int init_f453av_v2(struct btweb_flavor *fla, int rev) {
         printk("Customizing %s, revision is %d\n",fla->name,rev);
 
         btweb_features.tvia_reset = 45;
-        btweb_features.eth_reset = 3;
+        //soft reset not managed in this platform
+        //btweb_features.eth_reset = 3;
         btweb_features.eth_irq = 22;
         btweb_features.e2_wp = 10;
         btweb_features.rtc_irq = 8;

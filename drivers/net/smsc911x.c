@@ -1096,7 +1096,8 @@ static int Smsc911x_open(struct net_device *dev)
 	acquired_mem_region=TRUE;
 
 	//chip out of reset	
-        GPSR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
+	if (btweb_features.eth_reset != -1)
+		GPSR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
 
 	//initialize the LAN911x
 	{
@@ -1350,7 +1351,8 @@ static int Smsc911x_stop(struct net_device *dev)
 	}
 
 	//chip in reset	
-        GPCR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
+	if (btweb_features.eth_reset != -1)
+		GPCR(btweb_features.eth_reset) = GPIO_bit(btweb_features.eth_reset);
 
 DONE:
 	SMSC_TRACE("<--Smsc911x_stop, result=%d",result);
