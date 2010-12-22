@@ -666,6 +666,10 @@ static int __init init_btweb(void)
 		printk(KERN_NOTICE "Mtd BTWEB partitions for F453 \n");
 		parts = btweb_partitions_f453;
 		nb_parts = NB_OF(btweb_partitions_f453);
+		} else if (btweb_globals.flavor==BTWEB_F453AV) {
+		printk(KERN_NOTICE "Mtd BTWEB partitions for F453AV \n");
+		parts = btweb_partitions_2F;
+		nb_parts = NB_OF(btweb_partitions_2F);
 	} else if (bt_mtd==1) {
 		printk(KERN_NOTICE "btweb_custom_1 flash partition\n");
 		parts = btweb_custom_1;
